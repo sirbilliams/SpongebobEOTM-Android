@@ -1,4 +1,4 @@
-# Jimmy Neutron vs. Jimmy Negatron — OMT engine port (SDL2, 64-bit)
+# OMT engine port (SDL2, 64-bit): the base of the SpongeBob EOTM port
 
 The PC game runs on the **Open Media Toolkit (OMT) 2.5**, which is LGPL. This tree is OMT ported
 off Windows/DirectX onto **SDL2 + OpenGL**, made 64-bit clean, plus a viewer that loads the

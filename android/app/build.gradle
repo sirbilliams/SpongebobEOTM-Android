@@ -4,16 +4,16 @@ apply plugin: 'com.android.application'
 def ndkVer = project.hasProperty('ndkVersion') ? project.property('ndkVersion') : '26.3.11579264'
 
 android {
-    namespace 'com.sirbilliams.negatron'
+    namespace 'com.sirbilliams.spongebob'
     compileSdkVersion 34
     ndkVersion ndkVer
 
     defaultConfig {
-        applicationId 'com.sirbilliams.negatron'     // unchanged since the viewer: updates install over it
+        applicationId 'com.sirbilliams.spongebob'    // installs next to the Jimmy ports
         minSdkVersion 24
         targetSdkVersion 34
-        versionCode 100
-        versionName '1.0'
+        versionCode 1
+        versionName '0.1'
         externalNativeBuild {
             cmake {
                 arguments '-DANDROID_STL=c++_static', '-DANDROID_PLATFORM=android-24'
@@ -22,6 +22,7 @@ android {
         }
     }
 
+    // (the secrets keep their NEG_ names, from the repo this was seeded from; the key's alias is 'negatron')
     // A stable signing key, so each new APK installs over the last one (keeping the game and saves):
     // CI sets NEG_KEYSTORE (+ NEG_KEYSTORE_PASSWORD, NEG_KEY_ALIAS, NEG_KEY_PASSWORD) from the repo
     // secrets (.github/workflows/android.yml). Without it the build uses the SDK debug key, which

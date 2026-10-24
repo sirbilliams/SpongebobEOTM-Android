@@ -1,9 +1,10 @@
-package com.sirbilliams.negatron;
+package com.sirbilliams.spongebob;
 
 /**
- * Installs the game files from the game's CD image (.iso), as the CD's setup program does:
+ * Installs the game files from the game's CD image (.iso), as the CD's setup program does,
+ * plus the movies and help.omt the game reads from the CD:
  * finds the InstallShield cabinet on the disc and unpacks the game folder (libimporter.so,
- * engine/importer/NegImport.c).
+ * engine/importer/SbImport.c).
  */
 final class GameImporter {
     static { System.loadLibrary("importer"); }

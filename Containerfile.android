@@ -1,4 +1,4 @@
-# Android build environment for Negatron (same SDK/NDK versions as the GitHub workflow).
+# Android build environment for SpongeBob EOTM (same SDK/NDK versions as the GitHub workflow).
 FROM docker.io/library/ubuntu:24.04
 
 RUN apt-get update && \

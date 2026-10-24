@@ -21,7 +21,7 @@
         android:appCategory="game"
         android:isGame="true">
 
-        <!-- First screen: checks / imports the game files, then starts the engine -->
+        <!-- First screen: installs the game from the CD image, the launcher (Play / Test) -->
         <activity android:name=".SetupActivity"
             android:label="@string/app_name"
             android:theme="@android:style/Theme.DeviceDefault.NoActionBar.Fullscreen"
@@ -34,7 +34,7 @@
         </activity>
 
         <!-- The game runs in its own process, ended when the game quits (back to the launcher) -->
-        <activity android:name=".NegatronActivity"
+        <activity android:name=".SpongeActivity"
             android:process=":game"
             android:label="@string/app_name"
             android:alwaysRetainTaskState="true"
