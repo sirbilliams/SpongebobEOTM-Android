@@ -20,6 +20,10 @@ from the code that loads the files; nothing from the files themselves is stored 
 
 Several paths start with `%s` = the CD/data root (global at 0x457314).
 
+Port install layout (the importer's output): the `Program Executable Files` group at the root, the CD's
+`Movies/*.bik` in `movies/`, the CD's `Sounds/help.omt` in `sounds/help.omt` (no name clash), and the CD
+root prefix set to the install folder (`// port:`).
+
 ## Scene ids
 
 A scene is named `cXlYsZ` (chapter, level, scene; e.g. `c1l0s1`, `c1l2s6p1`). The name is parsed

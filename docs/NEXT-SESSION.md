@@ -7,7 +7,12 @@
   and the percentage scale (`docs/PLAN.md`). **Percent to goal: 5%.**
 - Repo holds docs and `tools/decomp` only; no code builds yet, so nothing is on `main`.
   Work is backed up on branch `backup/lead`.
-- Waiting for Bill's go before starting agents (round 1 lanes A/B/C in `docs/PLAN.md`).
+- Round 1 started (Bill's go, Oct 24 02:07). Seed commit 131e21a (`backup/seed`): the neutron2-android tree
+  without Negatron's game/src. Worktrees `/home/claude/wt/{a,b,c}`, game copies `/home/claude/game-{a,b,c}`,
+  branches `backup/agent-{a,b,c}`: A engine layer (Opus), B Bink/FFmpeg + 7 Granny functions (Sonnet),
+  C app id/naming, importer, placeholder game target, crash log, CI (Sonnet).
+- Desktop deps built from source: SDL2 2.32.10 in /opt/sdl2 (`-DCMAKE_PREFIX_PATH=/opt/sdl2`), GL headers
+  in /usr/local/include (gl4es's gl.h + Khronos glext/EGL/KHR), libGL.so/libEGL.so symlinks. No ALSA.
 
 ## Next steps
 
