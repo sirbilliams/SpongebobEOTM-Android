@@ -39,17 +39,18 @@ jobs:
           KEYSTORE_B64: ${{ secrets.NEG_KEYSTORE_B64 }}
           KEYSTORE_PASSWORD: ${{ secrets.NEG_KEYSTORE_PASSWORD }}
         run: |
+          # No secret (or an unusable one) falls back to Gradle's debug key, so CI still produces an APK.
           if [ -n "$KEYSTORE_B64" ]; then
             # Pasted secrets often carry a stray newline or space: neither value contains whitespace.
             PW=$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d ' \t\r\n')
-            printf '%s' "$KEYSTORE_B64" | tr -d ' \t\r\n' | base64 -d > "$RUNNER_TEMP/negatron.keystore"
-            if ! keytool -list -keystore "$RUNNER_TEMP/negatron.keystore" -storepass "$PW" -alias negatron > /dev/null; then
-              echo "::error::NEG_KEYSTORE_B64 / NEG_KEYSTORE_PASSWORD don't open the key: re-paste both secrets"
-              exit 1
+            printf '%s' "$KEYSTORE_B64" | tr -d ' \t\r\n' | base64 -d > "$RUNNER_TEMP/spongebob.keystore"
+            if ! keytool -list -keystore "$RUNNER_TEMP/spongebob.keystore" -storepass "$PW" -alias negatron > /dev/null; then
+              echo "::warning::NEG_KEYSTORE_B64 / NEG_KEYSTORE_PASSWORD don't open the key: signed with the debug key instead"
+            else
+              echo "NEG_KEYSTORE=$RUNNER_TEMP/spongebob.keystore" >> "$GITHUB_ENV"
+              echo "NEG_KEYSTORE_PASSWORD=$PW" >> "$GITHUB_ENV"
+              echo "stable signing key: yes"
             fi
-            echo "NEG_KEYSTORE=$RUNNER_TEMP/negatron.keystore" >> "$GITHUB_ENV"
-            echo "NEG_KEYSTORE_PASSWORD=$PW" >> "$GITHUB_ENV"
-            echo "stable signing key: yes"
           else
             echo "::warning::No NEG_KEYSTORE_B64 secret: signed with a one-off debug key (won't install over an older APK)"
           fi
@@ -63,26 +64,24 @@ jobs:
       - name: Collect APK
         run: |
           mkdir -p out
-          cp android/app/build/outputs/apk/debug/app-debug.apk out/Neutron-vs-Negatron.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk out/SpongeBob-EOTM.apk
           ls -la out
 
       - uses: actions/upload-artifact@v4
         with:
-          name: Neutron-vs-Negatron-apk
-          path: out/Neutron-vs-Negatron.apk
+          name: SpongeBob-EOTM-apk
+          path: out/SpongeBob-EOTM.apk
           if-no-files-found: error
 
       # Every push to main replaces the "latest" pre-release, so the newest APK is always at
-      # https://github.com/<owner>/<repo>/releases/download/latest/Neutron-vs-Negatron.apk
-      # It also carries the same APK under its old name, Negatron-Viewer.apk, so old links keep working.
+      # https://github.com/<owner>/<repo>/releases/download/latest/SpongeBob-EOTM.apk
       - name: Publish as the latest build
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          cp out/Neutron-vs-Negatron.apk out/Negatron-Viewer.apk
           gh release delete latest --yes --cleanup-tag || true
-          gh release create latest out/Neutron-vs-Negatron.apk out/Negatron-Viewer.apk --prerelease --target "$GITHUB_SHA" \
+          gh release create latest out/SpongeBob-EOTM.apk --prerelease --target "$GITHUB_SHA" \
             --title "Latest build ($(date -u +%Y-%m-%d) ${GITHUB_SHA::7})" \
             --notes "Built automatically from ${GITHUB_SHA::7}: $(git log -1 --format=%s)"
 
@@ -96,13 +95,13 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           awk -v h="## $TAG" '$0 == h { on = 1; next } on && /^## / { exit } on' CHANGELOG.md > notes.md
-          [ -s notes.md ] || echo "Neutron vs Negatron $TAG (no CHANGELOG.md section for this tag)" > notes.md
+          [ -s notes.md ] || echo "SpongeBob EOTM $TAG (no CHANGELOG.md section for this tag)" > notes.md
           cat notes.md
           if gh release view "$TAG" > /dev/null 2>&1; then
-            gh release upload "$TAG" out/Neutron-vs-Negatron.apk --clobber
+            gh release upload "$TAG" out/SpongeBob-EOTM.apk --clobber
           else
-            gh release create "$TAG" out/Neutron-vs-Negatron.apk --verify-tag \
-              --title "Neutron vs Negatron $TAG" --notes-file notes.md
+            gh release create "$TAG" out/SpongeBob-EOTM.apk --verify-tag \
+              --title "SpongeBob EOTM $TAG" --notes-file notes.md
           fi
 
   linux:
@@ -112,7 +111,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Dependencies
         run: sudo apt-get update && sudo apt-get install -y libsdl2-dev libgl-dev zlib1g-dev cmake
-      - name: Build engine, viewer, samples, data test
+      - name: Fetch unshield (for the importer)
+        run: bash fetch-deps.sh
+      - name: Build engine, importer, game, tools
         run: |
           cmake -S engine -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
           cmake --build build -j"$(nproc)"

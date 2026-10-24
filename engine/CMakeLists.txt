@@ -73,18 +73,18 @@ endif()
 set(UNSHIELD_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../android/app/jni/unshield" CACHE PATH "unshield source dir")
 if(EXISTS ${UNSHIELD_DIR}/lib/libunshield.h)
   file(GLOB US_SRC ${UNSHIELD_DIR}/lib/*.c)
-  add_library(negimport STATIC importer/NegImport.c ${US_SRC}
+  add_library(sbimport STATIC importer/SbImport.c ${US_SRC}
               ${UNSHIELD_DIR}/lib/convert_utf/ConvertUTF.c ${UNSHIELD_DIR}/lib/md5/md5c.c)
-  target_include_directories(negimport PUBLIC importer PRIVATE importer/config ${UNSHIELD_DIR}/lib ${UNSHIELD_DIR})
-  target_compile_options(negimport PRIVATE -w)
-  set_target_properties(negimport PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 99)
-  target_link_libraries(negimport PUBLIC ZLIB::ZLIB)
+  target_include_directories(sbimport PUBLIC importer PRIVATE importer/config ${UNSHIELD_DIR}/lib ${UNSHIELD_DIR})
+  target_compile_options(sbimport PRIVATE -w)
+  set_target_properties(sbimport PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 99)
+  target_link_libraries(sbimport PUBLIC ZLIB::ZLIB)
   if(ANDROID)
-    add_library(importer SHARED importer/NegImportJNI.c)
-    target_link_libraries(importer negimport log)
+    add_library(importer SHARED importer/SbImportJNI.c)
+    target_link_libraries(importer sbimport log)
   else()
-    add_executable(neg_import importer/neg_import_main.c)
-    target_link_libraries(neg_import negimport)
+    add_executable(sb_import importer/sb_import_main.c)
+    target_link_libraries(sb_import sbimport)
   endif()
 endif()
 
@@ -103,52 +103,30 @@ endif()
 # --------------------------------------------------------------------------- apps
 # The reconstructed game (../game/src). MSVC's char is signed and the original code relies on it,
 # so -fsigned-char (arm64's default char is unsigned).
-file(GLOB_RECURSE NEG_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/*.cpp)
-# port: the build's git commit, baked in at every build (cmake/neg_version.cmake, for the pause
-# screen's credit line in game/src/port/BillsUi.cpp)
-set(NEG_VERSION_DIR ${CMAKE_CURRENT_BINARY_DIR}/neg_version)
-add_custom_target(neg_version
-  COMMAND ${CMAKE_COMMAND} -DOUT=${NEG_VERSION_DIR}/neg_version.h -DSRC=${CMAKE_CURRENT_SOURCE_DIR}/..
-          -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/neg_version.cmake
-  BYPRODUCTS ${NEG_VERSION_DIR}/neg_version.h)
-set(NEG_FLAGS -fsigned-char -Wno-multichar -Wno-write-strings -Werror=narrowing -Wfloat-conversion -fno-strict-aliasing)
+file(GLOB_RECURSE SB_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/*.cpp)
+set(SB_FLAGS -fsigned-char -Wno-multichar -Wno-write-strings -Werror=narrowing -Wfloat-conversion -fno-strict-aliasing)
 
 if(ANDROID)
-  # SDLActivity loads libmain.so (the model viewer) or libnegatron.so (the game) and calls SDL_main
-  # (OMediaSDLMain.cpp's main); the setup screen picks which.
-  add_library(main SHARED viewer/OMTViewer.cpp ${OMT_MAIN})
-  target_link_libraries(main omt)
-  target_compile_options(main PRIVATE -w -fpermissive)
-  if(NEG_SRC)
-    add_library(negatron SHARED ${NEG_SRC} ${OMT_MAIN})
-    target_link_libraries(negatron omt granny_compat)
-    target_compile_options(negatron PRIVATE ${NEG_FLAGS})
-    target_include_directories(negatron PRIVATE ${NEG_VERSION_DIR})
-    add_dependencies(negatron neg_version)
+  # SDLActivity loads libspongebob.so (the game) and calls SDL_main (OMediaSDLMain.cpp's main).
+  if(SB_SRC)
+    add_library(spongebob SHARED ${SB_SRC} ${OMT_MAIN})
+    target_link_libraries(spongebob omt granny_compat)
+    target_compile_options(spongebob PRIVATE ${SB_FLAGS})
   endif()
 else()
   add_executable(omt_viewer viewer/OMTViewer.cpp ${OMT_MAIN})
   target_link_libraries(omt_viewer omt)
   target_compile_options(omt_viewer PRIVATE -w -fpermissive)
 
-  # HD image pack: extract the game's canvases as PNGs / install a pack (tools/hd, docs/hd-pack.md)
-  if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/../tools/hd/neg_hdtool.cpp)
-    add_executable(neg_hdtool ${CMAKE_CURRENT_SOURCE_DIR}/../tools/hd/neg_hdtool.cpp)
-    target_link_libraries(neg_hdtool omt)
-    target_compile_options(neg_hdtool PRIVATE -w -fpermissive)
-  endif()
-
   add_executable(omt_datatest tests/omt_datatest.cpp ${OMT_MAIN})
   target_link_libraries(omt_datatest omt)
   target_compile_options(omt_datatest PRIVATE -w -fpermissive)
 
   # The reconstructed game, desktop build
-  if(NEG_SRC)
-    add_executable(negatron ${NEG_SRC} ${OMT_MAIN})
-    target_link_libraries(negatron omt granny_compat)
-    target_compile_options(negatron PRIVATE ${NEG_FLAGS})
-    target_include_directories(negatron PRIVATE ${NEG_VERSION_DIR})
-    add_dependencies(negatron neg_version)
+  if(SB_SRC)
+    add_executable(spongebob ${SB_SRC} ${OMT_MAIN})
+    target_link_libraries(spongebob omt granny_compat)
+    target_compile_options(spongebob PRIVATE ${SB_FLAGS})
   endif()
 
   # Script runner for comparing granny_compat with the real granny.dll (tools/granny/verify.sh)

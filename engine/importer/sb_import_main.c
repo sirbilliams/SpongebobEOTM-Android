@@ -1,6 +1,6 @@
-/*  neg_import: install the game files from the game's CD image, as the Android app does.
-        neg_import <game.iso> <dest-folder>                                                    */
-#include "NegImport.h"
+/*  sb_import: install the game files from the game's CD image, as the Android app does.
+        sb_import <game.iso> <dest-folder>                                                    */
+#include "SbImport.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -17,12 +17,12 @@ static int progress(void *user, int stage, long long done, long long total)
 
 int main(int argc, char **argv)
 {
-	if (argc != 3) { fprintf(stderr, "usage: neg_import <game.iso> <dest-folder>\n"); return 2; }
+	if (argc != 3) { fprintf(stderr, "usage: sb_import <game.iso> <dest-folder>\n"); return 2; }
 	int fd = open(argv[1], O_RDONLY);
 	if (fd < 0) { perror(argv[1]); return 1; }
 	char tmp[1024], err[512];
 	snprintf(tmp, sizeof tmp, "%s.import-tmp", argv[2]);
-	int r = neg_import_iso(fd, argv[2], tmp, progress, NULL, err, sizeof err);
+	int r = sb_import_iso(fd, argv[2], tmp, progress, NULL, err, sizeof err);
 	close(fd);
 	rmdir(tmp);
 	if (r) { fprintf(stderr, "error: %s\n", err); return 1; }
