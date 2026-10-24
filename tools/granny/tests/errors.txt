@@ -1,0 +1,60 @@
+# error paths: bad files, stale and mismatched handles, parameter indices, lock state machine
+model BAD nosuchfile.grn
+model M jimmybase.grn
+model M2 gun.grn
+seq S M
+seq S2 M2
+seq SX BAD
+anim A jimmydance.grn
+anim AX nosuchfile.grn
+add C S A
+add CX S AX
+add CY SX A
+param C 0 1
+param C 9 1
+param C 99 1
+getparam C
+expired CX
+remove CX
+release CX
+lock L S 0x11
+left L
+lock L2 S2 0x11
+lock L3 S 0x400
+unlock L
+left L
+unlock L
+lock L4 S 0x3f
+left L4
+unlock L4
+texleft
+textures 5
+texleft
+boneindex S2 Bip01
+boneindex SX Bip01
+attach S2 0 S Bip01~R~Hand
+attach S 0 S2 #0
+attach S2 0 S2 #0
+detach S
+detach S2
+detach S2
+release C
+param C 2 1
+getparam C
+remove C
+add C2 S A
+remove C2
+remove C2
+closeanim A
+add C3 S A
+closeseq S
+render S 0x11
+closeseq S
+seq S3 M
+closemodel M
+seq S4 M
+render S3 0x11
+closemodel M
+close
+advance 0.1
+model M5 gun.grn

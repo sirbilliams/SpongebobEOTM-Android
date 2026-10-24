@@ -1,0 +1,28 @@
+# animations played on models they were not made for (granny binds tracks to bones by name)
+model H hermanbase.grn
+seq HS H
+anim JW jimmywalk.grn
+add C1 HS JW
+param C1 3 9999
+model N nummeyflyerbase.grn
+seq NS N
+anim NR nummeyrun.grn
+add C2 NS NR
+param C2 3 9999
+model J jimmybase.grn
+seq JS J
+anim GB gunbones.grn
+anim HW hermanwalk.grn
+add C3 JS GB
+add C4 JS HW
+param C4 3 9999
+param C4 4 0.5
+advancen 5 0.033333
+render HS 0x11
+render NS 0x11
+render JS 0x11
+advancen 40 0.033333
+render HS 0x11
+render NS 0x11
+render JS 0x11
+bones JS

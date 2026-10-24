@@ -1,0 +1,20 @@
+# attach, detach, re-attach a prop to a moving bone
+model M jimmybase.grn
+seq S M
+anim A jimmydance.grn
+add C S A
+model G gun.grn
+seq GS G
+advance 0.1
+attach GS 0 S Bip01~R~Hand
+advance 0.1
+detach GS
+advance 0.3
+bones S
+bones GS
+attach GS 0 S Bip01~R~Hand
+bones GS
+advance 0.1
+bones S
+bones GS
+render GS 0x3f

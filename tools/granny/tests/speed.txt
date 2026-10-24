@@ -1,0 +1,40 @@
+# speed changes (param 2) while playing, a frozen control (speed 0), finite loop counts, expiry
+model M hermanbase.grn
+seq S M
+anim A hermanwalk.grn
+anim B hermanlaugh.grn
+add C S A
+param C 3 3
+getparam C
+advancen 4 0.04
+render S 0x11
+param C 2 2.5
+getparam C
+advancen 4 0.04
+render S 0x11
+param C 2 0
+getparam C
+advancen 4 0.04
+render S 0x11
+bones S
+param C 2 0.7
+advancen 4 0.04
+render S 0x11
+add D S B
+param D 4 0.5
+param D 5 0.2
+param D 7 0.1
+param D 6 0.3
+param D 8 0.3
+getparam D
+advance 0.01
+render S 0x11
+advancen 30 0.04
+render S 0x11
+expired C
+expired D
+advancen 200 0.04
+expired C
+expired D
+render S 0x11
+bones S

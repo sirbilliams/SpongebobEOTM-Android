@@ -1,0 +1,23 @@
+# Android build environment for Negatron (same SDK/NDK versions as the GitHub workflow).
+FROM docker.io/library/ubuntu:24.04
+
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends openjdk-17-jdk-headless git unzip wget ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+ENV ANDROID_HOME=/opt/android-sdk
+ENV ANDROID_SDK_ROOT=/opt/android-sdk
+
+# Command-line tools 11.0 (build 11076708)
+RUN mkdir -p $ANDROID_HOME/cmdline-tools && \
+    wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/clt.zip && \
+    echo '2d2d50857e4eb553af5a6dc3ad507a17adf43d115264b1afc116f95c92e5e258  /tmp/clt.zip' | sha256sum -c - && \
+    unzip -q /tmp/clt.zip -d $ANDROID_HOME/cmdline-tools && \
+    mv $ANDROID_HOME/cmdline-tools/cmdline-tools $ANDROID_HOME/cmdline-tools/latest && \
+    rm /tmp/clt.zip
+
+RUN yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null && \
+    $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install \
+        "platforms;android-34" "build-tools;34.0.0" "ndk;26.3.11579264" "cmake;3.22.1" > /dev/null
+
+WORKDIR /src

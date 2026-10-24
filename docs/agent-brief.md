@@ -38,6 +38,13 @@ Template: sirbilliams/neutron2-android (finished port of a later AWE game on OMT
 - Worktree `/home/claude/wt/<x>` (branch `agent-<x>`). Build dir `<worktree>/build-<x>`. Game copy
   `/home/claude/game-<x>`. Scratch `/home/claude/scratch-<x>`. Xvfb display `:9<n>` (A=1, B=2, C=3;
   start it yourself: `Xvfb :91 -screen 0 1024x768x24 &`).
+- Desktop build (no system SDL2 here; it's in /opt/sdl2, GL headers in /usr/local/include):
+  `cmake -S engine -B build-<x> -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH=/opt/sdl2 && make -C build-<x> -j2 <target>`
+  Run with `LD_LIBRARY_PATH=/opt/sdl2/lib`. No ALSA: use `SDL_AUDIODRIVER=dummy`, or `SDL_AUDIODRIVER=disk
+  SDL_DISKAUDIOFILE=out.raw` to capture the mixed audio for checking.
+- The tree is seeded from neutron2-android: `engine/` is OMT 2.5 on SDL2/gl4es, `game/granny` the Granny
+  1.2b replacement, `android/` and `.github/` the app and CI (still Negatron-named until lane C renames them).
+  There is no `game/src` yet.
 - Headless run from the game copy: `DISPLAY=:9<n> OMT_WINDOW_SIZE=640x480 OMT_FRAMES=<n>
   OMT_SCREENSHOT=x.bmp timeout 60 <build>/<binary>` (`OMT_SCREENSHOT` makes it exit). Success = "CLEAN EXIT".
 - Testing economy: build + smoke test before each commit, plus one quick check that your change works.

@@ -1,0 +1,9 @@
+# an animation file that carries meshes but no texture image (hermanAttack2.grn): granny still queues a
+# "new texture" (format 0, width and height uninitialised - not compared here).  The states' blend modes come
+# from an uninitialised byte in the DLL (docs/granny-replacement.md): 6, 7 after other models were loaded (as
+# in sweep), 1, 0 when the file is the first one (here, Wine 9); the replacement always reports 6, 7, so this
+# test shows 4 expected mismatches.
+model H hermanAttack2.grn
+seq HS H
+render HS 0x3f
+texleft

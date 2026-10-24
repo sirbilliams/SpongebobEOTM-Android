@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher icon background: brushed steel (drawn for this port) -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <path android:pathData="M0,0 H108 V108 H0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient android:type="linear" android:startX="0" android:startY="0" android:endX="108" android:endY="108">
+                <item android:offset="0" android:color="#FFE4E8EC" />
+                <item android:offset="0.55" android:color="#FFAEB4BB" />
+                <item android:offset="1" android:color="#FF7C828A" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <path android:pathData="M0,0.30 H108 M0,1.10 H108 M0,1.70 H108 M0,3.00 H108 M0,4.30 H108 M0,5.60 H108 M0,6.20 H108 M0,6.80 H108 M0,8.10 H108 M0,9.40 H108 M0,14.80 H108 M0,15.60 H108 M0,16.90 H108 M0,18.60 H108 M0,20.70 H108 M0,23.30 H108 M0,24.10 H108 M0,25.40 H108 M0,26.30 H108 M0,27.40 H108 M0,31.80 H108 M0,34.20 H108 M0,35.30 H108 M0,36.20 H108 M0,37.30 H108 M0,39.00 H108 M0,41.20 H108 M0,44.90 H108 M0,46.60 H108 M0,54.30 H108 M0,55.40 H108 M0,56.70 H108 M0,57.30 H108 M0,58.20 H108 M0,59.00 H108 M0,60.10 H108 M0,61.20 H108 M0,66.90 H108 M0,67.70 H108 M0,68.50 H108 M0,69.80 H108 M0,70.70 H108 M0,71.80 H108 M0,77.50 H108 M0,80.30 H108 M0,81.40 H108 M0,83.10 H108 M0,83.90 H108 M0,84.70 H108 M0,85.30 H108 M0,85.90 H108 M0,87.20 H108 M0,89.10 H108 M0,92.70 H108 M0,94.90 H108 M0,95.80 H108 M0,98.10 H108 M0,99.80 H108 M0,100.40 H108 M0,101.70 H108 M0,103.40 H108 M0,106.40 H108 M0,107.20 H108 M0,108.00 H108"
+        android:strokeColor="#2EFFFFFF"
+        android:strokeWidth="0.35" />
+    <path android:pathData="M0,10.20 H108 M0,11.50 H108 M0,12.80 H108 M0,13.40 H108 M0,14.00 H108 M0,19.90 H108 M0,22.00 H108 M0,28.20 H108 M0,29.90 H108 M0,30.50 H108 M0,32.70 H108 M0,33.60 H108 M0,40.30 H108 M0,42.10 H108 M0,43.40 H108 M0,44.00 H108 M0,48.30 H108 M0,50.00 H108 M0,51.70 H108 M0,52.60 H108 M0,62.10 H108 M0,63.20 H108 M0,64.10 H108 M0,65.00 H108 M0,66.10 H108 M0,73.10 H108 M0,73.90 H108 M0,75.20 H108 M0,76.90 H108 M0,79.20 H108 M0,87.80 H108 M0,89.90 H108 M0,90.70 H108 M0,91.60 H108 M0,93.80 H108 M0,96.40 H108 M0,104.00 H108 M0,104.90 H108 M0,105.50 H108"
+        android:strokeColor="#14000000"
+        android:strokeWidth="0.3" />
+</vector>

@@ -1,0 +1,15 @@
+# long run of a looping animation: root motion accumulation over many frames
+model M jimmybase.grn
+seq S M
+anim A jimmyfullrun.grn
+add C S A
+param C 3 9999
+advancen 100 0.033333
+bones S
+render S 0x11
+advancen 2000 0.033333
+bones S
+render S 0x11
+advancen 20000 0.033333
+bones S
+render S 0x11

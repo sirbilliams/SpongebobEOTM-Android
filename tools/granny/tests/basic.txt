@@ -1,0 +1,37 @@
+# one model, one animation played once at the game's frame rate, textures, bone lookup
+model M jimmybase.grn
+seq S M
+render S 0x3b
+textures 100
+render S 0x3b
+anim A jimmydance.grn
+add C S A
+param C 3 1
+getparam C
+advance 0.033333
+render S 0x11
+advance 0.033333
+render S 0x11
+advance 0.05
+render S 0x3b
+bones S
+advance 0.1
+advance 0.1
+render S 0x11
+advance 0.7
+expired C
+render S 0x11
+advance 0.5
+expired C
+render S 0x11
+bones S
+boneindex S Bip01~R~Hand
+boneindex S nothere
+model G gun.grn
+seq GS G
+textures 200
+render GS 0x3b
+attach GS 0 S Bip01~R~Hand
+advance 0.1
+render GS 0x11
+render S 0x11

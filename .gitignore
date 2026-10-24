@@ -1,0 +1,38 @@
+# fetched by fetch-deps.sh
+android/app/jni/SDL/
+android/app/jni/gl4es/
+android/app/jni/unshield/
+android/app/src/main/java/org/libsdl/
+
+# build output
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/local.properties
+android-build.log
+build*/
+out/
+
+# never commit game data
+*.omt
+*.grn
+*.gam
+*.ase
+*.tsk
+*.iso
+*.cab
+*.hdr
+Program_Executable_Files/
+
+# Granny dumps (game assets)
+*.gdmp
+tools/granny/*.exe
+__pycache__/
+.claude/
+
+# converted Granny data and test records (tools/granny)
+*.grc
+*.gxtr
+*.gtst
+build*/

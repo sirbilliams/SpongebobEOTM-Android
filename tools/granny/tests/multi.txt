@@ -1,0 +1,66 @@
+# several characters and props side by side, each with its own animation
+model H hermanbase.grn
+seq HS H
+anim HA hermanRUN.grn
+add HC HS HA
+param HC 3 9999
+model R RAPTORBase.grn
+seq RS R
+anim RA RAPTORrun.grn
+add RC RS RA
+param RC 3 9999
+model N nummeybase.grn
+seq NS N
+anim NA nummeyflipsinair.grn
+add NC NS NA
+model C cindybase.grn
+seq CS C
+anim CA cindywalk.grn
+add CC CS CA
+param CC 3 9999
+model U Mummybase.grn
+seq US U
+anim UA Mummyswing.grn
+add UC US UA
+model X museumbase.grn
+seq XS X
+anim XA museumexplode.grn
+add XC XS XA
+model G goddbase.grn
+seq GS G
+anim GA goddjump.grn
+add GC GS GA
+textures 1
+render HS 0x3b
+render RS 0x3b
+render NS 0x3b
+render CS 0x3b
+render US 0x3b
+render XS 0x3b
+render GS 0x3b
+advancen 3 0.033333
+render HS 0x11
+render RS 0x11
+render NS 0x11
+render CS 0x11
+render US 0x11
+render XS 0x11
+render GS 0x11
+advancen 25 0.033333
+render HS 0x11
+render RS 0x11
+render NS 0x11
+render CS 0x11
+render US 0x11
+render XS 0x11
+render GS 0x11
+bones GS
+bones XS
+advancen 300 0.033333
+render HS 0x11
+render RS 0x11
+render NS 0x11
+render CS 0x11
+render US 0x11
+render XS 0x11
+render GS 0x11

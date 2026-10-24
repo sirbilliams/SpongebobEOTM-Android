@@ -1,0 +1,66 @@
+# the game's own call pattern (C3DAnimated / C3DGrannyObj): open, lock 0x3b once, textures, then per
+# frame AdvanceTime and a 0x11 lock; animation switches with blend times; a prop attached by bone name
+model M jimmybase.grn
+seq S M
+render S 0x3b
+textures 100
+render S 0x3b
+model G gun.grn
+seq GS G
+textures 200
+render GS 0x3b
+boneindex S Bip01~R~Hand
+attach GS 0 S Bip01~R~Hand
+anim I jimmyidle.grn
+anim R jimmyfullrungun.grn
+anim J jimmyjumpgun.grn
+add C1 S I
+param C1 2 1
+param C1 3 9999
+param C1 6 0
+param C1 8 0
+advance 0.033333
+render S 0x11
+render GS 0x11
+advancen 20 0.033333
+render S 0x11
+render GS 0x11
+add C2 S R
+param C2 2 1
+param C2 3 9999
+param C2 6 0.2
+param C2 8 0.2
+release C1
+advancen 3 0.033333
+render S 0x11
+render GS 0x11
+advancen 30 0.033333
+render S 0x11
+render GS 0x11
+add C3 S J
+param C3 2 1
+param C3 3 1
+param C3 6 0.1
+param C3 8 0.1
+release C2
+advancen 10 0.033333
+render S 0x11
+render GS 0x11
+expired C3
+advancen 40 0.033333
+expired C3
+render S 0x11
+render GS 0x11
+bones S
+bones GS
+detach GS
+advance 0.033333
+render GS 0x11
+closeseq GS
+closemodel G
+closeseq S
+closeanim I
+closeanim R
+closeanim J
+closemodel M
+close

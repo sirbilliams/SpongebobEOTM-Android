@@ -1,0 +1,41 @@
+# closing things that are still in use: an animation with live controls, a model with live sequences
+# and undelivered textures, a sequence with an attached child and live controls
+model M jimmybase.grn
+seq S M
+model G gun.grn
+seq GS G
+attach GS 0 S Bip01~R~Hand
+anim A jimmydance.grn
+anim B jimmywalk.grn
+add C S A
+add CB S B
+param CB 3 9999
+param CB 4 0.5
+advance 0.1
+closeanim A
+expired C
+param C 2 1
+getparam C
+advance 0.1
+render S 0x11
+expired C
+remove C
+release C
+closemodel G
+texleft
+render GS 0x3f
+seq GS2 G
+textures 7
+render GS 0x3f
+advance 0.1
+render GS 0x11
+closeseq S
+render GS 0x11
+detach GS
+# (HasControlExpired / GetAnimationParameter on CB here read freed memory in the DLL; not tested)
+remove CB
+advance 0.1
+render GS 0x11
+closeseq GS
+textures 9
+texleft

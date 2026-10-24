@@ -1,0 +1,15 @@
+# museumbroken.grn has a b-spline and a raw (keyframe) track for every bone
+model M museumbase.grn
+seq S M
+anim A museumbroken.grn
+add C S A
+getparam C
+advance 0.1
+advance 0.1
+bones S
+render S 0x11
+advance 0.025
+bones S
+advance 0.3
+bones S
+render S 0x11

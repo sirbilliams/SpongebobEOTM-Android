@@ -1,0 +1,5446 @@
+model M1 Anglerbase.grn
+seq S1 M1
+render S1 0x3b
+anim A1 Anglerbase.grn
+add C1 S1 A1
+param C1 3 9999
+advancen 7 0.033333
+render S1 0x11
+advance 0.4
+render S1 0x11
+remove C1
+closeanim A1
+closeseq S1
+closemodel M1
+model M2 Anglerbase.grn
+seq S2 M2
+render S2 0x3b
+anim A2 Anglerlitething.grn
+add C2 S2 A2
+param C2 3 9999
+advancen 7 0.033333
+render S2 0x11
+advance 0.4
+render S2 0x11
+remove C2
+closeanim A2
+closeseq S2
+closemodel M2
+model M3 Anglerbase.grn
+seq S3 M3
+render S3 0x3b
+anim A3 Anglermove.grn
+add C3 S3 A3
+param C3 3 9999
+advancen 7 0.033333
+render S3 0x11
+advance 0.4
+render S3 0x11
+remove C3
+closeanim A3
+closeseq S3
+closemodel M3
+model M4 Anglerbase.grn
+seq S4 M4
+render S4 0x3b
+anim A4 Anglerstop.grn
+add C4 S4 A4
+param C4 3 9999
+advancen 7 0.033333
+render S4 0x11
+advance 0.4
+render S4 0x11
+remove C4
+closeanim A4
+closeseq S4
+closemodel M4
+model M5 Hand.grn
+seq S5 M5
+render S5 0x3b
+anim A5 Hand.grn
+add C5 S5 A5
+param C5 3 9999
+advancen 7 0.033333
+render S5 0x11
+advance 0.4
+render S5 0x11
+remove C5
+closeanim A5
+closeseq S5
+closemodel M5
+model M6 Handpoint.grn
+seq S6 M6
+render S6 0x3b
+anim A6 Handpoint.grn
+add C6 S6 A6
+param C6 3 9999
+advancen 7 0.033333
+render S6 0x11
+advance 0.4
+render S6 0x11
+remove C6
+closeanim A6
+closeseq S6
+closemodel M6
+model M7 Jonnyshootbase.grn
+seq S7 M7
+render S7 0x3b
+anim A7 Jonnyshoot.grn
+add C7 S7 A7
+param C7 3 9999
+advancen 7 0.033333
+render S7 0x11
+advance 0.4
+render S7 0x11
+remove C7
+closeanim A7
+closeseq S7
+closemodel M7
+model M8 Jonnyshootbase.grn
+seq S8 M8
+render S8 0x3b
+anim A8 Jonnyshootbase.grn
+add C8 S8 A8
+param C8 3 9999
+advancen 7 0.033333
+render S8 0x11
+advance 0.4
+render S8 0x11
+remove C8
+closeanim A8
+closeseq S8
+closemodel M8
+model M9 Jonnyshootbase.grn
+seq S9 M9
+render S9 0x3b
+anim A9 Jonnyshootdrop.grn
+add C9 S9 A9
+param C9 3 9999
+advancen 7 0.033333
+render S9 0x11
+advance 0.4
+render S9 0x11
+remove C9
+closeanim A9
+closeseq S9
+closemodel M9
+model M10 Jonnyshootbase.grn
+seq S10 M10
+render S10 0x3b
+anim A10 Jonnyshootstop.grn
+add C10 S10 A10
+param C10 3 9999
+advancen 7 0.033333
+render S10 0x11
+advance 0.4
+render S10 0x11
+remove C10
+closeanim A10
+closeseq S10
+closemodel M10
+model M11 Mailboxbase.grn
+seq S11 M11
+render S11 0x3b
+anim A11 Mailboxbase.grn
+add C11 S11 A11
+param C11 3 9999
+advancen 7 0.033333
+render S11 0x11
+advance 0.4
+render S11 0x11
+remove C11
+closeanim A11
+closeseq S11
+closemodel M11
+model M12 Mailboxbase.grn
+seq S12 M12
+render S12 0x3b
+anim A12 Mailboxmove.grn
+add C12 S12 A12
+param C12 3 9999
+advancen 7 0.033333
+render S12 0x11
+advance 0.4
+render S12 0x11
+remove C12
+closeanim A12
+closeseq S12
+closemodel M12
+model M13 Mailboxbase.grn
+seq S13 M13
+render S13 0x3b
+anim A13 Mailboxstop.grn
+add C13 S13 A13
+param C13 3 9999
+advancen 7 0.033333
+render S13 0x11
+advance 0.4
+render S13 0x11
+remove C13
+closeanim A13
+closeseq S13
+closemodel M13
+model M14 Mummybase.grn
+seq S14 M14
+render S14 0x3b
+anim A14 MummyFall.grn
+add C14 S14 A14
+param C14 3 9999
+advancen 7 0.033333
+render S14 0x11
+advance 0.4
+render S14 0x11
+remove C14
+closeanim A14
+closeseq S14
+closemodel M14
+model M15 Mummybase.grn
+seq S15 M15
+render S15 0x3b
+anim A15 Mummybase.grn
+add C15 S15 A15
+param C15 3 9999
+advancen 7 0.033333
+render S15 0x11
+advance 0.4
+render S15 0x11
+remove C15
+closeanim A15
+closeseq S15
+closemodel M15
+model M16 Mummybase.grn
+seq S16 M16
+render S16 0x3b
+anim A16 Mummydead.grn
+add C16 S16 A16
+param C16 3 9999
+advancen 7 0.033333
+render S16 0x11
+advance 0.4
+render S16 0x11
+remove C16
+closeanim A16
+closeseq S16
+closemodel M16
+model M17 Mummybase.grn
+seq S17 M17
+render S17 0x3b
+anim A17 Mummyhit.grn
+add C17 S17 A17
+param C17 3 9999
+advancen 7 0.033333
+render S17 0x11
+advance 0.4
+render S17 0x11
+remove C17
+closeanim A17
+closeseq S17
+closemodel M17
+model M18 Mummybase.grn
+seq S18 M18
+render S18 0x3b
+anim A18 Mummyrest.grn
+add C18 S18 A18
+param C18 3 9999
+advancen 7 0.033333
+render S18 0x11
+advance 0.4
+render S18 0x11
+remove C18
+closeanim A18
+closeseq S18
+closemodel M18
+model M19 Mummybase.grn
+seq S19 M19
+render S19 0x3b
+anim A19 Mummyrun.grn
+add C19 S19 A19
+param C19 3 9999
+advancen 7 0.033333
+render S19 0x11
+advance 0.4
+render S19 0x11
+remove C19
+closeanim A19
+closeseq S19
+closemodel M19
+model M20 Mummybase.grn
+seq S20 M20
+render S20 0x3b
+anim A20 Mummyswing.grn
+add C20 S20 A20
+param C20 3 9999
+advancen 7 0.033333
+render S20 0x11
+advance 0.4
+render S20 0x11
+remove C20
+closeanim A20
+closeseq S20
+closemodel M20
+model M21 Mummybase.grn
+seq S21 M21
+render S21 0x3b
+anim A21 Mummywalk.grn
+add C21 S21 A21
+param C21 3 9999
+advancen 7 0.033333
+render S21 0x11
+advance 0.4
+render S21 0x11
+remove C21
+closeanim A21
+closeseq S21
+closemodel M21
+model M22 NummyFlail.grn
+seq S22 M22
+render S22 0x3b
+anim A22 NummyFlail.grn
+add C22 S22 A22
+param C22 3 9999
+advancen 7 0.033333
+render S22 0x11
+advance 0.4
+render S22 0x11
+remove C22
+closeanim A22
+closeseq S22
+closemodel M22
+model M23 RAPTORBase.grn
+seq S23 M23
+render S23 0x3b
+anim A23 RAPTORBase.grn
+add C23 S23 A23
+param C23 3 9999
+advancen 7 0.033333
+render S23 0x11
+advance 0.4
+render S23 0x11
+remove C23
+closeanim A23
+closeseq S23
+closemodel M23
+model M24 RAPTORBase.grn
+seq S24 M24
+render S24 0x3b
+anim A24 RAPTORattack.grn
+add C24 S24 A24
+param C24 3 9999
+advancen 7 0.033333
+render S24 0x11
+advance 0.4
+render S24 0x11
+remove C24
+closeanim A24
+closeseq S24
+closemodel M24
+model M25 RAPTORBase.grn
+seq S25 M25
+render S25 0x3b
+anim A25 RAPTORdeath.grn
+add C25 S25 A25
+param C25 3 9999
+advancen 7 0.033333
+render S25 0x11
+advance 0.4
+render S25 0x11
+remove C25
+closeanim A25
+closeseq S25
+closemodel M25
+model M26 RAPTORBase.grn
+seq S26 M26
+render S26 0x3b
+anim A26 RAPTORrun.grn
+add C26 S26 A26
+param C26 3 9999
+advancen 7 0.033333
+render S26 0x11
+advance 0.4
+render S26 0x11
+remove C26
+closeanim A26
+closeseq S26
+closemodel M26
+model M27 RAPTORBase.grn
+seq S27 M27
+render S27 0x3b
+anim A27 RAPTORsize.grn
+add C27 S27 A27
+param C27 3 9999
+advancen 7 0.033333
+render S27 0x11
+advance 0.4
+render S27 0x11
+remove C27
+closeanim A27
+closeseq S27
+closemodel M27
+model M28 RAPTORBase.grn
+seq S28 M28
+render S28 0x3b
+anim A28 RAPTORstop.grn
+add C28 S28 A28
+param C28 3 9999
+advancen 7 0.033333
+render S28 0x11
+advance 0.4
+render S28 0x11
+remove C28
+closeanim A28
+closeseq S28
+closemodel M28
+model M29 Sparkybase.grn
+seq S29 M29
+render S29 0x3b
+anim A29 Sparkybase.grn
+add C29 S29 A29
+param C29 3 9999
+advancen 7 0.033333
+render S29 0x11
+advance 0.4
+render S29 0x11
+remove C29
+closeanim A29
+closeseq S29
+closemodel M29
+model M30 Sparkybase.grn
+seq S30 M30
+render S30 0x3b
+anim A30 Sparkyclean.grn
+add C30 S30 A30
+param C30 3 9999
+advancen 7 0.033333
+render S30 0x11
+advance 0.4
+render S30 0x11
+remove C30
+closeanim A30
+closeseq S30
+closemodel M30
+model M31 Sparkybase.grn
+seq S31 M31
+render S31 0x3b
+anim A31 Sparkystop.grn
+add C31 S31 A31
+param C31 3 9999
+advancen 7 0.033333
+render S31 0x11
+advance 0.4
+render S31 0x11
+remove C31
+closeanim A31
+closeseq S31
+closemodel M31
+model M32 Sparkybase.grn
+seq S32 M32
+render S32 0x3b
+anim A32 Sparkytalk.grn
+add C32 S32 A32
+param C32 3 9999
+advancen 7 0.033333
+render S32 0x11
+advance 0.4
+render S32 0x11
+remove C32
+closeanim A32
+closeseq S32
+closemodel M32
+model M33 Sparkybase.grn
+seq S33 M33
+render S33 0x3b
+anim A33 Sparkytalk2.grn
+add C33 S33 A33
+param C33 3 9999
+advancen 7 0.033333
+render S33 0x11
+advance 0.4
+render S33 0x11
+remove C33
+closeanim A33
+closeseq S33
+closemodel M33
+model M34 Sparkybase.grn
+seq S34 M34
+render S34 0x3b
+anim A34 Sparkywalk.grn
+add C34 S34 A34
+param C34 3 9999
+advancen 7 0.033333
+render S34 0x11
+advance 0.4
+render S34 0x11
+remove C34
+closeanim A34
+closeseq S34
+closemodel M34
+model M35 Sporkybase.grn
+seq S35 M35
+render S35 0x3b
+anim A35 SporkyFALL.grn
+add C35 S35 A35
+param C35 3 9999
+advancen 7 0.033333
+render S35 0x11
+advance 0.4
+render S35 0x11
+remove C35
+closeanim A35
+closeseq S35
+closemodel M35
+model M36 Sporkybase.grn
+seq S36 M36
+render S36 0x3b
+anim A36 SporkyRun.grn
+add C36 S36 A36
+param C36 3 9999
+advancen 7 0.033333
+render S36 0x11
+advance 0.4
+render S36 0x11
+remove C36
+closeanim A36
+closeseq S36
+closemodel M36
+model M37 Sporkybase.grn
+seq S37 M37
+render S37 0x3b
+anim A37 Sporkybase.grn
+add C37 S37 A37
+param C37 3 9999
+advancen 7 0.033333
+render S37 0x11
+advance 0.4
+render S37 0x11
+remove C37
+closeanim A37
+closeseq S37
+closemodel M37
+model M38 Squirrelbase.grn
+seq S38 M38
+render S38 0x3b
+anim A38 SquirrelSTOP.grn
+add C38 S38 A38
+param C38 3 9999
+advancen 7 0.033333
+render S38 0x11
+advance 0.4
+render S38 0x11
+remove C38
+closeanim A38
+closeseq S38
+closemodel M38
+model M39 Squirrelbase.grn
+seq S39 M39
+render S39 0x3b
+anim A39 Squirrelbase.grn
+add C39 S39 A39
+param C39 3 9999
+advancen 7 0.033333
+render S39 0x11
+advance 0.4
+render S39 0x11
+remove C39
+closeanim A39
+closeseq S39
+closemodel M39
+model M40 Squirrelbase.grn
+seq S40 M40
+render S40 0x3b
+anim A40 Squirrelmove.grn
+add C40 S40 A40
+param C40 3 9999
+advancen 7 0.033333
+render S40 0x11
+advance 0.4
+render S40 0x11
+remove C40
+closeanim A40
+closeseq S40
+closemodel M40
+model M41 batsbase.grn
+seq S41 M41
+render S41 0x3b
+anim A41 batsbase.grn
+add C41 S41 A41
+param C41 3 9999
+advancen 7 0.033333
+render S41 0x11
+advance 0.4
+render S41 0x11
+remove C41
+closeanim A41
+closeseq S41
+closemodel M41
+model M42 batsbase.grn
+seq S42 M42
+render S42 0x3b
+anim A42 batsfly.grn
+add C42 S42 A42
+param C42 3 9999
+advancen 7 0.033333
+render S42 0x11
+advance 0.4
+render S42 0x11
+remove C42
+closeanim A42
+closeseq S42
+closemodel M42
+model M43 batsbase.grn
+seq S43 M43
+render S43 0x3b
+anim A43 batstop.grn
+add C43 S43 A43
+param C43 3 9999
+advancen 7 0.033333
+render S43 0x11
+advance 0.4
+render S43 0x11
+remove C43
+closeanim A43
+closeseq S43
+closemodel M43
+model M44 boxbase.grn
+seq S44 M44
+render S44 0x3b
+anim A44 boxbase.grn
+add C44 S44 A44
+param C44 3 9999
+advancen 7 0.033333
+render S44 0x11
+advance 0.4
+render S44 0x11
+remove C44
+closeanim A44
+closeseq S44
+closemodel M44
+model M45 boxbase.grn
+seq S45 M45
+render S45 0x3b
+anim A45 boxmove.grn
+add C45 S45 A45
+param C45 3 9999
+advancen 7 0.033333
+render S45 0x11
+advance 0.4
+render S45 0x11
+remove C45
+closeanim A45
+closeseq S45
+closemodel M45
+model M46 boxbase.grn
+seq S46 M46
+render S46 0x3b
+anim A46 boxstop.grn
+add C46 S46 A46
+param C46 3 9999
+advancen 7 0.033333
+render S46 0x11
+advance 0.4
+render S46 0x11
+remove C46
+closeanim A46
+closeseq S46
+closemodel M46
+model M47 broomclosetbase.grn
+seq S47 M47
+render S47 0x3b
+anim A47 broomclosetbase.grn
+add C47 S47 A47
+param C47 3 9999
+advancen 7 0.033333
+render S47 0x11
+advance 0.4
+render S47 0x11
+remove C47
+closeanim A47
+closeseq S47
+closemodel M47
+model M48 broomclosetbase.grn
+seq S48 M48
+render S48 0x3b
+anim A48 broomclosetend.grn
+add C48 S48 A48
+param C48 3 9999
+advancen 7 0.033333
+render S48 0x11
+advance 0.4
+render S48 0x11
+remove C48
+closeanim A48
+closeseq S48
+closemodel M48
+model M49 broomclosetbase.grn
+seq S49 M49
+render S49 0x3b
+anim A49 broomclosetmove.grn
+add C49 S49 A49
+param C49 3 9999
+advancen 7 0.033333
+render S49 0x11
+advance 0.4
+render S49 0x11
+remove C49
+closeanim A49
+closeseq S49
+closemodel M49
+model M50 broomclosetbase.grn
+seq S50 M50
+render S50 0x3b
+anim A50 broomclosetstop.grn
+add C50 S50 A50
+param C50 3 9999
+advancen 7 0.033333
+render S50 0x11
+advance 0.4
+render S50 0x11
+remove C50
+closeanim A50
+closeseq S50
+closemodel M50
+model M51 burpgunhead.grn
+seq S51 M51
+render S51 0x3b
+anim A51 burpgunhead.grn
+add C51 S51 A51
+param C51 3 9999
+advancen 7 0.033333
+render S51 0x11
+advance 0.4
+render S51 0x11
+remove C51
+closeanim A51
+closeseq S51
+closemodel M51
+model M52 cagedoorbase.grn
+seq S52 M52
+render S52 0x3b
+anim A52 cagedoorbase.grn
+add C52 S52 A52
+param C52 3 9999
+advancen 7 0.033333
+render S52 0x11
+advance 0.4
+render S52 0x11
+remove C52
+closeanim A52
+closeseq S52
+closemodel M52
+model M53 cagedoorbase.grn
+seq S53 M53
+render S53 0x3b
+anim A53 cagedoormove.grn
+add C53 S53 A53
+param C53 3 9999
+advancen 7 0.033333
+render S53 0x11
+advance 0.4
+render S53 0x11
+remove C53
+closeanim A53
+closeseq S53
+closemodel M53
+model M54 cagedoorbase.grn
+seq S54 M54
+render S54 0x3b
+anim A54 cagedoorstop.grn
+add C54 S54 A54
+param C54 3 9999
+advancen 7 0.033333
+render S54 0x11
+advance 0.4
+render S54 0x11
+remove C54
+closeanim A54
+closeseq S54
+closemodel M54
+model M55 carbase.grn
+seq S55 M55
+render S55 0x3b
+anim A55 carbase.grn
+add C55 S55 A55
+param C55 3 9999
+advancen 7 0.033333
+render S55 0x11
+advance 0.4
+render S55 0x11
+remove C55
+closeanim A55
+closeseq S55
+closemodel M55
+model M56 carbase.grn
+seq S56 M56
+render S56 0x3b
+anim A56 cardrop.grn
+add C56 S56 A56
+param C56 3 9999
+advancen 7 0.033333
+render S56 0x11
+advance 0.4
+render S56 0x11
+remove C56
+closeanim A56
+closeseq S56
+closemodel M56
+model M57 carlbase.grn
+seq S57 M57
+render S57 0x3b
+anim A57 carlbase.grn
+add C57 S57 A57
+param C57 3 9999
+advancen 7 0.033333
+render S57 0x11
+advance 0.4
+render S57 0x11
+remove C57
+closeanim A57
+closeseq S57
+closemodel M57
+model M58 carlbase.grn
+seq S58 M58
+render S58 0x3b
+anim A58 carldrink.grn
+add C58 S58 A58
+param C58 3 9999
+advancen 7 0.033333
+render S58 0x11
+advance 0.4
+render S58 0x11
+remove C58
+closeanim A58
+closeseq S58
+closemodel M58
+model M59 carlbase.grn
+seq S59 M59
+render S59 0x3b
+anim A59 carlrun.grn
+add C59 S59 A59
+param C59 3 9999
+advancen 7 0.033333
+render S59 0x11
+advance 0.4
+render S59 0x11
+remove C59
+closeanim A59
+closeseq S59
+closemodel M59
+model M60 carlshadowbase.grn
+seq S60 M60
+render S60 0x3b
+anim A60 carlshadowbase.grn
+add C60 S60 A60
+param C60 3 9999
+advancen 7 0.033333
+render S60 0x11
+advance 0.4
+render S60 0x11
+remove C60
+closeanim A60
+closeseq S60
+closemodel M60
+model M61 carlshadowbase.grn
+seq S61 M61
+render S61 0x3b
+anim A61 carlshadowmove.grn
+add C61 S61 A61
+param C61 3 9999
+advancen 7 0.033333
+render S61 0x11
+advance 0.4
+render S61 0x11
+remove C61
+closeanim A61
+closeseq S61
+closemodel M61
+model M62 carlshadowbase.grn
+seq S62 M62
+render S62 0x3b
+anim A62 carlshadowstop.grn
+add C62 S62 A62
+param C62 3 9999
+advancen 7 0.033333
+render S62 0x11
+advance 0.4
+render S62 0x11
+remove C62
+closeanim A62
+closeseq S62
+closemodel M62
+model M63 carlbase.grn
+seq S63 M63
+render S63 0x3b
+anim A63 carlstop.grn
+add C63 S63 A63
+param C63 3 9999
+advancen 7 0.033333
+render S63 0x11
+advance 0.4
+render S63 0x11
+remove C63
+closeanim A63
+closeseq S63
+closemodel M63
+model M64 carlbase.grn
+seq S64 M64
+render S64 0x3b
+anim A64 carltalk.grn
+add C64 S64 A64
+param C64 3 9999
+advancen 7 0.033333
+render S64 0x11
+advance 0.4
+render S64 0x11
+remove C64
+closeanim A64
+closeseq S64
+closemodel M64
+model M65 carlbase.grn
+seq S65 M65
+render S65 0x3b
+anim A65 carlwalk.grn
+add C65 S65 A65
+param C65 3 9999
+advancen 7 0.033333
+render S65 0x11
+advance 0.4
+render S65 0x11
+remove C65
+closeanim A65
+closeseq S65
+closemodel M65
+model M66 carbase.grn
+seq S66 M66
+render S66 0x3b
+anim A66 carplay.grn
+add C66 S66 A66
+param C66 3 9999
+advancen 7 0.033333
+render S66 0x11
+advance 0.4
+render S66 0x11
+remove C66
+closeanim A66
+closeseq S66
+closemodel M66
+model M67 carbase.grn
+seq S67 M67
+render S67 0x3b
+anim A67 carstop.grn
+add C67 S67 A67
+param C67 3 9999
+advancen 7 0.033333
+render S67 0x11
+advance 0.4
+render S67 0x11
+remove C67
+closeanim A67
+closeseq S67
+closemodel M67
+model M68 chutebase.grn
+seq S68 M68
+render S68 0x3b
+anim A68 chutebase.grn
+add C68 S68 A68
+param C68 3 9999
+advancen 7 0.033333
+render S68 0x11
+advance 0.4
+render S68 0x11
+remove C68
+closeanim A68
+closeseq S68
+closemodel M68
+model M69 chutebase.grn
+seq S69 M69
+render S69 0x3b
+anim A69 chutedrop.grn
+add C69 S69 A69
+param C69 3 9999
+advancen 7 0.033333
+render S69 0x11
+advance 0.4
+render S69 0x11
+remove C69
+closeanim A69
+closeseq S69
+closemodel M69
+model M70 chutebase.grn
+seq S70 M70
+render S70 0x3b
+anim A70 chutemove.grn
+add C70 S70 A70
+param C70 3 9999
+advancen 7 0.033333
+render S70 0x11
+advance 0.4
+render S70 0x11
+remove C70
+closeanim A70
+closeseq S70
+closemodel M70
+model M71 chutebase.grn
+seq S71 M71
+render S71 0x3b
+anim A71 chutestop.grn
+add C71 S71 A71
+param C71 3 9999
+advancen 7 0.033333
+render S71 0x11
+advance 0.4
+render S71 0x11
+remove C71
+closeanim A71
+closeseq S71
+closemodel M71
+model M72 cindybase.grn
+seq S72 M72
+render S72 0x3b
+anim A72 cindybase.grn
+add C72 S72 A72
+param C72 3 9999
+advancen 7 0.033333
+render S72 0x11
+advance 0.4
+render S72 0x11
+remove C72
+closeanim A72
+closeseq S72
+closemodel M72
+model M73 cindybase.grn
+seq S73 M73
+render S73 0x3b
+anim A73 cindydrink.grn
+add C73 S73 A73
+param C73 3 9999
+advancen 7 0.033333
+render S73 0x11
+advance 0.4
+render S73 0x11
+remove C73
+closeanim A73
+closeseq S73
+closemodel M73
+model M74 cindybase.grn
+seq S74 M74
+render S74 0x3b
+anim A74 cindydrinkflurp.grn
+add C74 S74 A74
+param C74 3 9999
+advancen 7 0.033333
+render S74 0x11
+advance 0.4
+render S74 0x11
+remove C74
+closeanim A74
+closeseq S74
+closemodel M74
+model M75 cindybase.grn
+seq S75 M75
+render S75 0x3b
+anim A75 cindyholdflurp.grn
+add C75 S75 A75
+param C75 3 9999
+advancen 7 0.033333
+render S75 0x11
+advance 0.4
+render S75 0x11
+remove C75
+closeanim A75
+closeseq S75
+closemodel M75
+model M76 cindybase.grn
+seq S76 M76
+render S76 0x3b
+anim A76 cindyidle.grn
+add C76 S76 A76
+param C76 3 9999
+advancen 7 0.033333
+render S76 0x11
+advance 0.4
+render S76 0x11
+remove C76
+closeanim A76
+closeseq S76
+closemodel M76
+model M77 cindybase.grn
+seq S77 M77
+render S77 0x3b
+anim A77 cindyinlove.grn
+add C77 S77 A77
+param C77 3 9999
+advancen 7 0.033333
+render S77 0x11
+advance 0.4
+render S77 0x11
+remove C77
+closeanim A77
+closeseq S77
+closemodel M77
+model M78 cindybase.grn
+seq S78 M78
+render S78 0x3b
+anim A78 cindyloveidle.grn
+add C78 S78 A78
+param C78 3 9999
+advancen 7 0.033333
+render S78 0x11
+advance 0.4
+render S78 0x11
+remove C78
+closeanim A78
+closeseq S78
+closemodel M78
+model M79 cindybase.grn
+seq S79 M79
+render S79 0x3b
+anim A79 cindylovetalk.grn
+add C79 S79 A79
+param C79 3 9999
+advancen 7 0.033333
+render S79 0x11
+advance 0.4
+render S79 0x11
+remove C79
+closeanim A79
+closeseq S79
+closemodel M79
+model M80 cindybase.grn
+seq S80 M80
+render S80 0x3b
+anim A80 cindystop.grn
+add C80 S80 A80
+param C80 3 9999
+advancen 7 0.033333
+render S80 0x11
+advance 0.4
+render S80 0x11
+remove C80
+closeanim A80
+closeseq S80
+closemodel M80
+model M81 cindybase.grn
+seq S81 M81
+render S81 0x3b
+anim A81 cindytalk.grn
+add C81 S81 A81
+param C81 3 9999
+advancen 7 0.033333
+render S81 0x11
+advance 0.4
+render S81 0x11
+remove C81
+closeanim A81
+closeseq S81
+closemodel M81
+model M82 cindybase.grn
+seq S82 M82
+render S82 0x3b
+anim A82 cindytalkdis.grn
+add C82 S82 A82
+param C82 3 9999
+advancen 7 0.033333
+render S82 0x11
+advance 0.4
+render S82 0x11
+remove C82
+closeanim A82
+closeseq S82
+closemodel M82
+model M83 cindybase.grn
+seq S83 M83
+render S83 0x3b
+anim A83 cindytalkflurp.grn
+add C83 S83 A83
+param C83 3 9999
+advancen 7 0.033333
+render S83 0x11
+advance 0.4
+render S83 0x11
+remove C83
+closeanim A83
+closeseq S83
+closemodel M83
+model M84 cindybase.grn
+seq S84 M84
+render S84 0x3b
+anim A84 cindywalk.grn
+add C84 S84 A84
+param C84 3 9999
+advancen 7 0.033333
+render S84 0x11
+advance 0.4
+render S84 0x11
+remove C84
+closeanim A84
+closeseq S84
+closemodel M84
+model M85 dadpiramidbase.grn
+seq S85 M85
+render S85 0x3b
+anim A85 dadpiramidbase.grn
+add C85 S85 A85
+param C85 3 9999
+advancen 7 0.033333
+render S85 0x11
+advance 0.4
+render S85 0x11
+remove C85
+closeanim A85
+closeseq S85
+closemodel M85
+model M86 dadpiramidbase.grn
+seq S86 M86
+render S86 0x3b
+anim A86 dadpiramidclosed.grn
+add C86 S86 A86
+param C86 3 9999
+advancen 7 0.033333
+render S86 0x11
+advance 0.4
+render S86 0x11
+remove C86
+closeanim A86
+closeseq S86
+closemodel M86
+model M87 dadpiramidbase.grn
+seq S87 M87
+render S87 0x3b
+anim A87 dadpiramidfallen.grn
+add C87 S87 A87
+param C87 3 9999
+advancen 7 0.033333
+render S87 0x11
+advance 0.4
+render S87 0x11
+remove C87
+closeanim A87
+closeseq S87
+closemodel M87
+model M88 dadpiramidbase.grn
+seq S88 M88
+render S88 0x3b
+anim A88 dadpiramidfree.grn
+add C88 S88 A88
+param C88 3 9999
+advancen 7 0.033333
+render S88 0x11
+advance 0.4
+render S88 0x11
+remove C88
+closeanim A88
+closeseq S88
+closemodel M88
+model M89 dadpiramidbase.grn
+seq S89 M89
+render S89 0x3b
+anim A89 dadpiramidhop.grn
+add C89 S89 A89
+param C89 3 9999
+advancen 7 0.033333
+render S89 0x11
+advance 0.4
+render S89 0x11
+remove C89
+closeanim A89
+closeseq S89
+closemodel M89
+model M90 dadpiramidbase.grn
+seq S90 M90
+render S90 0x3b
+anim A90 dadpiramidhoptalk.grn
+add C90 S90 A90
+param C90 3 9999
+advancen 7 0.033333
+render S90 0x11
+advance 0.4
+render S90 0x11
+remove C90
+closeanim A90
+closeseq S90
+closemodel M90
+model M91 dadpiramidbase.grn
+seq S91 M91
+render S91 0x3b
+anim A91 dadpiramidopen.grn
+add C91 S91 A91
+param C91 3 9999
+advancen 7 0.033333
+render S91 0x11
+advance 0.4
+render S91 0x11
+remove C91
+closeanim A91
+closeseq S91
+closemodel M91
+model M92 dadpiramidbase.grn
+seq S92 M92
+render S92 0x3b
+anim A92 dadpiramidopenstop.grn
+add C92 S92 A92
+param C92 3 9999
+advancen 7 0.033333
+render S92 0x11
+advance 0.4
+render S92 0x11
+remove C92
+closeanim A92
+closeseq S92
+closemodel M92
+model M93 dadpiramidbase.grn
+seq S93 M93
+render S93 0x3b
+anim A93 dadpiramidtalk.grn
+add C93 S93 A93
+param C93 3 9999
+advancen 7 0.033333
+render S93 0x11
+advance 0.4
+render S93 0x11
+remove C93
+closeanim A93
+closeseq S93
+closemodel M93
+model M94 doom.grn
+seq S94 M94
+render S94 0x3b
+anim A94 doom.grn
+add C94 S94 A94
+param C94 3 9999
+advancen 7 0.033333
+render S94 0x11
+advance 0.4
+render S94 0x11
+remove C94
+closeanim A94
+closeseq S94
+closemodel M94
+model M95 eelbase.grn
+seq S95 M95
+render S95 0x3b
+anim A95 eelbase.grn
+add C95 S95 A95
+param C95 3 9999
+advancen 7 0.033333
+render S95 0x11
+advance 0.4
+render S95 0x11
+remove C95
+closeanim A95
+closeseq S95
+closemodel M95
+model M96 eelbase.grn
+seq S96 M96
+render S96 0x3b
+anim A96 eelbite.grn
+add C96 S96 A96
+param C96 3 9999
+advancen 7 0.033333
+render S96 0x11
+advance 0.4
+render S96 0x11
+remove C96
+closeanim A96
+closeseq S96
+closemodel M96
+model M97 eelbase.grn
+seq S97 M97
+render S97 0x3b
+anim A97 eelmove.grn
+add C97 S97 A97
+param C97 3 9999
+advancen 7 0.033333
+render S97 0x11
+advance 0.4
+render S97 0x11
+remove C97
+closeanim A97
+closeseq S97
+closemodel M97
+model M98 eelbase.grn
+seq S98 M98
+render S98 0x3b
+anim A98 eelstop.grn
+add C98 S98 A98
+param C98 3 9999
+advancen 7 0.033333
+render S98 0x11
+advance 0.4
+render S98 0x11
+remove C98
+closeanim A98
+closeseq S98
+closemodel M98
+model M99 fireworksbase.grn
+seq S99 M99
+render S99 0x3b
+anim A99 fireworksbase.grn
+add C99 S99 A99
+param C99 3 9999
+advancen 7 0.033333
+render S99 0x11
+advance 0.4
+render S99 0x11
+remove C99
+closeanim A99
+closeseq S99
+closemodel M99
+model M100 fireworksbase.grn
+seq S100 M100
+render S100 0x3b
+anim A100 fireworksmove.grn
+add C100 S100 A100
+param C100 3 9999
+advancen 7 0.033333
+render S100 0x11
+advance 0.4
+render S100 0x11
+remove C100
+closeanim A100
+closeseq S100
+closemodel M100
+model M101 fireworksbase.grn
+seq S101 M101
+render S101 0x3b
+anim A101 fireworksstop.grn
+add C101 S101 A101
+param C101 3 9999
+advancen 7 0.033333
+render S101 0x11
+advance 0.4
+render S101 0x11
+remove C101
+closeanim A101
+closeseq S101
+closemodel M101
+model M102 fishbase.grn
+seq S102 M102
+render S102 0x3b
+anim A102 fishbase.grn
+add C102 S102 A102
+param C102 3 9999
+advancen 7 0.033333
+render S102 0x11
+advance 0.4
+render S102 0x11
+remove C102
+closeanim A102
+closeseq S102
+closemodel M102
+model M103 fishbase.grn
+seq S103 M103
+render S103 0x3b
+anim A103 fishmove.grn
+add C103 S103 A103
+param C103 3 9999
+advancen 7 0.033333
+render S103 0x11
+advance 0.4
+render S103 0x11
+remove C103
+closeanim A103
+closeseq S103
+closemodel M103
+model M104 fishbase.grn
+seq S104 M104
+render S104 0x3b
+anim A104 fishscater.grn
+add C104 S104 A104
+param C104 3 9999
+advancen 7 0.033333
+render S104 0x11
+advance 0.4
+render S104 0x11
+remove C104
+closeanim A104
+closeseq S104
+closemodel M104
+model M105 fishbase.grn
+seq S105 M105
+render S105 0x3b
+anim A105 fishstop.grn
+add C105 S105 A105
+param C105 3 9999
+advancen 7 0.033333
+render S105 0x11
+advance 0.4
+render S105 0x11
+remove C105
+closeanim A105
+closeseq S105
+closemodel M105
+model M106 flurpPurpbase.grn
+seq S106 M106
+render S106 0x3b
+anim A106 flurpPurpbase.grn
+add C106 S106 A106
+param C106 3 9999
+advancen 7 0.033333
+render S106 0x11
+advance 0.4
+render S106 0x11
+remove C106
+closeanim A106
+closeseq S106
+closemodel M106
+model M107 flurpbottlebase.grn
+seq S107 M107
+render S107 0x3b
+anim A107 flurpbottlebase.grn
+add C107 S107 A107
+param C107 3 9999
+advancen 7 0.033333
+render S107 0x11
+advance 0.4
+render S107 0x11
+remove C107
+closeanim A107
+closeseq S107
+closemodel M107
+model M108 fowlbase.grn
+seq S108 M108
+render S108 0x3b
+anim A108 fowlbase.grn
+add C108 S108 A108
+param C108 3 9999
+advancen 7 0.033333
+render S108 0x11
+advance 0.4
+render S108 0x11
+remove C108
+closeanim A108
+closeseq S108
+closemodel M108
+model M109 fowlbase.grn
+seq S109 M109
+render S109 0x3b
+anim A109 fowldino.grn
+add C109 S109 A109
+param C109 3 9999
+advancen 7 0.033333
+render S109 0x11
+advance 0.4
+render S109 0x11
+remove C109
+closeanim A109
+closeseq S109
+closemodel M109
+model M110 fowlbase.grn
+seq S110 M110
+render S110 0x3b
+anim A110 fowlidle.grn
+add C110 S110 A110
+param C110 3 9999
+advancen 7 0.033333
+render S110 0x11
+advance 0.4
+render S110 0x11
+remove C110
+closeanim A110
+closeseq S110
+closemodel M110
+model M111 fowlmummybase.grn
+seq S111 M111
+render S111 0x3b
+anim A111 fowlmummybase.grn
+add C111 S111 A111
+param C111 3 9999
+advancen 7 0.033333
+render S111 0x11
+advance 0.4
+render S111 0x11
+remove C111
+closeanim A111
+closeseq S111
+closemodel M111
+model M112 fowlmummybase.grn
+seq S112 M112
+render S112 0x3b
+anim A112 fowlmummyfall.grn
+add C112 S112 A112
+param C112 3 9999
+advancen 7 0.033333
+render S112 0x11
+advance 0.4
+render S112 0x11
+remove C112
+closeanim A112
+closeseq S112
+closemodel M112
+model M113 fowlmummybase.grn
+seq S113 M113
+render S113 0x3b
+anim A113 fowlmummystop.grn
+add C113 S113 A113
+param C113 3 9999
+advancen 7 0.033333
+render S113 0x11
+advance 0.4
+render S113 0x11
+remove C113
+closeanim A113
+closeseq S113
+closemodel M113
+model M114 fowlmummybase.grn
+seq S114 M114
+render S114 0x3b
+anim A114 fowlmummytalk.grn
+add C114 S114 A114
+param C114 3 9999
+advancen 7 0.033333
+render S114 0x11
+advance 0.4
+render S114 0x11
+remove C114
+closeanim A114
+closeseq S114
+closemodel M114
+model M115 fowlbase.grn
+seq S115 M115
+render S115 0x3b
+anim A115 fowlstop.grn
+add C115 S115 A115
+param C115 3 9999
+advancen 7 0.033333
+render S115 0x11
+advance 0.4
+render S115 0x11
+remove C115
+closeanim A115
+closeseq S115
+closemodel M115
+model M116 fowlbase.grn
+seq S116 M116
+render S116 0x3b
+anim A116 fowltalk.grn
+add C116 S116 A116
+param C116 3 9999
+advancen 7 0.033333
+render S116 0x11
+advance 0.4
+render S116 0x11
+remove C116
+closeanim A116
+closeseq S116
+closemodel M116
+model M117 fowlbase.grn
+seq S117 M117
+render S117 0x3b
+anim A117 fowltalknorm.grn
+add C117 S117 A117
+param C117 3 9999
+advancen 7 0.033333
+render S117 0x11
+advance 0.4
+render S117 0x11
+remove C117
+closeanim A117
+closeseq S117
+closemodel M117
+model M118 gembase.grn
+seq S118 M118
+render S118 0x3b
+anim A118 gembase.grn
+add C118 S118 A118
+param C118 3 9999
+advancen 7 0.033333
+render S118 0x11
+advance 0.4
+render S118 0x11
+remove C118
+closeanim A118
+closeseq S118
+closemodel M118
+model M119 gembase.grn
+seq S119 M119
+render S119 0x3b
+anim A119 gemblue.grn
+add C119 S119 A119
+param C119 3 9999
+advancen 7 0.033333
+render S119 0x11
+advance 0.4
+render S119 0x11
+remove C119
+closeanim A119
+closeseq S119
+closemodel M119
+model M120 gembase.grn
+seq S120 M120
+render S120 0x3b
+anim A120 gemred.grn
+add C120 S120 A120
+param C120 3 9999
+advancen 7 0.033333
+render S120 0x11
+advance 0.4
+render S120 0x11
+remove C120
+closeanim A120
+closeseq S120
+closemodel M120
+model M121 gembase.grn
+seq S121 M121
+render S121 0x3b
+anim A121 gemyellow.grn
+add C121 S121 A121
+param C121 3 9999
+advancen 7 0.033333
+render S121 0x11
+advance 0.4
+render S121 0x11
+remove C121
+closeanim A121
+closeseq S121
+closemodel M121
+model M122 ghostbase.grn
+seq S122 M122
+render S122 0x3b
+anim A122 ghostbase.grn
+add C122 S122 A122
+param C122 3 9999
+advancen 7 0.033333
+render S122 0x11
+advance 0.4
+render S122 0x11
+remove C122
+closeanim A122
+closeseq S122
+closemodel M122
+model M123 ghostbase.grn
+seq S123 M123
+render S123 0x3b
+anim A123 ghostfall.grn
+add C123 S123 A123
+param C123 3 9999
+advancen 7 0.033333
+render S123 0x11
+advance 0.4
+render S123 0x11
+remove C123
+closeanim A123
+closeseq S123
+closemodel M123
+model M124 ghostnummeybase.grn
+seq S124 M124
+render S124 0x3b
+anim A124 ghostnummeybase.grn
+add C124 S124 A124
+param C124 3 9999
+advancen 7 0.033333
+render S124 0x11
+advance 0.4
+render S124 0x11
+remove C124
+closeanim A124
+closeseq S124
+closemodel M124
+model M125 ghostnummeybase.grn
+seq S125 M125
+render S125 0x3b
+anim A125 ghostnummeyfall.grn
+add C125 S125 A125
+param C125 3 9999
+advancen 7 0.033333
+render S125 0x11
+advance 0.4
+render S125 0x11
+remove C125
+closeanim A125
+closeseq S125
+closemodel M125
+model M126 ghostnummeybase.grn
+seq S126 M126
+render S126 0x3b
+anim A126 ghostnummeyrun.grn
+add C126 S126 A126
+param C126 3 9999
+advancen 7 0.033333
+render S126 0x11
+advance 0.4
+render S126 0x11
+remove C126
+closeanim A126
+closeseq S126
+closemodel M126
+model M127 ghostnummeybase.grn
+seq S127 M127
+render S127 0x3b
+anim A127 ghostnummeytrip.grn
+add C127 S127 A127
+param C127 3 9999
+advancen 7 0.033333
+render S127 0x11
+advance 0.4
+render S127 0x11
+remove C127
+closeanim A127
+closeseq S127
+closemodel M127
+model M128 ghostbase.grn
+seq S128 M128
+render S128 0x3b
+anim A128 ghostrun.grn
+add C128 S128 A128
+param C128 3 9999
+advancen 7 0.033333
+render S128 0x11
+advance 0.4
+render S128 0x11
+remove C128
+closeanim A128
+closeseq S128
+closemodel M128
+model M129 ghostbase.grn
+seq S129 M129
+render S129 0x3b
+anim A129 ghoststop.grn
+add C129 S129 A129
+param C129 3 9999
+advancen 7 0.033333
+render S129 0x11
+advance 0.4
+render S129 0x11
+remove C129
+closeanim A129
+closeseq S129
+closemodel M129
+model M130 ghostbase.grn
+seq S130 M130
+render S130 0x3b
+anim A130 ghostwalk.grn
+add C130 S130 A130
+param C130 3 9999
+advancen 7 0.033333
+render S130 0x11
+advance 0.4
+render S130 0x11
+remove C130
+closeanim A130
+closeseq S130
+closemodel M130
+model M131 goddbase.grn
+seq S131 M131
+render S131 0x3b
+anim A131 goddafterburn.grn
+add C131 S131 A131
+param C131 3 9999
+advancen 7 0.033333
+render S131 0x11
+advance 0.4
+render S131 0x11
+remove C131
+closeanim A131
+closeseq S131
+closemodel M131
+model M132 goddbase.grn
+seq S132 M132
+render S132 0x3b
+anim A132 goddbase.grn
+add C132 S132 A132
+param C132 3 9999
+advancen 7 0.033333
+render S132 0x11
+advance 0.4
+render S132 0x11
+remove C132
+closeanim A132
+closeseq S132
+closemodel M132
+model M133 goddbase.grn
+seq S133 M133
+render S133 0x3b
+anim A133 goddcatchwingrocket.grn
+add C133 S133 A133
+param C133 3 9999
+advancen 7 0.033333
+render S133 0x11
+advance 0.4
+render S133 0x11
+remove C133
+closeanim A133
+closeseq S133
+closemodel M133
+model M134 goddbase.grn
+seq S134 M134
+render S134 0x3b
+anim A134 goddchase.grn
+add C134 S134 A134
+param C134 3 9999
+advancen 7 0.033333
+render S134 0x11
+advance 0.4
+render S134 0x11
+remove C134
+closeanim A134
+closeseq S134
+closemodel M134
+model M135 goddbase.grn
+seq S135 M135
+render S135 0x3b
+anim A135 godddish.grn
+add C135 S135 A135
+param C135 3 9999
+advancen 7 0.033333
+render S135 0x11
+advance 0.4
+render S135 0x11
+remove C135
+closeanim A135
+closeseq S135
+closemodel M135
+model M136 goddbase.grn
+seq S136 M136
+render S136 0x3b
+anim A136 goddfixrocket.grn
+add C136 S136 A136
+param C136 3 9999
+advancen 7 0.033333
+render S136 0x11
+advance 0.4
+render S136 0x11
+remove C136
+closeanim A136
+closeseq S136
+closemodel M136
+model M137 goddbase.grn
+seq S137 M137
+render S137 0x3b
+anim A137 goddfly.grn
+add C137 S137 A137
+param C137 3 9999
+advancen 7 0.033333
+render S137 0x11
+advance 0.4
+render S137 0x11
+remove C137
+closeanim A137
+closeseq S137
+closemodel M137
+model M138 goddbase.grn
+seq S138 M138
+render S138 0x3b
+anim A138 goddjump.grn
+add C138 S138 A138
+param C138 3 9999
+advancen 7 0.033333
+render S138 0x11
+advance 0.4
+render S138 0x11
+remove C138
+closeanim A138
+closeseq S138
+closemodel M138
+model M139 goddbase.grn
+seq S139 M139
+render S139 0x3b
+anim A139 goddplay.grn
+add C139 S139 A139
+param C139 3 9999
+advancen 7 0.033333
+render S139 0x11
+advance 0.4
+render S139 0x11
+remove C139
+closeanim A139
+closeseq S139
+closemodel M139
+model M140 goddbase.grn
+seq S140 M140
+render S140 0x3b
+anim A140 goddpoint.grn
+add C140 S140 A140
+param C140 3 9999
+advancen 7 0.033333
+render S140 0x11
+advance 0.4
+render S140 0x11
+remove C140
+closeanim A140
+closeseq S140
+closemodel M140
+model M141 goddbase.grn
+seq S141 M141
+render S141 0x3b
+anim A141 goddrocket.grn
+add C141 S141 A141
+param C141 3 9999
+advancen 7 0.033333
+render S141 0x11
+advance 0.4
+render S141 0x11
+remove C141
+closeanim A141
+closeseq S141
+closemodel M141
+model M142 goddbase.grn
+seq S142 M142
+render S142 0x3b
+anim A142 goddshadow.grn
+add C142 S142 A142
+param C142 3 9999
+advancen 7 0.033333
+render S142 0x11
+advance 0.4
+render S142 0x11
+remove C142
+closeanim A142
+closeseq S142
+closemodel M142
+model M143 goddbase.grn
+seq S143 M143
+render S143 0x3b
+anim A143 goddsit.grn
+add C143 S143 A143
+param C143 3 9999
+advancen 7 0.033333
+render S143 0x11
+advance 0.4
+render S143 0x11
+remove C143
+closeanim A143
+closeseq S143
+closemodel M143
+model M144 goddbase.grn
+seq S144 M144
+render S144 0x3b
+anim A144 goddsnif.grn
+add C144 S144 A144
+param C144 3 9999
+advancen 7 0.033333
+render S144 0x11
+advance 0.4
+render S144 0x11
+remove C144
+closeanim A144
+closeseq S144
+closemodel M144
+model M145 goddbase.grn
+seq S145 M145
+render S145 0x3b
+anim A145 goddsniff.grn
+add C145 S145 A145
+param C145 3 9999
+advancen 7 0.033333
+render S145 0x11
+advance 0.4
+render S145 0x11
+remove C145
+closeanim A145
+closeseq S145
+closemodel M145
+model M146 goddbase.grn
+seq S146 M146
+render S146 0x3b
+anim A146 goddstop.grn
+add C146 S146 A146
+param C146 3 9999
+advancen 7 0.033333
+render S146 0x11
+advance 0.4
+render S146 0x11
+remove C146
+closeanim A146
+closeseq S146
+closemodel M146
+model M147 goddbase.grn
+seq S147 M147
+render S147 0x3b
+anim A147 goddstopshort.grn
+add C147 S147 A147
+param C147 3 9999
+advancen 7 0.033333
+render S147 0x11
+advance 0.4
+render S147 0x11
+remove C147
+closeanim A147
+closeseq S147
+closemodel M147
+model M148 goddbase.grn
+seq S148 M148
+render S148 0x3b
+anim A148 goddwalk.grn
+add C148 S148 A148
+param C148 3 9999
+advancen 7 0.033333
+render S148 0x11
+advance 0.4
+render S148 0x11
+remove C148
+closeanim A148
+closeseq S148
+closemodel M148
+model M149 goddbase.grn
+seq S149 M149
+render S149 0x3b
+anim A149 goddwave.grn
+add C149 S149 A149
+param C149 3 9999
+advancen 7 0.033333
+render S149 0x11
+advance 0.4
+render S149 0x11
+remove C149
+closeanim A149
+closeseq S149
+closemodel M149
+model M150 goggles.grn
+seq S150 M150
+render S150 0x3b
+anim A150 goggles.grn
+add C150 S150 A150
+param C150 3 9999
+advancen 7 0.033333
+render S150 0x11
+advance 0.4
+render S150 0x11
+remove C150
+closeanim A150
+closeseq S150
+closemodel M150
+model M151 gun.grn
+seq S151 M151
+render S151 0x3b
+anim A151 gun.grn
+add C151 S151 A151
+param C151 3 9999
+advancen 7 0.033333
+render S151 0x11
+advance 0.4
+render S151 0x11
+remove C151
+closeanim A151
+closeseq S151
+closemodel M151
+model M152 gunbones.grn
+seq S152 M152
+render S152 0x3b
+anim A152 gunbones.grn
+add C152 S152 A152
+param C152 3 9999
+advancen 7 0.033333
+render S152 0x11
+advance 0.4
+render S152 0x11
+remove C152
+closeanim A152
+closeseq S152
+closemodel M152
+model M153 headspinbase.grn
+seq S153 M153
+render S153 0x3b
+anim A153 headspinbase.grn
+add C153 S153 A153
+param C153 3 9999
+advancen 7 0.033333
+render S153 0x11
+advance 0.4
+render S153 0x11
+remove C153
+closeanim A153
+closeseq S153
+closemodel M153
+model M154 headspinbase.grn
+seq S154 M154
+render S154 0x3b
+anim A154 headspinmove.grn
+add C154 S154 A154
+param C154 3 9999
+advancen 7 0.033333
+render S154 0x11
+advance 0.4
+render S154 0x11
+remove C154
+closeanim A154
+closeseq S154
+closemodel M154
+model M155 headspinbase.grn
+seq S155 M155
+render S155 0x3b
+anim A155 headspinstop.grn
+add C155 S155 A155
+param C155 3 9999
+advancen 7 0.033333
+render S155 0x11
+advance 0.4
+render S155 0x11
+remove C155
+closeanim A155
+closeseq S155
+closemodel M155
+model M156 hermanbase.grn
+seq S156 M156
+render S156 0x3b
+anim A156 hermanAnalyze.grn
+add C156 S156 A156
+param C156 3 9999
+advancen 7 0.033333
+render S156 0x11
+advance 0.4
+render S156 0x11
+remove C156
+closeanim A156
+closeseq S156
+closemodel M156
+model M157 hermanbase.grn
+seq S157 M157
+render S157 0x3b
+anim A157 hermanAttack1.grn
+add C157 S157 A157
+param C157 3 9999
+advancen 7 0.033333
+render S157 0x11
+advance 0.4
+render S157 0x11
+remove C157
+closeanim A157
+closeseq S157
+closemodel M157
+model M158 hermanbase.grn
+seq S158 M158
+render S158 0x3b
+anim A158 hermanAttack2.grn
+add C158 S158 A158
+param C158 3 9999
+advancen 7 0.033333
+render S158 0x11
+advance 0.4
+render S158 0x11
+remove C158
+closeanim A158
+closeseq S158
+closemodel M158
+model M159 hermanbase.grn
+seq S159 M159
+render S159 0x3b
+anim A159 hermanAttack3.grn
+add C159 S159 A159
+param C159 3 9999
+advancen 7 0.033333
+render S159 0x11
+advance 0.4
+render S159 0x11
+remove C159
+closeanim A159
+closeseq S159
+closemodel M159
+model M160 hermanbase.grn
+seq S160 M160
+render S160 0x3b
+anim A160 hermanBeforeRUN.grn
+add C160 S160 A160
+param C160 3 9999
+advancen 7 0.033333
+render S160 0x11
+advance 0.4
+render S160 0x11
+remove C160
+closeanim A160
+closeseq S160
+closemodel M160
+model M161 hermanbase.grn
+seq S161 M161
+render S161 0x3b
+anim A161 hermanDies.grn
+add C161 S161 A161
+param C161 3 9999
+advancen 7 0.033333
+render S161 0x11
+advance 0.4
+render S161 0x11
+remove C161
+closeanim A161
+closeseq S161
+closemodel M161
+model M162 hermanbase.grn
+seq S162 M162
+render S162 0x3b
+anim A162 hermanHALT.grn
+add C162 S162 A162
+param C162 3 9999
+advancen 7 0.033333
+render S162 0x11
+advance 0.4
+render S162 0x11
+remove C162
+closeanim A162
+closeseq S162
+closemodel M162
+model M163 hermanbase.grn
+seq S163 M163
+render S163 0x3b
+anim A163 hermanLook.grn
+add C163 S163 A163
+param C163 3 9999
+advancen 7 0.033333
+render S163 0x11
+advance 0.4
+render S163 0x11
+remove C163
+closeanim A163
+closeseq S163
+closemodel M163
+model M164 hermanbase.grn
+seq S164 M164
+render S164 0x3b
+anim A164 hermanRUN.grn
+add C164 S164 A164
+param C164 3 9999
+advancen 7 0.033333
+render S164 0x11
+advance 0.4
+render S164 0x11
+remove C164
+closeanim A164
+closeseq S164
+closemodel M164
+model M165 hermanbase.grn
+seq S165 M165
+render S165 0x3b
+anim A165 hermanThinksMove.grn
+add C165 S165 A165
+param C165 3 9999
+advancen 7 0.033333
+render S165 0x11
+advance 0.4
+render S165 0x11
+remove C165
+closeanim A165
+closeseq S165
+closemodel M165
+model M166 hermanbase.grn
+seq S166 M166
+render S166 0x3b
+anim A166 hermanThinksStop.grn
+add C166 S166 A166
+param C166 3 9999
+advancen 7 0.033333
+render S166 0x11
+advance 0.4
+render S166 0x11
+remove C166
+closeanim A166
+closeseq S166
+closemodel M166
+model M167 hermanbase.grn
+seq S167 M167
+render S167 0x3b
+anim A167 hermanTurngrab.grn
+add C167 S167 A167
+param C167 3 9999
+advancen 7 0.033333
+render S167 0x11
+advance 0.4
+render S167 0x11
+remove C167
+closeanim A167
+closeseq S167
+closemodel M167
+model M168 hermanbase.grn
+seq S168 M168
+render S168 0x3b
+anim A168 hermanTurnspeak.grn
+add C168 S168 A168
+param C168 3 9999
+advancen 7 0.033333
+render S168 0x11
+advance 0.4
+render S168 0x11
+remove C168
+closeanim A168
+closeseq S168
+closemodel M168
+model M169 hermanbase.grn
+seq S169 M169
+render S169 0x3b
+anim A169 hermanbase.grn
+add C169 S169 A169
+param C169 3 9999
+advancen 7 0.033333
+render S169 0x11
+advance 0.4
+render S169 0x11
+remove C169
+closeanim A169
+closeseq S169
+closemodel M169
+model M170 hermanbase.grn
+seq S170 M170
+render S170 0x3b
+anim A170 hermanhit.grn
+add C170 S170 A170
+param C170 3 9999
+advancen 7 0.033333
+render S170 0x11
+advance 0.4
+render S170 0x11
+remove C170
+closeanim A170
+closeseq S170
+closemodel M170
+model M171 hermanbase.grn
+seq S171 M171
+render S171 0x3b
+anim A171 hermanlaugh.grn
+add C171 S171 A171
+param C171 3 9999
+advancen 7 0.033333
+render S171 0x11
+advance 0.4
+render S171 0x11
+remove C171
+closeanim A171
+closeseq S171
+closemodel M171
+model M172 hermanbase.grn
+seq S172 M172
+render S172 0x3b
+anim A172 hermanmail.grn
+add C172 S172 A172
+param C172 3 9999
+advancen 7 0.033333
+render S172 0x11
+advance 0.4
+render S172 0x11
+remove C172
+closeanim A172
+closeseq S172
+closemodel M172
+model M173 hermanbase.grn
+seq S173 M173
+render S173 0x3b
+anim A173 hermanneedsaholiday.grn
+add C173 S173 A173
+param C173 3 9999
+advancen 7 0.033333
+render S173 0x11
+advance 0.4
+render S173 0x11
+remove C173
+closeanim A173
+closeseq S173
+closemodel M173
+model M174 hermanbase.grn
+seq S174 M174
+render S174 0x3b
+anim A174 hermanspinIN.grn
+add C174 S174 A174
+param C174 3 9999
+advancen 7 0.033333
+render S174 0x11
+advance 0.4
+render S174 0x11
+remove C174
+closeanim A174
+closeseq S174
+closemodel M174
+model M175 hermanbase.grn
+seq S175 M175
+render S175 0x3b
+anim A175 hermanspinout.grn
+add C175 S175 A175
+param C175 3 9999
+advancen 7 0.033333
+render S175 0x11
+advance 0.4
+render S175 0x11
+remove C175
+closeanim A175
+closeseq S175
+closemodel M175
+model M176 hermanbase.grn
+seq S176 M176
+render S176 0x3b
+anim A176 hermanstop.grn
+add C176 S176 A176
+param C176 3 9999
+advancen 7 0.033333
+render S176 0x11
+advance 0.4
+render S176 0x11
+remove C176
+closeanim A176
+closeseq S176
+closemodel M176
+model M177 hermanbase.grn
+seq S177 M177
+render S177 0x3b
+anim A177 hermantalk.grn
+add C177 S177 A177
+param C177 3 9999
+advancen 7 0.033333
+render S177 0x11
+advance 0.4
+render S177 0x11
+remove C177
+closeanim A177
+closeseq S177
+closemodel M177
+model M178 hermanbase.grn
+seq S178 M178
+render S178 0x3b
+anim A178 hermanwalk.grn
+add C178 S178 A178
+param C178 3 9999
+advancen 7 0.033333
+render S178 0x11
+advance 0.4
+render S178 0x11
+remove C178
+closeanim A178
+closeseq S178
+closemodel M178
+model M179 jetpack.grn
+seq S179 M179
+render S179 0x3b
+anim A179 jetpack.grn
+add C179 S179 A179
+param C179 3 9999
+advancen 7 0.033333
+render S179 0x11
+advance 0.4
+render S179 0x11
+remove C179
+closeanim A179
+closeseq S179
+closemodel M179
+model M180 jimmybase.grn
+seq S180 M180
+render S180 0x3b
+anim A180 jimmyAhhrrgg.grn
+add C180 S180 A180
+param C180 3 9999
+advancen 7 0.033333
+render S180 0x11
+advance 0.4
+render S180 0x11
+remove C180
+closeanim A180
+closeseq S180
+closemodel M180
+model M181 jimmybase.grn
+seq S181 M181
+render S181 0x3b
+anim A181 jimmyExcited.grn
+add C181 S181 A181
+param C181 3 9999
+advancen 7 0.033333
+render S181 0x11
+advance 0.4
+render S181 0x11
+remove C181
+closeanim A181
+closeseq S181
+closemodel M181
+model M182 jimmybase.grn
+seq S182 M182
+render S182 0x3b
+anim A182 jimmyafterburn.grn
+add C182 S182 A182
+param C182 3 9999
+advancen 7 0.033333
+render S182 0x11
+advance 0.4
+render S182 0x11
+remove C182
+closeanim A182
+closeseq S182
+closemodel M182
+model M183 jimmybase.grn
+seq S183 M183
+render S183 0x3b
+anim A183 jimmyawn.grn
+add C183 S183 A183
+param C183 3 9999
+advancen 7 0.033333
+render S183 0x11
+advance 0.4
+render S183 0x11
+remove C183
+closeanim A183
+closeseq S183
+closemodel M183
+model M184 jimmybase.grn
+seq S184 M184
+render S184 0x3b
+anim A184 jimmybase.grn
+add C184 S184 A184
+param C184 3 9999
+advancen 7 0.033333
+render S184 0x11
+advance 0.4
+render S184 0x11
+remove C184
+closeanim A184
+closeseq S184
+closemodel M184
+model M185 jimmybase.grn
+seq S185 M185
+render S185 0x3b
+anim A185 jimmybuttons.grn
+add C185 S185 A185
+param C185 3 9999
+advancen 7 0.033333
+render S185 0x11
+advance 0.4
+render S185 0x11
+remove C185
+closeanim A185
+closeseq S185
+closemodel M185
+model M186 jimmybase.grn
+seq S186 M186
+render S186 0x3b
+anim A186 jimmyclimbrope.grn
+add C186 S186 A186
+param C186 3 9999
+advancen 7 0.033333
+render S186 0x11
+advance 0.4
+render S186 0x11
+remove C186
+closeanim A186
+closeseq S186
+closemodel M186
+model M187 jimmybase.grn
+seq S187 M187
+render S187 0x3b
+anim A187 jimmycomplain.grn
+add C187 S187 A187
+param C187 3 9999
+advancen 7 0.033333
+render S187 0x11
+advance 0.4
+render S187 0x11
+remove C187
+closeanim A187
+closeseq S187
+closemodel M187
+model M188 jimmybase.grn
+seq S188 M188
+render S188 0x3b
+anim A188 jimmydance.grn
+add C188 S188 A188
+param C188 3 9999
+advancen 7 0.033333
+render S188 0x11
+advance 0.4
+render S188 0x11
+remove C188
+closeanim A188
+closeseq S188
+closemodel M188
+model M189 jimmybase.grn
+seq S189 M189
+render S189 0x3b
+anim A189 jimmyfacestop.grn
+add C189 S189 A189
+param C189 3 9999
+advancen 7 0.033333
+render S189 0x11
+advance 0.4
+render S189 0x11
+remove C189
+closeanim A189
+closeseq S189
+closemodel M189
+model M190 jimmybase.grn
+seq S190 M190
+render S190 0x3b
+anim A190 jimmyfacetalk.grn
+add C190 S190 A190
+param C190 3 9999
+advancen 7 0.033333
+render S190 0x11
+advance 0.4
+render S190 0x11
+remove C190
+closeanim A190
+closeseq S190
+closemodel M190
+model M191 jimmybase.grn
+seq S191 M191
+render S191 0x3b
+anim A191 jimmyfall.grn
+add C191 S191 A191
+param C191 3 9999
+advancen 7 0.033333
+render S191 0x11
+advance 0.4
+render S191 0x11
+remove C191
+closeanim A191
+closeseq S191
+closemodel M191
+model M192 jimmybase.grn
+seq S192 M192
+render S192 0x3b
+anim A192 jimmyfence.grn
+add C192 S192 A192
+param C192 3 9999
+advancen 7 0.033333
+render S192 0x11
+advance 0.4
+render S192 0x11
+remove C192
+closeanim A192
+closeseq S192
+closemodel M192
+model M193 jimmybase.grn
+seq S193 M193
+render S193 0x3b
+anim A193 jimmyfloat.grn
+add C193 S193 A193
+param C193 3 9999
+advancen 7 0.033333
+render S193 0x11
+advance 0.4
+render S193 0x11
+remove C193
+closeanim A193
+closeseq S193
+closemodel M193
+model M194 jimmybase.grn
+seq S194 M194
+render S194 0x3b
+anim A194 jimmyfly.grn
+add C194 S194 A194
+param C194 3 9999
+advancen 7 0.033333
+render S194 0x11
+advance 0.4
+render S194 0x11
+remove C194
+closeanim A194
+closeseq S194
+closemodel M194
+model M195 jimmybase.grn
+seq S195 M195
+render S195 0x3b
+anim A195 jimmyfullbackpedal.grn
+add C195 S195 A195
+param C195 3 9999
+advancen 7 0.033333
+render S195 0x11
+advance 0.4
+render S195 0x11
+remove C195
+closeanim A195
+closeseq S195
+closemodel M195
+model M196 jimmybase.grn
+seq S196 M196
+render S196 0x3b
+anim A196 jimmyfullburpgunstop.grn
+add C196 S196 A196
+param C196 3 9999
+advancen 7 0.033333
+render S196 0x11
+advance 0.4
+render S196 0x11
+remove C196
+closeanim A196
+closeseq S196
+closemodel M196
+model M197 jimmybase.grn
+seq S197 M197
+render S197 0x3b
+anim A197 jimmyfullgunpoint.grn
+add C197 S197 A197
+param C197 3 9999
+advancen 7 0.033333
+render S197 0x11
+advance 0.4
+render S197 0x11
+remove C197
+closeanim A197
+closeseq S197
+closemodel M197
+model M198 jimmybase.grn
+seq S198 M198
+render S198 0x3b
+anim A198 jimmyfullgunshoot.grn
+add C198 S198 A198
+param C198 3 9999
+advancen 7 0.033333
+render S198 0x11
+advance 0.4
+render S198 0x11
+remove C198
+closeanim A198
+closeseq S198
+closemodel M198
+model M199 jimmybase.grn
+seq S199 M199
+render S199 0x3b
+anim A199 jimmyfullleft.grn
+add C199 S199 A199
+param C199 3 9999
+advancen 7 0.033333
+render S199 0x11
+advance 0.4
+render S199 0x11
+remove C199
+closeanim A199
+closeseq S199
+closemodel M199
+model M200 jimmybase.grn
+seq S200 M200
+render S200 0x3b
+anim A200 jimmyfullleftburpgun.grn
+add C200 S200 A200
+param C200 3 9999
+advancen 7 0.033333
+render S200 0x11
+advance 0.4
+render S200 0x11
+remove C200
+closeanim A200
+closeseq S200
+closemodel M200
+model M201 jimmybase.grn
+seq S201 M201
+render S201 0x3b
+anim A201 jimmyfulllefthold.grn
+add C201 S201 A201
+param C201 3 9999
+advancen 7 0.033333
+render S201 0x11
+advance 0.4
+render S201 0x11
+remove C201
+closeanim A201
+closeseq S201
+closemodel M201
+model M202 jimmybase.grn
+seq S202 M202
+render S202 0x3b
+anim A202 jimmyfullleftholdgun.grn
+add C202 S202 A202
+param C202 3 9999
+advancen 7 0.033333
+render S202 0x11
+advance 0.4
+render S202 0x11
+remove C202
+closeanim A202
+closeseq S202
+closemodel M202
+model M203 jimmybase.grn
+seq S203 M203
+render S203 0x3b
+anim A203 jimmyfullright.grn
+add C203 S203 A203
+param C203 3 9999
+advancen 7 0.033333
+render S203 0x11
+advance 0.4
+render S203 0x11
+remove C203
+closeanim A203
+closeseq S203
+closemodel M203
+model M204 jimmybase.grn
+seq S204 M204
+render S204 0x3b
+anim A204 jimmyfullrightburpgun.grn
+add C204 S204 A204
+param C204 3 9999
+advancen 7 0.033333
+render S204 0x11
+advance 0.4
+render S204 0x11
+remove C204
+closeanim A204
+closeseq S204
+closemodel M204
+model M205 jimmybase.grn
+seq S205 M205
+render S205 0x3b
+anim A205 jimmyfullrighthold.grn
+add C205 S205 A205
+param C205 3 9999
+advancen 7 0.033333
+render S205 0x11
+advance 0.4
+render S205 0x11
+remove C205
+closeanim A205
+closeseq S205
+closemodel M205
+model M206 jimmybase.grn
+seq S206 M206
+render S206 0x3b
+anim A206 jimmyfullrightholdgun.grn
+add C206 S206 A206
+param C206 3 9999
+advancen 7 0.033333
+render S206 0x11
+advance 0.4
+render S206 0x11
+remove C206
+closeanim A206
+closeseq S206
+closemodel M206
+model M207 jimmybase.grn
+seq S207 M207
+render S207 0x3b
+anim A207 jimmyfullrun.grn
+add C207 S207 A207
+param C207 3 9999
+advancen 7 0.033333
+render S207 0x11
+advance 0.4
+render S207 0x11
+remove C207
+closeanim A207
+closeseq S207
+closemodel M207
+model M208 jimmybase.grn
+seq S208 M208
+render S208 0x3b
+anim A208 jimmyfullrunburpgun.grn
+add C208 S208 A208
+param C208 3 9999
+advancen 7 0.033333
+render S208 0x11
+advance 0.4
+render S208 0x11
+remove C208
+closeanim A208
+closeseq S208
+closemodel M208
+model M209 jimmybase.grn
+seq S209 M209
+render S209 0x3b
+anim A209 jimmyfullrungun.grn
+add C209 S209 A209
+param C209 3 9999
+advancen 7 0.033333
+render S209 0x11
+advance 0.4
+render S209 0x11
+remove C209
+closeanim A209
+closeseq S209
+closemodel M209
+model M210 jimmybase.grn
+seq S210 M210
+render S210 0x3b
+anim A210 jimmyfullrunhold.grn
+add C210 S210 A210
+param C210 3 9999
+advancen 7 0.033333
+render S210 0x11
+advance 0.4
+render S210 0x11
+remove C210
+closeanim A210
+closeseq S210
+closemodel M210
+model M211 jimmybase.grn
+seq S211 M211
+render S211 0x3b
+anim A211 jimmyfullstop.grn
+add C211 S211 A211
+param C211 3 9999
+advancen 7 0.033333
+render S211 0x11
+advance 0.4
+render S211 0x11
+remove C211
+closeanim A211
+closeseq S211
+closemodel M211
+model M212 jimmybase.grn
+seq S212 M212
+render S212 0x3b
+anim A212 jimmyfullstophold.grn
+add C212 S212 A212
+param C212 3 9999
+advancen 7 0.033333
+render S212 0x11
+advance 0.4
+render S212 0x11
+remove C212
+closeanim A212
+closeseq S212
+closemodel M212
+model M213 jimmybase.grn
+seq S213 M213
+render S213 0x3b
+anim A213 jimmyfulltalk.grn
+add C213 S213 A213
+param C213 3 9999
+advancen 7 0.033333
+render S213 0x11
+advance 0.4
+render S213 0x11
+remove C213
+closeanim A213
+closeseq S213
+closemodel M213
+model M214 jimmybase.grn
+seq S214 M214
+render S214 0x3b
+anim A214 jimmygetfrombackpack.grn
+add C214 S214 A214
+param C214 3 9999
+advancen 7 0.033333
+render S214 0x11
+advance 0.4
+render S214 0x11
+remove C214
+closeanim A214
+closeseq S214
+closemodel M214
+model M215 jimmybase.grn
+seq S215 M215
+render S215 0x3b
+anim A215 jimmygetpda.grn
+add C215 S215 A215
+param C215 3 9999
+advancen 7 0.033333
+render S215 0x11
+advance 0.4
+render S215 0x11
+remove C215
+closeanim A215
+closeseq S215
+closemodel M215
+model M216 jimmybase.grn
+seq S216 M216
+render S216 0x3b
+anim A216 jimmygiveflurp.grn
+add C216 S216 A216
+param C216 3 9999
+advancen 7 0.033333
+render S216 0x11
+advance 0.4
+render S216 0x11
+remove C216
+closeanim A216
+closeseq S216
+closemodel M216
+model M217 jimmybase.grn
+seq S217 M217
+render S217 0x3b
+anim A217 jimmyhit.grn
+add C217 S217 A217
+param C217 3 9999
+advancen 7 0.033333
+render S217 0x11
+advance 0.4
+render S217 0x11
+remove C217
+closeanim A217
+closeseq S217
+closemodel M217
+model M218 jimmybase.grn
+seq S218 M218
+render S218 0x3b
+anim A218 jimmyidle.grn
+add C218 S218 A218
+param C218 3 9999
+advancen 7 0.033333
+render S218 0x11
+advance 0.4
+render S218 0x11
+remove C218
+closeanim A218
+closeseq S218
+closemodel M218
+model M219 jimmybase.grn
+seq S219 M219
+render S219 0x3b
+anim A219 jimmyinvent.grn
+add C219 S219 A219
+param C219 3 9999
+advancen 7 0.033333
+render S219 0x11
+advance 0.4
+render S219 0x11
+remove C219
+closeanim A219
+closeseq S219
+closemodel M219
+model M220 jimmybase.grn
+seq S220 M220
+render S220 0x3b
+anim A220 jimmyinventburpgun.grn
+add C220 S220 A220
+param C220 3 9999
+advancen 7 0.033333
+render S220 0x11
+advance 0.4
+render S220 0x11
+remove C220
+closeanim A220
+closeseq S220
+closemodel M220
+model M221 jimmybase.grn
+seq S221 M221
+render S221 0x3b
+anim A221 jimmyjump.grn
+add C221 S221 A221
+param C221 3 9999
+advancen 7 0.033333
+render S221 0x11
+advance 0.4
+render S221 0x11
+remove C221
+closeanim A221
+closeseq S221
+closemodel M221
+model M222 jimmybase.grn
+seq S222 M222
+render S222 0x3b
+anim A222 jimmyjumpgun.grn
+add C222 S222 A222
+param C222 3 9999
+advancen 7 0.033333
+render S222 0x11
+advance 0.4
+render S222 0x11
+remove C222
+closeanim A222
+closeseq S222
+closemodel M222
+model M223 jimmybase.grn
+seq S223 M223
+render S223 0x3b
+anim A223 jimmyjumpjoy.grn
+add C223 S223 A223
+param C223 3 9999
+advancen 7 0.033333
+render S223 0x11
+advance 0.4
+render S223 0x11
+remove C223
+closeanim A223
+closeseq S223
+closemodel M223
+model M224 jimmybase.grn
+seq S224 M224
+render S224 0x3b
+anim A224 jimmyladder.grn
+add C224 S224 A224
+param C224 3 9999
+advancen 7 0.033333
+render S224 0x11
+advance 0.4
+render S224 0x11
+remove C224
+closeanim A224
+closeseq S224
+closemodel M224
+model M225 jimmybase.grn
+seq S225 M225
+render S225 0x3b
+anim A225 jimmylever.grn
+add C225 S225 A225
+param C225 3 9999
+advancen 7 0.033333
+render S225 0x11
+advance 0.4
+render S225 0x11
+remove C225
+closeanim A225
+closeseq S225
+closemodel M225
+model M226 jimmybase.grn
+seq S226 M226
+render S226 0x3b
+anim A226 jimmylookpda.grn
+add C226 S226 A226
+param C226 3 9999
+advancen 7 0.033333
+render S226 0x11
+advance 0.4
+render S226 0x11
+remove C226
+closeanim A226
+closeseq S226
+closemodel M226
+model M227 jimmybase.grn
+seq S227 M227
+render S227 0x3b
+anim A227 jimmylookup.grn
+add C227 S227 A227
+param C227 3 9999
+advancen 7 0.033333
+render S227 0x11
+advance 0.4
+render S227 0x11
+remove C227
+closeanim A227
+closeseq S227
+closemodel M227
+model M228 jimmybase.grn
+seq S228 M228
+render S228 0x3b
+anim A228 jimmylowerbackpedal.grn
+add C228 S228 A228
+param C228 3 9999
+advancen 7 0.033333
+render S228 0x11
+advance 0.4
+render S228 0x11
+remove C228
+closeanim A228
+closeseq S228
+closemodel M228
+model M229 jimmybase.grn
+seq S229 M229
+render S229 0x3b
+anim A229 jimmylowerleft.grn
+add C229 S229 A229
+param C229 3 9999
+advancen 7 0.033333
+render S229 0x11
+advance 0.4
+render S229 0x11
+remove C229
+closeanim A229
+closeseq S229
+closemodel M229
+model M230 jimmybase.grn
+seq S230 M230
+render S230 0x3b
+anim A230 jimmylowerright.grn
+add C230 S230 A230
+param C230 3 9999
+advancen 7 0.033333
+render S230 0x11
+advance 0.4
+render S230 0x11
+remove C230
+closeanim A230
+closeseq S230
+closemodel M230
+model M231 jimmybase.grn
+seq S231 M231
+render S231 0x3b
+anim A231 jimmylowerrun.grn
+add C231 S231 A231
+param C231 3 9999
+advancen 7 0.033333
+render S231 0x11
+advance 0.4
+render S231 0x11
+remove C231
+closeanim A231
+closeseq S231
+closemodel M231
+model M232 jimmybase.grn
+seq S232 M232
+render S232 0x3b
+anim A232 jimmylowerstop.grn
+add C232 S232 A232
+param C232 3 9999
+advancen 7 0.033333
+render S232 0x11
+advance 0.4
+render S232 0x11
+remove C232
+closeanim A232
+closeseq S232
+closemodel M232
+model M233 jimmybase.grn
+seq S233 M233
+render S233 0x3b
+anim A233 jimmylowerwalk.grn
+add C233 S233 A233
+param C233 3 9999
+advancen 7 0.033333
+render S233 0x11
+advance 0.4
+render S233 0x11
+remove C233
+closeanim A233
+closeseq S233
+closemodel M233
+model M234 jimmybase.grn
+seq S234 M234
+render S234 0x3b
+anim A234 jimmyno.grn
+add C234 S234 A234
+param C234 3 9999
+advancen 7 0.033333
+render S234 0x11
+advance 0.4
+render S234 0x11
+remove C234
+closeanim A234
+closeseq S234
+closemodel M234
+model M235 jimmybase.grn
+seq S235 M235
+render S235 0x3b
+anim A235 jimmyorderpizza.grn
+add C235 S235 A235
+param C235 3 9999
+advancen 7 0.033333
+render S235 0x11
+advance 0.4
+render S235 0x11
+remove C235
+closeanim A235
+closeseq S235
+closemodel M235
+model M236 jimmybase.grn
+seq S236 M236
+render S236 0x3b
+anim A236 jimmypickup.grn
+add C236 S236 A236
+param C236 3 9999
+advancen 7 0.033333
+render S236 0x11
+advance 0.4
+render S236 0x11
+remove C236
+closeanim A236
+closeseq S236
+closemodel M236
+model M237 jimmybase.grn
+seq S237 M237
+render S237 0x3b
+anim A237 jimmypickup2.grn
+add C237 S237 A237
+param C237 3 9999
+advancen 7 0.033333
+render S237 0x11
+advance 0.4
+render S237 0x11
+remove C237
+closeanim A237
+closeseq S237
+closemodel M237
+model M238 jimmybase.grn
+seq S238 M238
+render S238 0x3b
+anim A238 jimmypickupfloor.grn
+add C238 S238 A238
+param C238 3 9999
+advancen 7 0.033333
+render S238 0x11
+advance 0.4
+render S238 0x11
+remove C238
+closeanim A238
+closeseq S238
+closemodel M238
+model M239 jimmybase.grn
+seq S239 M239
+render S239 0x3b
+anim A239 jimmypickupglasses.grn
+add C239 S239 A239
+param C239 3 9999
+advancen 7 0.033333
+render S239 0x11
+advance 0.4
+render S239 0x11
+remove C239
+closeanim A239
+closeseq S239
+closemodel M239
+model M240 jimmybase.grn
+seq S240 M240
+render S240 0x3b
+anim A240 jimmypointburpgun.grn
+add C240 S240 A240
+param C240 3 9999
+advancen 7 0.033333
+render S240 0x11
+advance 0.4
+render S240 0x11
+remove C240
+closeanim A240
+closeseq S240
+closemodel M240
+model M241 jimmybase.grn
+seq S241 M241
+render S241 0x3b
+anim A241 jimmyproud.grn
+add C241 S241 A241
+param C241 3 9999
+advancen 7 0.033333
+render S241 0x11
+advance 0.4
+render S241 0x11
+remove C241
+closeanim A241
+closeseq S241
+closemodel M241
+model M242 jimmybase.grn
+seq S242 M242
+render S242 0x3b
+anim A242 jimmyputinbackpack.grn
+add C242 S242 A242
+param C242 3 9999
+advancen 7 0.033333
+render S242 0x11
+advance 0.4
+render S242 0x11
+remove C242
+closeanim A242
+closeseq S242
+closemodel M242
+model M243 jimmybase.grn
+seq S243 M243
+render S243 0x3b
+anim A243 jimmyroll.grn
+add C243 S243 A243
+param C243 3 9999
+advancen 7 0.033333
+render S243 0x11
+advance 0.4
+render S243 0x11
+remove C243
+closeanim A243
+closeseq S243
+closemodel M243
+model M244 jimmybase.grn
+seq S244 M244
+render S244 0x3b
+anim A244 jimmyscared.grn
+add C244 S244 A244
+param C244 3 9999
+advancen 7 0.033333
+render S244 0x11
+advance 0.4
+render S244 0x11
+remove C244
+closeanim A244
+closeseq S244
+closemodel M244
+model M245 jimmybase.grn
+seq S245 M245
+render S245 0x3b
+anim A245 jimmyscaredtalk.grn
+add C245 S245 A245
+param C245 3 9999
+advancen 7 0.033333
+render S245 0x11
+advance 0.4
+render S245 0x11
+remove C245
+closeanim A245
+closeseq S245
+closemodel M245
+model M246 jimmybase.grn
+seq S246 M246
+render S246 0x3b
+anim A246 jimmyscooter.grn
+add C246 S246 A246
+param C246 3 9999
+advancen 7 0.033333
+render S246 0x11
+advance 0.4
+render S246 0x11
+remove C246
+closeanim A246
+closeseq S246
+closemodel M246
+model M247 jimmybase.grn
+seq S247 M247
+render S247 0x3b
+anim A247 jimmyscooterstop.grn
+add C247 S247 A247
+param C247 3 9999
+advancen 7 0.033333
+render S247 0x11
+advance 0.4
+render S247 0x11
+remove C247
+closeanim A247
+closeseq S247
+closemodel M247
+model M248 jimmybase.grn
+seq S248 M248
+render S248 0x3b
+anim A248 jimmyscratch.grn
+add C248 S248 A248
+param C248 3 9999
+advancen 7 0.033333
+render S248 0x11
+advance 0.4
+render S248 0x11
+remove C248
+closeanim A248
+closeseq S248
+closemodel M248
+model M249 jimmybase.grn
+seq S249 M249
+render S249 0x3b
+anim A249 jimmyshock.grn
+add C249 S249 A249
+param C249 3 9999
+advancen 7 0.033333
+render S249 0x11
+advance 0.4
+render S249 0x11
+remove C249
+closeanim A249
+closeseq S249
+closemodel M249
+model M250 jimmybase.grn
+seq S250 M250
+render S250 0x3b
+anim A250 jimmyshootBazooka.grn
+add C250 S250 A250
+param C250 3 9999
+advancen 7 0.033333
+render S250 0x11
+advance 0.4
+render S250 0x11
+remove C250
+closeanim A250
+closeseq S250
+closemodel M250
+model M251 jimmybase.grn
+seq S251 M251
+render S251 0x3b
+anim A251 jimmyshootburpgun.grn
+add C251 S251 A251
+param C251 3 9999
+advancen 7 0.033333
+render S251 0x11
+advance 0.4
+render S251 0x11
+remove C251
+closeanim A251
+closeseq S251
+closemodel M251
+model M252 jimmybase.grn
+seq S252 M252
+render S252 0x3b
+anim A252 jimmyshootgun.grn
+add C252 S252 A252
+param C252 3 9999
+advancen 7 0.033333
+render S252 0x11
+advance 0.4
+render S252 0x11
+remove C252
+closeanim A252
+closeseq S252
+closemodel M252
+model M253 jimmybase.grn
+seq S253 M253
+render S253 0x3b
+anim A253 jimmysit.grn
+add C253 S253 A253
+param C253 3 9999
+advancen 7 0.033333
+render S253 0x11
+advance 0.4
+render S253 0x11
+remove C253
+closeanim A253
+closeseq S253
+closemodel M253
+model M254 jimmybase.grn
+seq S254 M254
+render S254 0x3b
+anim A254 jimmysitpanic.grn
+add C254 S254 A254
+param C254 3 9999
+advancen 7 0.033333
+render S254 0x11
+advance 0.4
+render S254 0x11
+remove C254
+closeanim A254
+closeseq S254
+closemodel M254
+model M255 jimmybase.grn
+seq S255 M255
+render S255 0x3b
+anim A255 jimmysitwave.grn
+add C255 S255 A255
+param C255 3 9999
+advancen 7 0.033333
+render S255 0x11
+advance 0.4
+render S255 0x11
+remove C255
+closeanim A255
+closeseq S255
+closemodel M255
+model M256 jimmybase.grn
+seq S256 M256
+render S256 0x3b
+anim A256 jimmyslide.grn
+add C256 S256 A256
+param C256 3 9999
+advancen 7 0.033333
+render S256 0x11
+advance 0.4
+render S256 0x11
+remove C256
+closeanim A256
+closeseq S256
+closemodel M256
+model M257 jimmybase.grn
+seq S257 M257
+render S257 0x3b
+anim A257 jimmysplat.grn
+add C257 S257 A257
+param C257 3 9999
+advancen 7 0.033333
+render S257 0x11
+advance 0.4
+render S257 0x11
+remove C257
+closeanim A257
+closeseq S257
+closemodel M257
+model M258 jimmybase.grn
+seq S258 M258
+render S258 0x3b
+anim A258 jimmyspork.grn
+add C258 S258 A258
+param C258 3 9999
+advancen 7 0.033333
+render S258 0x11
+advance 0.4
+render S258 0x11
+remove C258
+closeanim A258
+closeseq S258
+closemodel M258
+model M259 jimmybase.grn
+seq S259 M259
+render S259 0x3b
+anim A259 jimmyswim.grn
+add C259 S259 A259
+param C259 3 9999
+advancen 7 0.033333
+render S259 0x11
+advance 0.4
+render S259 0x11
+remove C259
+closeanim A259
+closeseq S259
+closemodel M259
+model M260 jimmybase.grn
+seq S260 M260
+render S260 0x3b
+anim A260 jimmyswing.grn
+add C260 S260 A260
+param C260 3 9999
+advancen 7 0.033333
+render S260 0x11
+advance 0.4
+render S260 0x11
+remove C260
+closeanim A260
+closeseq S260
+closemodel M260
+model M261 jimmybase.grn
+seq S261 M261
+render S261 0x3b
+anim A261 jimmytalkExcited.grn
+add C261 S261 A261
+param C261 3 9999
+advancen 7 0.033333
+render S261 0x11
+advance 0.4
+render S261 0x11
+remove C261
+closeanim A261
+closeseq S261
+closemodel M261
+model M262 jimmybase.grn
+seq S262 M262
+render S262 0x3b
+anim A262 jimmytalkbody.grn
+add C262 S262 A262
+param C262 3 9999
+advancen 7 0.033333
+render S262 0x11
+advance 0.4
+render S262 0x11
+remove C262
+closeanim A262
+closeseq S262
+closemodel M262
+model M263 jimmybase.grn
+seq S263 M263
+render S263 0x3b
+anim A263 jimmytalkflurp.grn
+add C263 S263 A263
+param C263 3 9999
+advancen 7 0.033333
+render S263 0x11
+advance 0.4
+render S263 0x11
+remove C263
+closeanim A263
+closeseq S263
+closemodel M263
+model M264 jimmybase.grn
+seq S264 M264
+render S264 0x3b
+anim A264 jimmytalkherman.grn
+add C264 S264 A264
+param C264 3 9999
+advancen 7 0.033333
+render S264 0x11
+advance 0.4
+render S264 0x11
+remove C264
+closeanim A264
+closeseq S264
+closemodel M264
+model M265 jimmybase.grn
+seq S265 M265
+render S265 0x3b
+anim A265 jimmytalkpda.grn
+add C265 S265 A265
+param C265 3 9999
+advancen 7 0.033333
+render S265 0x11
+advance 0.4
+render S265 0x11
+remove C265
+closeanim A265
+closeseq S265
+closemodel M265
+model M266 jimmybase.grn
+seq S266 M266
+render S266 0x3b
+anim A266 jimmythrow1.grn
+add C266 S266 A266
+param C266 3 9999
+advancen 7 0.033333
+render S266 0x11
+advance 0.4
+render S266 0x11
+remove C266
+closeanim A266
+closeseq S266
+closemodel M266
+model M267 jimmybase.grn
+seq S267 M267
+render S267 0x3b
+anim A267 jimmythrow2.grn
+add C267 S267 A267
+param C267 3 9999
+advancen 7 0.033333
+render S267 0x11
+advance 0.4
+render S267 0x11
+remove C267
+closeanim A267
+closeseq S267
+closemodel M267
+model M268 jimmybase.grn
+seq S268 M268
+render S268 0x3b
+anim A268 jimmytime.grn
+add C268 S268 A268
+param C268 3 9999
+advancen 7 0.033333
+render S268 0x11
+advance 0.4
+render S268 0x11
+remove C268
+closeanim A268
+closeseq S268
+closemodel M268
+model M269 jimmybase.grn
+seq S269 M269
+render S269 0x3b
+anim A269 jimmytimetravel.grn
+add C269 S269 A269
+param C269 3 9999
+advancen 7 0.033333
+render S269 0x11
+advance 0.4
+render S269 0x11
+remove C269
+closeanim A269
+closeseq S269
+closemodel M269
+model M270 jimmybase.grn
+seq S270 M270
+render S270 0x3b
+anim A270 jimmyupperbazooka.grn
+add C270 S270 A270
+param C270 3 9999
+advancen 7 0.033333
+render S270 0x11
+advance 0.4
+render S270 0x11
+remove C270
+closeanim A270
+closeseq S270
+closemodel M270
+model M271 jimmybase.grn
+seq S271 M271
+render S271 0x3b
+anim A271 jimmyupperpointgun.grn
+add C271 S271 A271
+param C271 3 9999
+advancen 7 0.033333
+render S271 0x11
+advance 0.4
+render S271 0x11
+remove C271
+closeanim A271
+closeseq S271
+closemodel M271
+model M272 jimmybase.grn
+seq S272 M272
+render S272 0x3b
+anim A272 jimmyupperrun.grn
+add C272 S272 A272
+param C272 3 9999
+advancen 7 0.033333
+render S272 0x11
+advance 0.4
+render S272 0x11
+remove C272
+closeanim A272
+closeseq S272
+closemodel M272
+model M273 jimmybase.grn
+seq S273 M273
+render S273 0x3b
+anim A273 jimmyupperrungun.grn
+add C273 S273 A273
+param C273 3 9999
+advancen 7 0.033333
+render S273 0x11
+advance 0.4
+render S273 0x11
+remove C273
+closeanim A273
+closeseq S273
+closemodel M273
+model M274 jimmybase.grn
+seq S274 M274
+render S274 0x3b
+anim A274 jimmyupperrunhold.grn
+add C274 S274 A274
+param C274 3 9999
+advancen 7 0.033333
+render S274 0x11
+advance 0.4
+render S274 0x11
+remove C274
+closeanim A274
+closeseq S274
+closemodel M274
+model M275 jimmybase.grn
+seq S275 M275
+render S275 0x3b
+anim A275 jimmyuppershootgun.grn
+add C275 S275 A275
+param C275 3 9999
+advancen 7 0.033333
+render S275 0x11
+advance 0.4
+render S275 0x11
+remove C275
+closeanim A275
+closeseq S275
+closemodel M275
+model M276 jimmybase.grn
+seq S276 M276
+render S276 0x3b
+anim A276 jimmyupperstop.grn
+add C276 S276 A276
+param C276 3 9999
+advancen 7 0.033333
+render S276 0x11
+advance 0.4
+render S276 0x11
+remove C276
+closeanim A276
+closeseq S276
+closemodel M276
+model M277 jimmybase.grn
+seq S277 M277
+render S277 0x3b
+anim A277 jimmyupperstopBazooka.grn
+add C277 S277 A277
+param C277 3 9999
+advancen 7 0.033333
+render S277 0x11
+advance 0.4
+render S277 0x11
+remove C277
+closeanim A277
+closeseq S277
+closemodel M277
+model M278 jimmybase.grn
+seq S278 M278
+render S278 0x3b
+anim A278 jimmyupperstopgun.grn
+add C278 S278 A278
+param C278 3 9999
+advancen 7 0.033333
+render S278 0x11
+advance 0.4
+render S278 0x11
+remove C278
+closeanim A278
+closeseq S278
+closemodel M278
+model M279 jimmybase.grn
+seq S279 M279
+render S279 0x3b
+anim A279 jimmyupperstophold.grn
+add C279 S279 A279
+param C279 3 9999
+advancen 7 0.033333
+render S279 0x11
+advance 0.4
+render S279 0x11
+remove C279
+closeanim A279
+closeseq S279
+closemodel M279
+model M280 jimmybase.grn
+seq S280 M280
+render S280 0x3b
+anim A280 jimmyupperwalk.grn
+add C280 S280 A280
+param C280 3 9999
+advancen 7 0.033333
+render S280 0x11
+advance 0.4
+render S280 0x11
+remove C280
+closeanim A280
+closeseq S280
+closemodel M280
+model M281 jimmybase.grn
+seq S281 M281
+render S281 0x3b
+anim A281 jimmyupperwalkgun.grn
+add C281 S281 A281
+param C281 3 9999
+advancen 7 0.033333
+render S281 0x11
+advance 0.4
+render S281 0x11
+remove C281
+closeanim A281
+closeseq S281
+closemodel M281
+model M282 jimmybase.grn
+seq S282 M282
+render S282 0x3b
+anim A282 jimmywalk.grn
+add C282 S282 A282
+param C282 3 9999
+advancen 7 0.033333
+render S282 0x11
+advance 0.4
+render S282 0x11
+remove C282
+closeanim A282
+closeseq S282
+closemodel M282
+model M283 lampbase.grn
+seq S283 M283
+render S283 0x3b
+anim A283 lampbase.grn
+add C283 S283 A283
+param C283 3 9999
+advancen 7 0.033333
+render S283 0x11
+advance 0.4
+render S283 0x11
+remove C283
+closeanim A283
+closeseq S283
+closemodel M283
+model M284 lampbase.grn
+seq S284 M284
+render S284 0x3b
+anim A284 lampmove.grn
+add C284 S284 A284
+param C284 3 9999
+advancen 7 0.033333
+render S284 0x11
+advance 0.4
+render S284 0x11
+remove C284
+closeanim A284
+closeseq S284
+closemodel M284
+model M285 lampbase.grn
+seq S285 M285
+render S285 0x3b
+anim A285 lampstop.grn
+add C285 S285 A285
+param C285 3 9999
+advancen 7 0.033333
+render S285 0x11
+advance 0.4
+render S285 0x11
+remove C285
+closeanim A285
+closeseq S285
+closemodel M285
+model M286 mask.grn
+seq S286 M286
+render S286 0x3b
+anim A286 mask.grn
+add C286 S286 A286
+param C286 3 9999
+advancen 7 0.033333
+render S286 0x11
+advance 0.4
+render S286 0x11
+remove C286
+closeanim A286
+closeseq S286
+closemodel M286
+model M287 megaburpgun.grn
+seq S287 M287
+render S287 0x3b
+anim A287 megaburpgun.grn
+add C287 S287 A287
+param C287 3 9999
+advancen 7 0.033333
+render S287 0x11
+advance 0.4
+render S287 0x11
+remove C287
+closeanim A287
+closeseq S287
+closemodel M287
+model M288 megaburpgun1.grn
+seq S288 M288
+render S288 0x3b
+anim A288 megaburpgun1.grn
+add C288 S288 A288
+param C288 3 9999
+advancen 7 0.033333
+render S288 0x11
+advance 0.4
+render S288 0x11
+remove C288
+closeanim A288
+closeseq S288
+closemodel M288
+model M289 megaburpgun2.grn
+seq S289 M289
+render S289 0x3b
+anim A289 megaburpgun2.grn
+add C289 S289 A289
+param C289 3 9999
+advancen 7 0.033333
+render S289 0x11
+advance 0.4
+render S289 0x11
+remove C289
+closeanim A289
+closeseq S289
+closemodel M289
+model M290 megaburpgun3.grn
+seq S290 M290
+render S290 0x3b
+anim A290 megaburpgun3.grn
+add C290 S290 A290
+param C290 3 9999
+advancen 7 0.033333
+render S290 0x11
+advance 0.4
+render S290 0x11
+remove C290
+closeanim A290
+closeseq S290
+closemodel M290
+model M291 momybase.grn
+seq S291 M291
+render S291 0x3b
+anim A291 momybase.grn
+add C291 S291 A291
+param C291 3 9999
+advancen 7 0.033333
+render S291 0x11
+advance 0.4
+render S291 0x11
+remove C291
+closeanim A291
+closeseq S291
+closemodel M291
+model M292 momybase.grn
+seq S292 M292
+render S292 0x3b
+anim A292 momyfree.grn
+add C292 S292 A292
+param C292 3 9999
+advancen 7 0.033333
+render S292 0x11
+advance 0.4
+render S292 0x11
+remove C292
+closeanim A292
+closeseq S292
+closemodel M292
+model M293 momybase.grn
+seq S293 M293
+render S293 0x3b
+anim A293 momyopen.grn
+add C293 S293 A293
+param C293 3 9999
+advancen 7 0.033333
+render S293 0x11
+advance 0.4
+render S293 0x11
+remove C293
+closeanim A293
+closeseq S293
+closemodel M293
+model M294 momybase.grn
+seq S294 M294
+render S294 0x3b
+anim A294 momystopedclosed.grn
+add C294 S294 A294
+param C294 3 9999
+advancen 7 0.033333
+render S294 0x11
+advance 0.4
+render S294 0x11
+remove C294
+closeanim A294
+closeseq S294
+closemodel M294
+model M295 momybase.grn
+seq S295 M295
+render S295 0x3b
+anim A295 momystopopen.grn
+add C295 S295 A295
+param C295 3 9999
+advancen 7 0.033333
+render S295 0x11
+advance 0.4
+render S295 0x11
+remove C295
+closeanim A295
+closeseq S295
+closemodel M295
+model M296 momybase.grn
+seq S296 M296
+render S296 0x3b
+anim A296 momystoptalk.grn
+add C296 S296 A296
+param C296 3 9999
+advancen 7 0.033333
+render S296 0x11
+advance 0.4
+render S296 0x11
+remove C296
+closeanim A296
+closeseq S296
+closemodel M296
+model M297 museumbase.grn
+seq S297 M297
+render S297 0x3b
+anim A297 museumbase.grn
+add C297 S297 A297
+param C297 3 9999
+advancen 7 0.033333
+render S297 0x11
+advance 0.4
+render S297 0x11
+remove C297
+closeanim A297
+closeseq S297
+closemodel M297
+model M298 museumbase.grn
+seq S298 M298
+render S298 0x3b
+anim A298 museumbroken.grn
+add C298 S298 A298
+param C298 3 9999
+advancen 7 0.033333
+render S298 0x11
+advance 0.4
+render S298 0x11
+remove C298
+closeanim A298
+closeseq S298
+closemodel M298
+model M299 museumbase.grn
+seq S299 M299
+render S299 0x3b
+anim A299 museumexplode.grn
+add C299 S299 A299
+param C299 3 9999
+advancen 7 0.033333
+render S299 0x11
+advance 0.4
+render S299 0x11
+remove C299
+closeanim A299
+closeseq S299
+closemodel M299
+model M300 museumbase.grn
+seq S300 M300
+render S300 0x3b
+anim A300 museumstop.grn
+add C300 S300 A300
+param C300 3 9999
+advancen 7 0.033333
+render S300 0x11
+advance 0.4
+render S300 0x11
+remove C300
+closeanim A300
+closeseq S300
+closemodel M300
+model M301 newgunbase.grn
+seq S301 M301
+render S301 0x3b
+anim A301 newgunbase.grn
+add C301 S301 A301
+param C301 3 9999
+advancen 7 0.033333
+render S301 0x11
+advance 0.4
+render S301 0x11
+remove C301
+closeanim A301
+closeseq S301
+closemodel M301
+model M302 nickbase.grn
+seq S302 M302
+render S302 0x3b
+anim A302 nickbase.grn
+add C302 S302 A302
+param C302 3 9999
+advancen 7 0.033333
+render S302 0x11
+advance 0.4
+render S302 0x11
+remove C302
+closeanim A302
+closeseq S302
+closemodel M302
+model M303 nickbase.grn
+seq S303 M303
+render S303 0x3b
+anim A303 nickmove.grn
+add C303 S303 A303
+param C303 3 9999
+advancen 7 0.033333
+render S303 0x11
+advance 0.4
+render S303 0x11
+remove C303
+closeanim A303
+closeseq S303
+closemodel M303
+model M304 nickbase.grn
+seq S304 M304
+render S304 0x3b
+anim A304 nickstop.grn
+add C304 S304 A304
+param C304 3 9999
+advancen 7 0.033333
+render S304 0x11
+advance 0.4
+render S304 0x11
+remove C304
+closeanim A304
+closeseq S304
+closemodel M304
+model M305 numflyair.grn
+seq S305 M305
+render S305 0x3b
+anim A305 numflyair.grn
+add C305 S305 A305
+param C305 3 9999
+advancen 7 0.033333
+render S305 0x11
+advance 0.4
+render S305 0x11
+remove C305
+closeanim A305
+closeseq S305
+closemodel M305
+model M306 nummeybase.grn
+seq S306 M306
+render S306 0x3b
+anim A306 nummeybase.grn
+add C306 S306 A306
+param C306 3 9999
+advancen 7 0.033333
+render S306 0x11
+advance 0.4
+render S306 0x11
+remove C306
+closeanim A306
+closeseq S306
+closemodel M306
+model M307 nummeybase.grn
+seq S307 M307
+render S307 0x3b
+anim A307 nummeydoom.grn
+add C307 S307 A307
+param C307 3 9999
+advancen 7 0.033333
+render S307 0x11
+advance 0.4
+render S307 0x11
+remove C307
+closeanim A307
+closeseq S307
+closemodel M307
+model M308 nummeybase.grn
+seq S308 M308
+render S308 0x3b
+anim A308 nummeyflipsinair.grn
+add C308 S308 A308
+param C308 3 9999
+advancen 7 0.033333
+render S308 0x11
+advance 0.4
+render S308 0x11
+remove C308
+closeanim A308
+closeseq S308
+closemodel M308
+model M309 nummeybase.grn
+seq S309 M309
+render S309 0x3b
+anim A309 nummeyfly.grn
+add C309 S309 A309
+param C309 3 9999
+advancen 7 0.033333
+render S309 0x11
+advance 0.4
+render S309 0x11
+remove C309
+closeanim A309
+closeseq S309
+closemodel M309
+model M310 nummeyflyerbase.grn
+seq S310 M310
+render S310 0x3b
+anim A310 nummeyflyerbase.grn
+add C310 S310 A310
+param C310 3 9999
+advancen 7 0.033333
+render S310 0x11
+advance 0.4
+render S310 0x11
+remove C310
+closeanim A310
+closeseq S310
+closemodel M310
+model M311 nummeybase.grn
+seq S311 M311
+render S311 0x3b
+anim A311 nummeyflytalk.grn
+add C311 S311 A311
+param C311 3 9999
+advancen 7 0.033333
+render S311 0x11
+advance 0.4
+render S311 0x11
+remove C311
+closeanim A311
+closeseq S311
+closemodel M311
+model M312 nummeybase.grn
+seq S312 M312
+render S312 0x3b
+anim A312 nummeylaugh.grn
+add C312 S312 A312
+param C312 3 9999
+advancen 7 0.033333
+render S312 0x11
+advance 0.4
+render S312 0x11
+remove C312
+closeanim A312
+closeseq S312
+closemodel M312
+model M313 nummeybase.grn
+seq S313 M313
+render S313 0x3b
+anim A313 nummeypushbuttons.grn
+add C313 S313 A313
+param C313 3 9999
+advancen 7 0.033333
+render S313 0x11
+advance 0.4
+render S313 0x11
+remove C313
+closeanim A313
+closeseq S313
+closemodel M313
+model M314 nummeybase.grn
+seq S314 M314
+render S314 0x3b
+anim A314 nummeyrun.grn
+add C314 S314 A314
+param C314 3 9999
+advancen 7 0.033333
+render S314 0x11
+advance 0.4
+render S314 0x11
+remove C314
+closeanim A314
+closeseq S314
+closemodel M314
+model M315 nummeyscooterbase.grn
+seq S315 M315
+render S315 0x3b
+anim A315 nummeyscooter.grn
+add C315 S315 A315
+param C315 3 9999
+advancen 7 0.033333
+render S315 0x11
+advance 0.4
+render S315 0x11
+remove C315
+closeanim A315
+closeseq S315
+closemodel M315
+model M316 nummeyscooterbase.grn
+seq S316 M316
+render S316 0x3b
+anim A316 nummeyscooterbase.grn
+add C316 S316 A316
+param C316 3 9999
+advancen 7 0.033333
+render S316 0x11
+advance 0.4
+render S316 0x11
+remove C316
+closeanim A316
+closeseq S316
+closemodel M316
+model M317 nummeyscooterbase.grn
+seq S317 M317
+render S317 0x3b
+anim A317 nummeyscootertalk.grn
+add C317 S317 A317
+param C317 3 9999
+advancen 7 0.033333
+render S317 0x11
+advance 0.4
+render S317 0x11
+remove C317
+closeanim A317
+closeseq S317
+closemodel M317
+model M318 nummeybase.grn
+seq S318 M318
+render S318 0x3b
+anim A318 nummeystop.grn
+add C318 S318 A318
+param C318 3 9999
+advancen 7 0.033333
+render S318 0x11
+advance 0.4
+render S318 0x11
+remove C318
+closeanim A318
+closeseq S318
+closemodel M318
+model M319 nummeybase.grn
+seq S319 M319
+render S319 0x3b
+anim A319 nummeytalk.grn
+add C319 S319 A319
+param C319 3 9999
+advancen 7 0.033333
+render S319 0x11
+advance 0.4
+render S319 0x11
+remove C319
+closeanim A319
+closeseq S319
+closemodel M319
+model M320 nummeybase.grn
+seq S320 M320
+render S320 0x3b
+anim A320 nummeywalk.grn
+add C320 S320 A320
+param C320 3 9999
+advancen 7 0.033333
+render S320 0x11
+advance 0.4
+render S320 0x11
+remove C320
+closeanim A320
+closeseq S320
+closemodel M320
+model M321 nummyarogant.grn
+seq S321 M321
+render S321 0x3b
+anim A321 nummyarogant.grn
+add C321 S321 A321
+param C321 3 9999
+advancen 7 0.033333
+render S321 0x11
+advance 0.4
+render S321 0x11
+remove C321
+closeanim A321
+closeseq S321
+closemodel M321
+model M322 nummyaroganttalk.grn
+seq S322 M322
+render S322 0x3b
+anim A322 nummyaroganttalk.grn
+add C322 S322 A322
+param C322 3 9999
+advancen 7 0.033333
+render S322 0x11
+advance 0.4
+render S322 0x11
+remove C322
+closeanim A322
+closeseq S322
+closemodel M322
+model M323 nummygiveflurp.grn
+seq S323 M323
+render S323 0x3b
+anim A323 nummygiveflurp.grn
+add C323 S323 A323
+param C323 3 9999
+advancen 7 0.033333
+render S323 0x11
+advance 0.4
+render S323 0x11
+remove C323
+closeanim A323
+closeseq S323
+closemodel M323
+model M324 nummylaughfowl.grn
+seq S324 M324
+render S324 0x3b
+anim A324 nummylaughfowl.grn
+add C324 S324 A324
+param C324 3 9999
+advancen 7 0.033333
+render S324 0x11
+advance 0.4
+render S324 0x11
+remove C324
+closeanim A324
+closeseq S324
+closemodel M324
+model M325 nummymadidle.grn
+seq S325 M325
+render S325 0x3b
+anim A325 nummymadidle.grn
+add C325 S325 A325
+param C325 3 9999
+advancen 7 0.033333
+render S325 0x11
+advance 0.4
+render S325 0x11
+remove C325
+closeanim A325
+closeseq S325
+closemodel M325
+model M326 nummyreallymad.grn
+seq S326 M326
+render S326 0x3b
+anim A326 nummyreallymad.grn
+add C326 S326 A326
+param C326 3 9999
+advancen 7 0.033333
+render S326 0x11
+advance 0.4
+render S326 0x11
+remove C326
+closeanim A326
+closeseq S326
+closemodel M326
+model M327 nummytalkmad.grn
+seq S327 M327
+render S327 0x3b
+anim A327 nummytalkmad.grn
+add C327 S327 A327
+param C327 3 9999
+advancen 7 0.033333
+render S327 0x11
+advance 0.4
+render S327 0x11
+remove C327
+closeanim A327
+closeseq S327
+closemodel M327
+model M328 pda.grn
+seq S328 M328
+render S328 0x3b
+anim A328 pda.grn
+add C328 S328 A328
+param C328 3 9999
+advancen 7 0.033333
+render S328 0x11
+advance 0.4
+render S328 0x11
+remove C328
+closeanim A328
+closeseq S328
+closemodel M328
+model M329 pelicanbase.grn
+seq S329 M329
+render S329 0x3b
+anim A329 pelicanbase.grn
+add C329 S329 A329
+param C329 3 9999
+advancen 7 0.033333
+render S329 0x11
+advance 0.4
+render S329 0x11
+remove C329
+closeanim A329
+closeseq S329
+closemodel M329
+model M330 pelicanbase.grn
+seq S330 M330
+render S330 0x3b
+anim A330 pelicanmove.grn
+add C330 S330 A330
+param C330 3 9999
+advancen 7 0.033333
+render S330 0x11
+advance 0.4
+render S330 0x11
+remove C330
+closeanim A330
+closeseq S330
+closemodel M330
+model M331 pelicanbase.grn
+seq S331 M331
+render S331 0x3b
+anim A331 pelicanstop.grn
+add C331 S331 A331
+param C331 3 9999
+advancen 7 0.033333
+render S331 0x11
+advance 0.4
+render S331 0x11
+remove C331
+closeanim A331
+closeseq S331
+closemodel M331
+model M332 pelicanbase.grn
+seq S332 M332
+render S332 0x3b
+anim A332 pelicantalk.grn
+add C332 S332 A332
+param C332 3 9999
+advancen 7 0.033333
+render S332 0x11
+advance 0.4
+render S332 0x11
+remove C332
+closeanim A332
+closeseq S332
+closemodel M332
+model M333 radardish.grn
+seq S333 M333
+render S333 0x3b
+anim A333 radardish.grn
+add C333 S333 A333
+param C333 3 9999
+advancen 7 0.033333
+render S333 0x11
+advance 0.4
+render S333 0x11
+remove C333
+closeanim A333
+closeseq S333
+closemodel M333
+model M334 radio.grn
+seq S334 M334
+render S334 0x3b
+anim A334 radio.grn
+add C334 S334 A334
+param C334 3 9999
+advancen 7 0.033333
+render S334 0x11
+advance 0.4
+render S334 0x11
+remove C334
+closeanim A334
+closeseq S334
+closemodel M334
+model M335 raptorshadowbase.grn
+seq S335 M335
+render S335 0x3b
+anim A335 raptorshadowbase.grn
+add C335 S335 A335
+param C335 3 9999
+advancen 7 0.033333
+render S335 0x11
+advance 0.4
+render S335 0x11
+remove C335
+closeanim A335
+closeseq S335
+closemodel M335
+model M336 raptorshadowbase.grn
+seq S336 M336
+render S336 0x3b
+anim A336 raptorshadowmove.grn
+add C336 S336 A336
+param C336 3 9999
+advancen 7 0.033333
+render S336 0x11
+advance 0.4
+render S336 0x11
+remove C336
+closeanim A336
+closeseq S336
+closemodel M336
+model M337 raptorshadowbase.grn
+seq S337 M337
+render S337 0x3b
+anim A337 raptorshadowstop.grn
+add C337 S337 A337
+param C337 3 9999
+advancen 7 0.033333
+render S337 0x11
+advance 0.4
+render S337 0x11
+remove C337
+closeanim A337
+closeseq S337
+closemodel M337
+model M338 scarecrowbase.grn
+seq S338 M338
+render S338 0x3b
+anim A338 scarecrowbase.grn
+add C338 S338 A338
+param C338 3 9999
+advancen 7 0.033333
+render S338 0x11
+advance 0.4
+render S338 0x11
+remove C338
+closeanim A338
+closeseq S338
+closemodel M338
+model M339 scarecrowbase.grn
+seq S339 M339
+render S339 0x3b
+anim A339 scarecrowmove.grn
+add C339 S339 A339
+param C339 3 9999
+advancen 7 0.033333
+render S339 0x11
+advance 0.4
+render S339 0x11
+remove C339
+closeanim A339
+closeseq S339
+closemodel M339
+model M340 scarecrowbase.grn
+seq S340 M340
+render S340 0x3b
+anim A340 scarecrowsitmove.grn
+add C340 S340 A340
+param C340 3 9999
+advancen 7 0.033333
+render S340 0x11
+advance 0.4
+render S340 0x11
+remove C340
+closeanim A340
+closeseq S340
+closemodel M340
+model M341 scarecrowbase.grn
+seq S341 M341
+render S341 0x3b
+anim A341 scarecrowsitstop.grn
+add C341 S341 A341
+param C341 3 9999
+advancen 7 0.033333
+render S341 0x11
+advance 0.4
+render S341 0x11
+remove C341
+closeanim A341
+closeseq S341
+closemodel M341
+model M342 scarecrowbase.grn
+seq S342 M342
+render S342 0x3b
+anim A342 scarecrowstop.grn
+add C342 S342 A342
+param C342 3 9999
+advancen 7 0.033333
+render S342 0x11
+advance 0.4
+render S342 0x11
+remove C342
+closeanim A342
+closeseq S342
+closemodel M342
+model M343 seagullbase.grn
+seq S343 M343
+render S343 0x3b
+anim A343 seagullbase.grn
+add C343 S343 A343
+param C343 3 9999
+advancen 7 0.033333
+render S343 0x11
+advance 0.4
+render S343 0x11
+remove C343
+closeanim A343
+closeseq S343
+closemodel M343
+model M344 seagullbase.grn
+seq S344 M344
+render S344 0x3b
+anim A344 seagullmove.grn
+add C344 S344 A344
+param C344 3 9999
+advancen 7 0.033333
+render S344 0x11
+advance 0.4
+render S344 0x11
+remove C344
+closeanim A344
+closeseq S344
+closemodel M344
+model M345 seagullbase.grn
+seq S345 M345
+render S345 0x3b
+anim A345 seagullstop.grn
+add C345 S345 A345
+param C345 3 9999
+advancen 7 0.033333
+render S345 0x11
+advance 0.4
+render S345 0x11
+remove C345
+closeanim A345
+closeseq S345
+closemodel M345
+model M346 shades.grn
+seq S346 M346
+render S346 0x3b
+anim A346 shades.grn
+add C346 S346 A346
+param C346 3 9999
+advancen 7 0.033333
+render S346 0x11
+advance 0.4
+render S346 0x11
+remove C346
+closeanim A346
+closeseq S346
+closemodel M346
+model M347 sheenbase.grn
+seq S347 M347
+render S347 0x3b
+anim A347 sheenbase.grn
+add C347 S347 A347
+param C347 3 9999
+advancen 7 0.033333
+render S347 0x11
+advance 0.4
+render S347 0x11
+remove C347
+closeanim A347
+closeseq S347
+closemodel M347
+model M348 sheenbase.grn
+seq S348 M348
+render S348 0x3b
+anim A348 sheenidle.grn
+add C348 S348 A348
+param C348 3 9999
+advancen 7 0.033333
+render S348 0x11
+advance 0.4
+render S348 0x11
+remove C348
+closeanim A348
+closeseq S348
+closemodel M348
+model M349 signbase.grn
+seq S349 M349
+render S349 0x3b
+anim A349 signbase.grn
+add C349 S349 A349
+param C349 3 9999
+advancen 7 0.033333
+render S349 0x11
+advance 0.4
+render S349 0x11
+remove C349
+closeanim A349
+closeseq S349
+closemodel M349
+model M350 signbase.grn
+seq S350 M350
+render S350 0x3b
+anim A350 signend.grn
+add C350 S350 A350
+param C350 3 9999
+advancen 7 0.033333
+render S350 0x11
+advance 0.4
+render S350 0x11
+remove C350
+closeanim A350
+closeseq S350
+closemodel M350
+model M351 signbase.grn
+seq S351 M351
+render S351 0x3b
+anim A351 signmove.grn
+add C351 S351 A351
+param C351 3 9999
+advancen 7 0.033333
+render S351 0x11
+advance 0.4
+render S351 0x11
+remove C351
+closeanim A351
+closeseq S351
+closemodel M351
+model M352 signbase.grn
+seq S352 M352
+render S352 0x3b
+anim A352 signstop.grn
+add C352 S352 A352
+param C352 3 9999
+advancen 7 0.033333
+render S352 0x11
+advance 0.4
+render S352 0x11
+remove C352
+closeanim A352
+closeseq S352
+closemodel M352
+model M353 snowmanbase.grn
+seq S353 M353
+render S353 0x3b
+anim A353 snowmanbase.grn
+add C353 S353 A353
+param C353 3 9999
+advancen 7 0.033333
+render S353 0x11
+advance 0.4
+render S353 0x11
+remove C353
+closeanim A353
+closeseq S353
+closemodel M353
+model M354 snowmanbase.grn
+seq S354 M354
+render S354 0x3b
+anim A354 snowmanbump.grn
+add C354 S354 A354
+param C354 3 9999
+advancen 7 0.033333
+render S354 0x11
+advance 0.4
+render S354 0x11
+remove C354
+closeanim A354
+closeseq S354
+closemodel M354
+model M355 snowmanbase.grn
+seq S355 M355
+render S355 0x3b
+anim A355 snowmandead.grn
+add C355 S355 A355
+param C355 3 9999
+advancen 7 0.033333
+render S355 0x11
+advance 0.4
+render S355 0x11
+remove C355
+closeanim A355
+closeseq S355
+closemodel M355
+model M356 snowmanbase.grn
+seq S356 M356
+render S356 0x3b
+anim A356 snowmanstop.grn
+add C356 S356 A356
+param C356 3 9999
+advancen 7 0.033333
+render S356 0x11
+advance 0.4
+render S356 0x11
+remove C356
+closeanim A356
+closeseq S356
+closemodel M356
+model M357 speakerbase.grn
+seq S357 M357
+render S357 0x3b
+anim A357 speaker.grn
+add C357 S357 A357
+param C357 3 9999
+advancen 7 0.033333
+render S357 0x11
+advance 0.4
+render S357 0x11
+remove C357
+closeanim A357
+closeseq S357
+closemodel M357
+model M358 speakerbase.grn
+seq S358 M358
+render S358 0x3b
+anim A358 speakerbase.grn
+add C358 S358 A358
+param C358 3 9999
+advancen 7 0.033333
+render S358 0x11
+advance 0.4
+render S358 0x11
+remove C358
+closeanim A358
+closeseq S358
+closemodel M358
+model M359 speedbase.grn
+seq S359 M359
+render S359 0x3b
+anim A359 speedbase.grn
+add C359 S359 A359
+param C359 3 9999
+advancen 7 0.033333
+render S359 0x11
+advance 0.4
+render S359 0x11
+remove C359
+closeanim A359
+closeseq S359
+closemodel M359
+model M360 springbase.grn
+seq S360 M360
+render S360 0x3b
+anim A360 springbase.grn
+add C360 S360 A360
+param C360 3 9999
+advancen 7 0.033333
+render S360 0x11
+advance 0.4
+render S360 0x11
+remove C360
+closeanim A360
+closeseq S360
+closemodel M360
+model M361 steamer.grn
+seq S361 M361
+render S361 0x3b
+anim A361 steamer.grn
+add C361 S361 A361
+param C361 3 9999
+advancen 7 0.033333
+render S361 0x11
+advance 0.4
+render S361 0x11
+remove C361
+closeanim A361
+closeseq S361
+closemodel M361
+model M362 tombstonebase.grn
+seq S362 M362
+render S362 0x3b
+anim A362 tombstonebase.grn
+add C362 S362 A362
+param C362 3 9999
+advancen 7 0.033333
+render S362 0x11
+advance 0.4
+render S362 0x11
+remove C362
+closeanim A362
+closeseq S362
+closemodel M362
+model M363 tombstonebase.grn
+seq S363 M363
+render S363 0x3b
+anim A363 tombstonebase2.grn
+add C363 S363 A363
+param C363 3 9999
+advancen 7 0.033333
+render S363 0x11
+advance 0.4
+render S363 0x11
+remove C363
+closeanim A363
+closeseq S363
+closemodel M363
+model M364 tombstonebase.grn
+seq S364 M364
+render S364 0x3b
+anim A364 tombstonebump.grn
+add C364 S364 A364
+param C364 3 9999
+advancen 7 0.033333
+render S364 0x11
+advance 0.4
+render S364 0x11
+remove C364
+closeanim A364
+closeseq S364
+closemodel M364
+model M365 tombstonebase.grn
+seq S365 M365
+render S365 0x3b
+anim A365 tombstonedead.grn
+add C365 S365 A365
+param C365 3 9999
+advancen 7 0.033333
+render S365 0x11
+advance 0.4
+render S365 0x11
+remove C365
+closeanim A365
+closeseq S365
+closemodel M365
+model M366 tombstonebase.grn
+seq S366 M366
+render S366 0x3b
+anim A366 tombstonestop.grn
+add C366 S366 A366
+param C366 3 9999
+advancen 7 0.033333
+render S366 0x11
+advance 0.4
+render S366 0x11
+remove C366
+closeanim A366
+closeseq S366
+closemodel M366
+model M367 trexbase.grn
+seq S367 M367
+render S367 0x3b
+anim A367 trexbase.grn
+add C367 S367 A367
+param C367 3 9999
+advancen 7 0.033333
+render S367 0x11
+advance 0.4
+render S367 0x11
+remove C367
+closeanim A367
+closeseq S367
+closemodel M367
+model M368 trexbase.grn
+seq S368 M368
+render S368 0x3b
+anim A368 trexfall.grn
+add C368 S368 A368
+param C368 3 9999
+advancen 7 0.033333
+render S368 0x11
+advance 0.4
+render S368 0x11
+remove C368
+closeanim A368
+closeseq S368
+closemodel M368
+model M369 trexbase.grn
+seq S369 M369
+render S369 0x3b
+anim A369 trexmuseum.grn
+add C369 S369 A369
+param C369 3 9999
+advancen 7 0.033333
+render S369 0x11
+advance 0.4
+render S369 0x11
+remove C369
+closeanim A369
+closeseq S369
+closemodel M369
+model M370 trexbase.grn
+seq S370 M370
+render S370 0x3b
+anim A370 trexpickup.grn
+add C370 S370 A370
+param C370 3 9999
+advancen 7 0.033333
+render S370 0x11
+advance 0.4
+render S370 0x11
+remove C370
+closeanim A370
+closeseq S370
+closemodel M370
+model M371 trexbase.grn
+seq S371 M371
+render S371 0x3b
+anim A371 trexplay.grn
+add C371 S371 A371
+param C371 3 9999
+advancen 7 0.033333
+render S371 0x11
+advance 0.4
+render S371 0x11
+remove C371
+closeanim A371
+closeseq S371
+closemodel M371
+model M372 trexshadowbase.grn
+seq S372 M372
+render S372 0x3b
+anim A372 trexshadowbase.grn
+add C372 S372 A372
+param C372 3 9999
+advancen 7 0.033333
+render S372 0x11
+advance 0.4
+render S372 0x11
+remove C372
+closeanim A372
+closeseq S372
+closemodel M372
+model M373 trexshadowbase.grn
+seq S373 M373
+render S373 0x3b
+anim A373 trexshadowmove.grn
+add C373 S373 A373
+param C373 3 9999
+advancen 7 0.033333
+render S373 0x11
+advance 0.4
+render S373 0x11
+remove C373
+closeanim A373
+closeseq S373
+closemodel M373
+model M374 trexshadowbase.grn
+seq S374 M374
+render S374 0x3b
+anim A374 trexshadowstop.grn
+add C374 S374 A374
+param C374 3 9999
+advancen 7 0.033333
+render S374 0x11
+advance 0.4
+render S374 0x11
+remove C374
+closeanim A374
+closeseq S374
+closemodel M374
+model M375 trexbase.grn
+seq S375 M375
+render S375 0x3b
+anim A375 trexsize.grn
+add C375 S375 A375
+param C375 3 9999
+advancen 7 0.033333
+render S375 0x11
+advance 0.4
+render S375 0x11
+remove C375
+closeanim A375
+closeseq S375
+closemodel M375
+model M376 trexbase.grn
+seq S376 M376
+render S376 0x3b
+anim A376 trexstop.grn
+add C376 S376 A376
+param C376 3 9999
+advancen 7 0.033333
+render S376 0x11
+advance 0.4
+render S376 0x11
+remove C376
+closeanim A376
+closeseq S376
+closemodel M376
+model M377 trexbase.grn
+seq S377 M377
+render S377 0x3b
+anim A377 trextalk.grn
+add C377 S377 A377
+param C377 3 9999
+advancen 7 0.033333
+render S377 0x11
+advance 0.4
+render S377 0x11
+remove C377
+closeanim A377
+closeseq S377
+closemodel M377
+model M378 trexbase.grn
+seq S378 M378
+render S378 0x3b
+anim A378 trexwalk.grn
+add C378 S378 A378
+param C378 3 9999
+advancen 7 0.033333
+render S378 0x11
+advance 0.4
+render S378 0x11
+remove C378
+closeanim A378
+closeseq S378
+closemodel M378
+model M379 upperrun.grn
+seq S379 M379
+render S379 0x3b
+anim A379 upperrun.grn
+add C379 S379 A379
+param C379 3 9999
+advancen 7 0.033333
+render S379 0x11
+advance 0.4
+render S379 0x11
+remove C379
+closeanim A379
+closeseq S379
+closemodel M379
+model M380 walebase.grn
+seq S380 M380
+render S380 0x3b
+anim A380 walebase.grn
+add C380 S380 A380
+param C380 3 9999
+advancen 7 0.033333
+render S380 0x11
+advance 0.4
+render S380 0x11
+remove C380
+closeanim A380
+closeseq S380
+closemodel M380
+model M381 walebase.grn
+seq S381 M381
+render S381 0x3b
+anim A381 waleswim.grn
+add C381 S381 A381
+param C381 3 9999
+advancen 7 0.033333
+render S381 0x11
+advance 0.4
+render S381 0x11
+remove C381
+closeanim A381
+closeseq S381
+closemodel M381
+model M382 walebase.grn
+seq S382 M382
+render S382 0x3b
+anim A382 waleturn.grn
+add C382 S382 A382
+param C382 3 9999
+advancen 7 0.033333
+render S382 0x11
+advance 0.4
+render S382 0x11
+remove C382
+closeanim A382
+closeseq S382
+closemodel M382
+model M383 watergun1.grn
+seq S383 M383
+render S383 0x3b
+anim A383 watergun1.grn
+add C383 S383 A383
+param C383 3 9999
+advancen 7 0.033333
+render S383 0x11
+advance 0.4
+render S383 0x11
+remove C383
+closeanim A383
+closeseq S383
+closemodel M383
+model M384 watergun2.grn
+seq S384 M384
+render S384 0x3b
+anim A384 watergun2.grn
+add C384 S384 A384
+param C384 3 9999
+advancen 7 0.033333
+render S384 0x11
+advance 0.4
+render S384 0x11
+remove C384
+closeanim A384
+closeseq S384
+closemodel M384
+model M385 watertowerbase.grn
+seq S385 M385
+render S385 0x3b
+anim A385 watertowerbase.grn
+add C385 S385 A385
+param C385 3 9999
+advancen 7 0.033333
+render S385 0x11
+advance 0.4
+render S385 0x11
+remove C385
+closeanim A385
+closeseq S385
+closemodel M385
+model M386 watertowerbase.grn
+seq S386 M386
+render S386 0x3b
+anim A386 watertowermove.grn
+add C386 S386 A386
+param C386 3 9999
+advancen 7 0.033333
+render S386 0x11
+advance 0.4
+render S386 0x11
+remove C386
+closeanim A386
+closeseq S386
+closemodel M386
+model M387 watertowerbase.grn
+seq S387 M387
+render S387 0x3b
+anim A387 watertowerstop.grn
+add C387 S387 A387
+param C387 3 9999
+advancen 7 0.033333
+render S387 0x11
+advance 0.4
+render S387 0x11
+remove C387
+closeanim A387
+closeseq S387
+closemodel M387
+model M388 weldmask.grn
+seq S388 M388
+render S388 0x3b
+anim A388 weldmask.grn
+add C388 S388 A388
+param C388 3 9999
+advancen 7 0.033333
+render S388 0x11
+advance 0.4
+render S388 0x11
+remove C388
+closeanim A388
+closeseq S388
+closemodel M388
+model M389 wrench.grn
+seq S389 M389
+render S389 0x3b
+anim A389 wrench.grn
+add C389 S389 A389
+param C389 3 9999
+advancen 7 0.033333
+render S389 0x11
+advance 0.4
+render S389 0x11
+remove C389
+closeanim A389
+closeseq S389
+closemodel M389

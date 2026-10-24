@@ -1,0 +1,44 @@
+# what the out-handles hold after successful and failed opens, adds and closes
+model BAD nosuchfile.grn
+handle BAD
+model M jimmybase.grn
+handle M
+model M2 gun.grn
+handle M2
+seq S M
+handle S
+seq S2 M2
+handle S2
+seq SX BAD
+handle SX
+anim A jimmydance.grn
+handle A
+anim AX nosuchfile.grn
+handle AX
+add C S A
+handle C
+add CX S AX
+handle CX
+add CY SX A
+handle CY
+add C2 S A
+handle C2
+remove C
+add C3 S A
+handle C3
+closeseq S2
+seq S5 M2
+handle S5
+lock L S 0x11
+handle L
+unlock L
+handle L
+lock L2 S 0x11
+handle L2
+unlock L2
+closeanim A
+anim A2 jimmydance.grn
+handle A2
+closemodel M2
+model M3 gun.grn
+handle M3

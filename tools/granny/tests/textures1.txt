@@ -1,0 +1,29 @@
+# when do textures become "new", and are they shared between models / sequences?
+textures 10
+model M jimmybase.grn
+textures 20
+seq S M
+textures 30
+seq S2 M
+render S 0x11
+textures 40
+render S2 0x11
+textures 50
+model G gun.grn
+model G2 gun.grn
+seq GS G
+seq GS2 G2
+render GS 0x3f
+render GS2 0x3f
+textures 60
+render GS 0x3f
+render GS2 0x3f
+closeseq GS
+closeseq GS2
+closemodel G
+closemodel G2
+model G3 gun.grn
+seq GS3 G3
+render GS3 0x3f
+textures 70
+render GS3 0x3f
