@@ -11,6 +11,7 @@
 #include "OMediaSoundChannel.h"
 #include "OMediaError.h"
 #include "OMediaEndianSupport.h"
+#include "bink_mixer.h"
 #include <string.h>
 #include <math.h>
 
@@ -131,10 +132,63 @@ static inline int omf_sample(const OMediaSDLVoice *v, unsigned int frame, int ch
 	return (short)(p[0] | (p[1] << 8));
 }
 
+// port: stream sources (Bink movies). OMT 2002 had no such thing - Bink opened DirectSound itself
+// (BinkSetSoundSystem got the sound manager's IDirectSound); here Bink pulls its movie audio
+// through the one SDL device, so a movie and the game's sounds share the mixer.
+struct OMediaSDLStream
+{
+	BinkMixerPull		pull;
+	void				*ud;
+	int					rate, channels;
+	bool				paused;
+	double				pos;			// position in 'src', in input frames
+	std::vector<float>	src;			// pulled input, stereo float
+	float				last[2];		// the last input frame of the previous chunk
+};
+static vector<OMediaSDLStream*> omg_streams;
+static vector<int> omg_mix;			// callback scratch: 2 ints per frame
+
+// Reads one more chunk of input into the stream (silence when the source is dry).
+static void omf_stream_refill(OMediaSDLStream *st)
+{
+	const int chunk = 512;
+	if (st->src.size() >= 2) { st->last[0] = st->src[st->src.size() - 2]; st->last[1] = st->src[st->src.size() - 1]; }
+	st->pos -= (double)(st->src.size() / 2);
+	st->src.resize((size_t)chunk * 2);
+	if (st->channels == 2) st->pull(st->ud, &st->src[0], chunk);
+	else
+	{
+		vector<float> mono((size_t)chunk);
+		st->pull(st->ud, &mono[0], chunk);
+		for (int i = 0; i < chunk; i++) st->src[i * 2] = st->src[i * 2 + 1] = mono[i];
+	}
+}
+
+static void omf_stream_mix(OMediaSDLStream *st, int *mix, int frames)
+{
+	double step = (double)st->rate / (double)omg_out_freq;
+	for (int i = 0; i < frames; i++)
+	{
+		if (st->src.empty() || st->pos >= (double)(st->src.size() / 2) - 1.0) omf_stream_refill(st);
+		double fpos = st->pos;
+		long i0 = (long)floor(fpos);
+		double fr = fpos - (double)i0;
+		float a0, a1, b0, b1;
+		if (i0 < 0) { a0 = st->last[0]; a1 = st->last[1]; }
+		else { a0 = st->src[(size_t)i0 * 2]; a1 = st->src[(size_t)i0 * 2 + 1]; }
+		b0 = st->src[(size_t)(i0 + 1) * 2]; b1 = st->src[(size_t)(i0 + 1) * 2 + 1];
+		mix[i * 2] += (int)((a0 + (b0 - a0) * (float)fr) * 32767.0f);
+		mix[i * 2 + 1] += (int)((a1 + (b1 - a1) * (float)fr) * 32767.0f);
+		st->pos += step;
+	}
+}
+
 static void SDLCALL omf_audio_cb(void *, Uint8 *stream, int len)
 {
 	int frames = len / 4;
 	Sint16 *out = (Sint16*)stream;
+	if ((int)omg_mix.size() < frames * 2) omg_mix.resize((size_t)frames * 2);
+	int *mix = &omg_mix[0];
 	for (int i = 0; i < frames; i++)
 	{
 		int l = 0, r = 0;
@@ -152,9 +206,16 @@ static void SDLCALL omf_audio_cb(void *, Uint8 *stream, int len)
 			r += (int)((float)omf_sample(v, f, 1) * v->gain_r);
 			v->pos += v->step;
 		}
-		if (l > 32767) l = 32767; if (l < -32768) l = -32768;
-		if (r > 32767) r = 32767; if (r < -32768) r = -32768;
-		out[i * 2] = (Sint16)l; out[i * 2 + 1] = (Sint16)r;
+		mix[i * 2] = l; mix[i * 2 + 1] = r;
+	}
+	for (size_t si = 0; si < omg_streams.size(); si++)
+		if (!omg_streams[si]->paused) omf_stream_mix(omg_streams[si], mix, frames);
+	for (int i = 0; i < frames * 2; i++)
+	{
+		int v = mix[i];
+		if (v > 32767) v = 32767;
+		if (v < -32768) v = -32768;
+		out[i] = (Sint16)v;
 	}
 }
 
@@ -325,3 +386,49 @@ void omf_SDLAudioPause(bool pause)
 {
 	if (omg_audio_dev) SDL_PauseAudioDevice(omg_audio_dev, pause ? 1 : 0);
 }
+
+// ---------------------------------------------------------------------------
+// OMT 1.x sound manager hooks (omt1/OMediaSoundManager.cpp)
+
+OMediaSoundChannel *omf_SDLCreateSoundChannel(void) { return new OMediaSDLSoundChannel; }
+void omf_SDLOpenAudio(void) { omf_open_audio(); }
+bool omf_SDLAudioIsOpen(void) { return omg_audio_dev != 0; }
+OMediaRetarget *omf_SDLCreateSoundRetarget(void) { return new OMediaSDLRtgSound; }
+
+// ---------------------------------------------------------------------------
+// Bink: stream sources in the mixer (bink_mixer.h)
+
+static void *omf_mixer_open(int rate, int channels, BinkMixerPull pull, void *ud)
+{
+	if (rate <= 0 || channels < 1 || channels > 2 || !pull) return NULL;
+	omf_open_audio();
+	if (!omg_audio_dev) return NULL;
+	OMediaSDLStream *st = new OMediaSDLStream;
+	st->pull = pull; st->ud = ud; st->rate = rate; st->channels = channels;
+	st->paused = true; st->pos = 0; st->last[0] = st->last[1] = 0;
+	SDL_LockAudioDevice(omg_audio_dev);
+	omg_streams.push_back(st);
+	SDL_UnlockAudioDevice(omg_audio_dev);
+	SDL_Log("OMT: audio stream in the mixer, %d Hz, %d channels", rate, channels);
+	return st;
+}
+static void omf_mixer_pause(void *h, int paused)
+{
+	OMediaSDLStream *st = (OMediaSDLStream*)h;
+	SDL_LockAudioDevice(omg_audio_dev);
+	st->paused = paused != 0;
+	SDL_UnlockAudioDevice(omg_audio_dev);
+}
+static void omf_mixer_lock(void *) { SDL_LockAudioDevice(omg_audio_dev); }
+static void omf_mixer_unlock(void *) { SDL_UnlockAudioDevice(omg_audio_dev); }
+static void omf_mixer_close(void *h)
+{
+	OMediaSDLStream *st = (OMediaSDLStream*)h;
+	SDL_LockAudioDevice(omg_audio_dev);
+	for (size_t i = 0; i < omg_streams.size(); i++)
+		if (omg_streams[i] == st) { omg_streams.erase(omg_streams.begin() + i); break; }
+	SDL_UnlockAudioDevice(omg_audio_dev);
+	delete st;
+}
+static const BinkMixer omg_bink_mixer = { omf_mixer_open, omf_mixer_pause, omf_mixer_lock, omf_mixer_unlock, omf_mixer_close };
+extern "C" const BinkMixer *omt_sound_get_bink_mixer(void) { return &omg_bink_mixer; }
