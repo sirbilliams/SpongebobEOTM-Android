@@ -32,6 +32,8 @@
 #include "OMediaMemTools.h"
 #include "OMediaError.h"
 
+#include <string.h>
+
 //----------------------------------------------------------
 
 OMediaStream::OMediaStream(void)
@@ -116,12 +118,12 @@ void OMediaStream::read(void *dat, unsigned int nbytes)
 			break;
 
 			case 2:
-			*((short*)dat) = *((short*)(buffer+buffer_pointer));
+			memcpy(dat,buffer+buffer_pointer,2);	// port: was a short* copy; the buffer is unaligned (UB on arm64)
 			buffer_pointer+=2;
 			break;
 
 			case 4:
-			*((int*)dat) = *((int*)(buffer+buffer_pointer));
+			memcpy(dat,buffer+buffer_pointer,4);	// port: was an int* copy; the buffer is unaligned (UB on arm64)
 			buffer_pointer+=4;
 			break;
 	
@@ -182,12 +184,12 @@ void OMediaStream::write(void *dat, unsigned int nbytes)
 			break;
 
 			case 2:
-			*((short*)(buffer+buffer_pointer)) = *((short*)dat);
+			memcpy(buffer+buffer_pointer,dat,2);	// port: unaligned, see read
 			buffer_pointer+=2;
 			break;
 
 			case 4:
-			*((int*)(buffer+buffer_pointer)) = *((int*)dat);
+			memcpy(buffer+buffer_pointer,dat,4);	// port: unaligned, see read
 			buffer_pointer+=4;
 			break;
 
