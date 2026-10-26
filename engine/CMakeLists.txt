@@ -9,6 +9,7 @@ list(FILTER OMT_SRC EXCLUDE REGEX "OMTClasses/OS/(MSWindows|MacOS)/")
 file(GLOB SDL_SRC sdl/*.cpp)
 file(GLOB OMT1_SRC omt1/*.cpp)          # OMT.dll's (2002) classes, rebuilt on the SDL layer
 list(FILTER SDL_SRC EXCLUDE REGEX "OMediaSDLMain\\.cpp$")      # compiled into each app, see below
+list(FILTER SDL_SRC EXCLUDE REGEX "OMediaSDLGfx\\.cpp$")       # the omt1 layer's GL back end (library omt1)
 set(OMT_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/sdl/OMediaSDLMain.cpp)
 file(GLOB_RECURSE OMT_HDR_DIRS LIST_DIRECTORIES true OMTClasses/*)
 set(OMT_INC "")
@@ -74,7 +75,8 @@ endif()
 # engine/omt1: the OMT.dll (OMT 1.x, Aug 2002) classes sb2.exe uses, rebuilt from the DLL, on the
 # shared OMT core (streams, database, math, messages) and an SDL/GL back end (sdl/OMediaSDLGfx.cpp).
 # Its own include path: the OMT 2.5 world/graphics headers of the same names are not visible.
-file(GLOB_RECURSE OMT1_SRC omt1/*.cpp)
+# (the classes directly in omt1/ are lane B's sound/input layer, built into 'omt' on the OMT 2.5 engines)
+file(GLOB_RECURSE OMT1_LAYER_SRC omt1/*/*.cpp)
 set(OMT1_SHARED_DIRS Core Utility Math Messages Compression Stream/Core Stream/Class Stream/Formatted Stream/Database)
 set(OMT1_SHARED_SRC "")
 set(OMT1_INC "")
@@ -89,7 +91,7 @@ foreach(d ${OMT1_SHARED_DIRS})
   list(APPEND OMT1_SHARED_SRC ${s})
   list(APPEND OMT1_INC ${CMAKE_CURRENT_SOURCE_DIR}/OMTClasses/${d})
 endforeach()
-add_library(omt1 STATIC ${OMT1_SRC} ${OMT1_SHARED_SRC} sdl/OMediaSDLCore.cpp sdl/OMediaSDLGfx.cpp)
+add_library(omt1 STATIC ${OMT1_LAYER_SRC} ${OMT1_SHARED_SRC} sdl/OMediaSDLCore.cpp sdl/OMediaSDLGfx.cpp)
 target_include_directories(omt1 PUBLIC ${OMT1_INC} sdl ${SDL2_INCLUDE_DIRS} ${OMT_GL_INC})
 target_compile_definitions(omt1 PUBLIC OMT1_ENGINE OMD_SDL_NO_GL_WRAP GL_GLEXT_PROTOTYPES)
 target_compile_options(omt1 PRIVATE -Wno-deprecated -Wno-write-strings -Wno-multichar -Werror=int-to-pointer-cast -fno-strict-aliasing)
