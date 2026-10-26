@@ -107,7 +107,7 @@ typedef struct granny_transform_state
 	float position[3], rotation[9], quaternion[4], scale_shear[9], combined[9];
 } granny_transform_state;
 
-/* the 26 functions the game imports */
+/* the functions the game imports (33 with the 7 added for SpongeBob: Lock/UnlockRenderingStateTexture and the coordinate-system ones) */
 granny_result GrannyOpenVersion(const char *version, const char *platform, const char *date,
                                 const char *copyright, granny_uint32 *out_version);
 granny_result GrannyAllowTextureFormat(granny_uint32 version, granny_uint32 format);
@@ -131,6 +131,8 @@ granny_result GrannyUnlockRendering(granny_uint32 l0, granny_uint32 l1);
 granny_result GrannyGetNewTexturesLeft(granny_uint32 version, granny_uint32 *count);
 granny_result GrannyLockNextNewTexture(granny_uint32 version, granny_new_texture *texture);
 granny_result GrannyUnlockNewTexture(granny_new_texture *texture, granny_cookie cookie);
+granny_result GrannyLockRenderingStateTexture(granny_rendering_state *state, granny_new_texture *texture);
+granny_result GrannyUnlockRenderingStateTexture(granny_rendering_state *state, granny_new_texture *texture, granny_cookie cookie);
 granny_result GrannyGetBoneIndexFromName(granny_uint32 s0, granny_uint32 s1, const char *name, granny_uint32 *index);
 granny_result GrannyAttachSequence(granny_uint32 s0, granny_uint32 s1, granny_uint32 bone,
                                    granny_uint32 p0, granny_uint32 p1, granny_uint32 parent_bone,
@@ -140,6 +142,17 @@ granny_result GrannyCloseSequence(granny_uint32 s0, granny_uint32 s1);
 granny_result GrannyCloseAnimation(granny_uint32 a0, granny_uint32 a1);
 granny_result GrannyCloseModel(granny_uint32 m0, granny_uint32 m1);
 granny_result GrannyClose(granny_uint32 version);
+
+/* the coordinate-system functions (sb2.exe 0x403810, 0x4048xx): the art tool's origin[3] and axes[9] of a model /
+   animation, the transform to the wanted system, and applying it to the model / animation */
+granny_result GrannyGetToolCoordinateSystemForModel(granny_uint32 m0, granny_uint32 m1, float *origin, float *axes);
+granny_result GrannyGetToolCoordinateSystemForAnimation(granny_uint32 a0, granny_uint32 a1, float *origin, float *axes);
+granny_result GrannyRecommendTransform(granny_uint32 version, const float *tool_origin, const float *tool_axes,
+                                       const float *want_origin, const float *want_axes,
+                                       float *out_translation, float *out_matrix);
+granny_result GrannyTransformModel(granny_uint32 m0, granny_uint32 m1, const float *translation, const float *matrix);
+granny_result GrannyTransformAnimation(granny_uint32 a0, granny_uint32 a1, const float *translation, const float *matrix);
+
 
 /* extras (exported by granny.dll too; used by the tests) */
 granny_result GrannyGetAnimationParameter(granny_uint32 c0, granny_uint32 c1, granny_uint32 c2,

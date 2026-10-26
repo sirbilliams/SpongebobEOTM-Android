@@ -1,5 +1,5 @@
 #!/bin/bash
-# Fetches the pinned SDL2, gl4es and unshield (InstallShield cabinet reader, MIT) sources into android/app/jni/ and SDL's Java glue into the app.
+# Fetches the pinned SDL2, gl4es, unshield and FFmpeg (InstallShield cabinet reader, MIT) sources into android/app/jni/ and SDL's Java glue into the app.
 # Safe to re-run; already-fetched sources at the right commit are kept.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -24,6 +24,7 @@ fetch() {   # repo ref expected-commit dest
 fetch "$SDL_REPO"   "$SDL_REF"       "$SDL_COMMIT"   "$JNI/SDL"
 fetch "$GL4ES_REPO" "$GL4ES_COMMIT"  "$GL4ES_COMMIT" "$JNI/gl4es"
 fetch "$UNSHIELD_REPO" "$UNSHIELD_REF" "$UNSHIELD_COMMIT" "$JNI/unshield"
+fetch "$FFMPEG_REPO" "$FFMPEG_REF" "$FFMPEG_COMMIT" "$JNI/ffmpeg"   # Bink movies, built minimal by tools/ffmpeg/build-ffmpeg.sh
 
 # SDL's Java side (SDLActivity etc.) must match the native SDL version
 JAVA="$ROOT/android/app/src/main/java/org/libsdl/app"

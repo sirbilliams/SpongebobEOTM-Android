@@ -2,6 +2,7 @@
 android/app/jni/SDL/
 android/app/jni/gl4es/
 android/app/jni/unshield/
+android/app/jni/ffmpeg/
 android/app/src/main/java/org/libsdl/
 
 # build output

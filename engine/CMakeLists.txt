@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS ON)
 file(GLOB_RECURSE OMT_SRC OMTClasses/*.cpp)
 list(FILTER OMT_SRC EXCLUDE REGEX "OMTClasses/OS/(MSWindows|MacOS)/")
 file(GLOB SDL_SRC sdl/*.cpp)
+file(GLOB OMT1_SRC omt1/*.cpp)          # OMT.dll's (2002) classes, rebuilt on the SDL layer
 list(FILTER SDL_SRC EXCLUDE REGEX "OMediaSDLMain\\.cpp$")      # compiled into each app, see below
 set(OMT_MAIN ${CMAKE_CURRENT_SOURCE_DIR}/sdl/OMediaSDLMain.cpp)
 file(GLOB_RECURSE OMT_HDR_DIRS LIST_DIRECTORIES true OMTClasses/*)
@@ -56,8 +57,9 @@ else()
 endif()
 
 # --------------------------------------------------------------------------- engine
-add_library(omt STATIC ${OMT_SRC} ${SDL_SRC})
-target_include_directories(omt PUBLIC ${OMT_INC} sdl ${SDL2_INCLUDE_DIRS} ${OMT_GL_INC})
+add_library(omt STATIC ${OMT_SRC} ${SDL_SRC} ${OMT1_SRC})
+target_include_directories(omt PUBLIC ${OMT_INC} sdl omt1 ${SDL2_INCLUDE_DIRS} ${OMT_GL_INC})
+target_include_directories(omt PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../game/bink)     # bink_mixer.h
 target_compile_options(omt PRIVATE -fpermissive -Wno-deprecated -Wno-write-strings -Werror=int-to-pointer-cast -fno-strict-aliasing)
 target_link_libraries(omt PUBLIC ${OMT_SDL} ${OMT_GL_LIBS} ZLIB::ZLIB)
 if(OMT_GL4ES)
@@ -124,6 +126,9 @@ endif()
 add_library(granny_compat STATIC ${CMAKE_CURRENT_SOURCE_DIR}/../game/granny/granny_compat.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../game/granny/granny_grn.cpp ${CMAKE_CURRENT_SOURCE_DIR}/../game/granny/granny_bink.cpp)
 target_include_directories(granny_compat PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../game/granny)
+
+# game/bink: binkw32.dll replacement on a minimal FFmpeg (tools/ffmpeg/build-ffmpeg.sh), plus the bink_play tool
+include(${CMAKE_CURRENT_SOURCE_DIR}/../game/bink/CMakeLists.txt)
 target_compile_options(granny_compat PRIVATE -ffp-contract=off -fno-fast-math)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(i.86|x86)$")
   target_compile_options(granny_compat PRIVATE -msse2 -mfpmath=sse)
@@ -154,6 +159,19 @@ else()
   add_executable(omt_datatest tests/omt_datatest.cpp ${OMT_MAIN})
   target_link_libraries(omt_datatest omt)
   target_compile_options(omt_datatest PRIVATE -w -fpermissive)
+
+  # OMT.dll's sound manager and input driver on SDL (omt1/): sound to the disk audio driver, mouse and touch to a listener
+  add_executable(omt1_soundinput_test tests/omt1_soundinput_test.cpp ${OMT_MAIN})
+  target_link_libraries(omt1_soundinput_test omt)
+  target_compile_options(omt1_soundinput_test PRIVATE -w -fpermissive)
+
+  # Bink movie audio through the sound manager's mixer
+  if(TARGET bink)
+    add_executable(omt1_bink_mixer_test tests/omt1_bink_mixer_test.cpp ${OMT_MAIN})
+    target_link_libraries(omt1_bink_mixer_test omt bink)
+    target_compile_options(omt1_bink_mixer_test PRIVATE -w -fpermissive)
+    set_target_properties(omt1_bink_mixer_test PROPERTIES BUILD_RPATH "${FFMPEG_PREFIX}/lib")
+  endif()
 
   # The reconstructed game, desktop build
   if(SB_SRC)

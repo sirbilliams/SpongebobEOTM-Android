@@ -11,7 +11,7 @@
     The transform arithmetic is in granny_math.h; the .grn files are read by granny_grn.cpp.          */
 #include "granny_compat.h"
 #include "granny_internal.h"
-#include "granny_math.h"
+#include "granny_xform.h"
 
 #include <math.h>
 #include <stdio.h>
@@ -174,7 +174,7 @@ static FileData *load_file(const char *file, granny_result *err)
 
 static void release_file(FileData *g)
 {
-	if (g && --g->refs == 0) { g_files.erase(g->path); delete g; }
+	if (g && --g->refs == 0) { if (!g->is_private) g_files.erase(g->path); delete g; }
 }
 
 /* --------------------------------------------------------------------------------- the runtime --- */
@@ -921,13 +921,10 @@ granny_result GrannyGetNewTexturesLeft(granny_uint32 version, granny_uint32 *cou
 	return ret(GrannyOK);
 }
 
-granny_result GrannyLockNextNewTexture(granny_uint32 version, granny_new_texture *t)
+/* the fields of a new texture, as filled in by GrannyLockNextNewTexture and (0x10015bd0) by
+   GrannyLockRenderingStateTexture */
+static void fill_new_texture(granny_new_texture *t, TextureInst *ti)
 {
-	if (!g_open || version != VERSION_HANDLE) return ret(GrannyInvalidHandle);
-	if (!t) return ret(GrannyInvalidPointer);
-	if (g_new_textures.empty()) return ret(GrannyInvalidCall);
-	TextureInst *ti = g_new_textures.front();
-	g_new_textures.erase(g_new_textures.begin());
 	const TextureData &d = ti->model->file->textures[ti->index];
 	memset(t, 0, sizeof *t);
 	t->version = VERSION_HANDLE;
@@ -935,6 +932,16 @@ granny_result GrannyLockNextNewTexture(granny_uint32 version, granny_new_texture
 	t->size = (u32)d.pixels.size();
 	t->pixels = d.pixels.empty() ? 0 : &d.pixels[0];
 	t->internal = ti;
+}
+
+granny_result GrannyLockNextNewTexture(granny_uint32 version, granny_new_texture *t)
+{
+	if (!g_open || version != VERSION_HANDLE) return ret(GrannyInvalidHandle);
+	if (!t) return ret(GrannyInvalidPointer);
+	if (g_new_textures.empty()) return ret(GrannyInvalidCall);
+	TextureInst *ti = g_new_textures.front();
+	g_new_textures.erase(g_new_textures.begin());
+	fill_new_texture(t, ti);
 	return ret(GrannyOK);
 }
 
@@ -949,6 +956,138 @@ granny_result GrannyUnlockNewTexture(granny_new_texture *t, granny_cookie cookie
 	ti->cookie = cookie;
 	ti->delivered = true;
 	t->internal = 0;
+	return ret(GrannyOK);
+}
+
+/* The texture of the rendering state that is locked right now, to be handed over again with a new cookie
+   (sb2.exe 0x4053c0 and 0x4039c0 swap a state's material this way).  The DLL keeps the lock in the version
+   object (+0x170, one at a time).  */
+static granny_new_texture *g_state_texture_lock;
+
+/* 0x10004200 -> 0x10013060 -> 0x10015bd0 */
+granny_result GrannyLockRenderingStateTexture(granny_rendering_state *state, granny_new_texture *t)
+{
+	if (!state) return ret(GrannyInvalidPointer);
+	if (!t) return ret(GrannyInvalidPointer);
+	if (!g_open || state->sequence[0] != VERSION_HANDLE) return ret(GrannyInvalidHandle);
+	granny_result e = check_lock(state->sequence[0], state->sequence[1]);    /* 0x10013060: the sequence id is state+0xc */
+	if (e) return ret(e);
+	if (g_state_texture_lock) return ret(GrannyInvalidCall);
+	/* port: the DLL takes the texture of the state that is locked now (the list at +0x188 indexed by +0x18c, which
+	   UnlockRenderingState advances); without a locked state there is none. */
+	if (!g_lock->state_locked || g_lock->next == 0) return ret(GrannyInvalidCall);
+	const std::pair<u32, u32> &cur = g_lock->states[g_lock->next - 1];
+	const MeshState &ms = seq_file(g_lock->seq)->meshes[cur.first].states[cur.second];
+	if (ms.texture >= g_lock->seq->model->textures.size()) return ret(GrannyInvalidCall);
+	fill_new_texture(t, g_lock->seq->model->textures[ms.texture]);
+	t->version = state->sequence[0];                                          /* 0x10004383 */
+	g_state_texture_lock = t;
+	return ret(GrannyOK);
+}
+
+/* 0x10004450 -> 0x10013100 -> 0x10015ef0 */
+granny_result GrannyUnlockRenderingStateTexture(granny_rendering_state *state, granny_new_texture *t, granny_cookie cookie)
+{
+	if (!state) return ret(GrannyInvalidPointer);
+	if (!t) return ret(GrannyInvalidPointer);
+	if (!g_open || state->sequence[0] != VERSION_HANDLE) return ret(GrannyInvalidHandle);
+	granny_result e = check_lock(state->sequence[0], state->sequence[1]);
+	if (e) return ret(e);
+	if (!g_state_texture_lock) return ret(GrannyInvalidCall);
+	if (g_state_texture_lock != t) return ret(GrannyInvalidPointer);
+	g_state_texture_lock = 0;
+	TextureInst *ti = (TextureInst *)t->internal;     /* 0x10015fad: the texture's cookie, delivered flag */
+	ti->cookie = cookie;
+	ti->delivered = true;
+	t->internal = 0;
+	return ret(GrannyOK);
+}
+
+/* ------------------------------------------------------------------ coordinate systems and transforms --- */
+
+/* the art tool's coordinate system of a model (0x10004a00 -> 0x10013300) or an animation (0x10004c70 -> 0x10013380): the
+   origin (3 floats) and the right / up / back axes (9 floats, the scale folded in) the file was exported with */
+granny_result GrannyGetToolCoordinateSystemForModel(granny_uint32 m0, granny_uint32 m1, float *origin, float *axes)
+{
+	if (!g_open || m0 != VERSION_HANDLE) return ret(GrannyInvalidHandle);
+	if (!origin) return ret(GrannyInvalidPointer);
+	if (!axes) return ret(GrannyInvalidPointer);
+	Model *m = find_model(m0, m1);
+	if (!m) return ret(GrannyInvalidHandle);
+	memcpy(origin, m->file->art_origin, 12);
+	memcpy(axes, m->file->art_axes, 36);
+	return ret(GrannyOK);
+}
+
+granny_result GrannyGetToolCoordinateSystemForAnimation(granny_uint32 a0, granny_uint32 a1, float *origin, float *axes)
+{
+	if (!g_open || a0 != VERSION_HANDLE) return ret(GrannyInvalidHandle);
+	if (!origin) return ret(GrannyInvalidPointer);
+	if (!axes) return ret(GrannyInvalidPointer);
+	Animation *a = find_anim(a0, a1);
+	if (!a) return ret(GrannyInvalidHandle);
+	memcpy(origin, a->file->art_origin, 12);
+	memcpy(axes, a->file->art_axes, 36);
+	return ret(GrannyOK);
+}
+
+/* 0x100053a0 -> 0x100137f0.  The arguments are origin[3], axes[9] of the tool's system and of the wanted one; the
+   result is the translation (3 floats) and matrix (9 floats) to hand to GrannyTransformModel / Animation. */
+granny_result GrannyRecommendTransform(granny_uint32 version, const float *tool_origin, const float *tool_axes,
+                                       const float *want_origin, const float *want_axes,
+                                       float *out_translation, float *out_matrix)
+{
+	if (!g_open || version != VERSION_HANDLE) return ret(GrannyInvalidHandle);
+	if (!tool_origin || !tool_axes || !want_origin || !want_axes || !out_translation || !out_matrix)
+		return ret(GrannyInvalidPointer);
+	xform_recommend(tool_origin, tool_axes, want_origin, want_axes, out_translation, out_matrix);
+	return ret(GrannyOK);
+}
+
+/* the file a model / animation transforms is its own copy: granny.dll reads the file again for every open, and
+   transforms that copy in place; ours are shared between opens */
+static FileData *own_file(FileData *f)
+{
+	if (f->is_private && f->refs == 1) return f;
+	FileData *c = new FileData(*f);
+	c->is_private = true;       // port: the shared table keeps the original
+	c->refs = 1;
+	return c;
+}
+
+/* 0x10004ee0 -> 0x10013460: every mesh's vertices, normals and bone bindings, every bone's local transform */
+granny_result GrannyTransformModel(granny_uint32 m0, granny_uint32 m1, const float *translation, const float *matrix)
+{
+	if (!g_open || m0 != VERSION_HANDLE) return ret(GrannyInvalidHandle);
+	if (!translation) return ret(GrannyInvalidPointer);
+	if (!matrix) return ret(GrannyInvalidPointer);
+	Model *m = find_model(m0, m1);
+	if (!m) return ret(GrannyInvalidHandle);
+	float T[3], M[9];
+	memcpy(T, translation, sizeof T);
+	xform_in(matrix, M);
+	FileData *old = m->file, *f = own_file(old);
+	if (f != old) { m->file = f; release_file(old); }
+	for (size_t i = 0; i < f->meshes.size(); i++) xform_mesh(f->meshes[i], T, M);
+	for (size_t i = 0; i < f->bones.size(); i++) xform_bone(f->bones[i].rest, T, M);
+	for (size_t i = 0; i < f->bones.size(); i++) track_offset(f->bones[i].rest, f->bones[i].rest, f->bones[i].offset);
+	return ret(GrannyOK);
+}
+
+/* 0x10005140 -> 0x10013670 -> 0x10027320: every track's samples (b-spline control points or raw keys) */
+granny_result GrannyTransformAnimation(granny_uint32 a0, granny_uint32 a1, const float *translation, const float *matrix)
+{
+	if (!g_open || a0 != VERSION_HANDLE) return ret(GrannyInvalidHandle);
+	if (!translation) return ret(GrannyInvalidPointer);
+	if (!matrix) return ret(GrannyInvalidPointer);
+	Animation *a = find_anim(a0, a1);
+	if (!a) return ret(GrannyInvalidHandle);
+	float T[3], M[9];
+	memcpy(T, translation, sizeof T);
+	xform_in(matrix, M);
+	FileData *old = a->file, *f = own_file(old);
+	if (f != old) { a->file = f; release_file(old); }
+	for (size_t i = 0; i < f->tracks.size(); i++) xform_track(f->tracks[i], T, M);
 	return ret(GrannyOK);
 }
 
@@ -1116,6 +1255,7 @@ granny_result GrannyClose(granny_uint32 version)
 		release_file(m->file); delete m; g_models.pop_back();
 	}
 	g_new_textures.clear();
+	g_state_texture_lock = 0;
 	g_open = false;
 	return ret(GrannyOK);
 }

@@ -64,6 +64,25 @@ What is deliberately different:
   inverse is used), degrees of freedom other than `0x1ff`, texture formats other than 4, Bink blocks that
   refer to a previous frame (a texture is one key frame; none of the game's textures has one).
 
+## The 7 functions added for SpongeBob: Employee of the Month
+
+`GrannyLockRenderingStateTexture` / `GrannyUnlockRenderingStateTexture` (0x10004200 / 0x10004450; 0x10015bd0,
+0x10015ef0): re-deliver the texture of the rendering state that is locked now with a new cookie (sb2.exe 0x4053c0
+swaps a state's material this way). One at a time; errors 5 (null), 6 (version), 4 (no lock / no state locked /
+texture lock open), 10 (state of another sequence), 5 again if Unlock gets another texture.
+`GrannyGetToolCoordinateSystemForModel` / `...Animation` (0x10004a00, 0x10004c70): the art tool's origin[3] and axes[9]
+from the file's header node `0x1003` (dwords 3..5 and 6..14 of its 76 bytes; every file of the game carries origin 0 and
+the MAX axes with 39.37 folded in). `GrannyRecommendTransform` (0x100137f0): `M = B * inverse(A)` (A, B transposed first
+because the DLL's matrix flags 0x240/0x244 are 1 after `GrannyOpenVersion`, 0x10015284), `T = wanted origin - M * tool
+origin`, the matrix handed back transposed. `GrannyTransformModel` (0x10013460): per mesh (0x100293e0) bindings `bt := M bt`,
+`B := M B M^-1`, vertices `M p + T`, normals `M^-T n`, winding swapped if det(M) < 0; per bone (0x1002a600 -> 0x10032170)
+position `M p + T`, orientation = quaternion of `M R M^-1` (0x10031da0, matrix to quaternion 0x100321b0), scale/shear
+`M S M^-1`. `GrannyTransformAnimation` (0x10013670): the same per track sample (b-spline control points with the
+hemisphere fix 0x100204a0, raw keys 0x1001f220). The shared file data is copied for the model/animation first (`// port:`).
+sb2.exe's call (0x403810) mirrors X (`diag(-1, 1, 1)`). No DLL harness here (no Wine): checked by reasoning against the machine
+code and on real files with `tools/granny/xftest.cpp` (vertices mirrored, winding flipped, quaternions equal the mirrored
+ones).
+
 ## Files
 
 The runtime maps a file name passed to `GrannyOpenModel`/`GrannyOpenAnimation` (`\` or `/`, any case: each
