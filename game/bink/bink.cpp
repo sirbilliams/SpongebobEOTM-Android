@@ -8,6 +8,8 @@ extern "C" {
 #include <libavutil/channel_layout.h>
 }
 #include <SDL.h>
+#include "bink_mixer.h"
+#pragma weak omt_sound_get_bink_mixer   // port: only there when the OMT engine is linked
 #include <string.h>
 #include <stdlib.h>
 #include <string>
@@ -27,7 +29,9 @@ struct BinkState {
     uint32_t startTicks, pauseTicks;     // no-audio fallback (SDL_GetTicks)
     bool started;
     // audio: float samples, interleaved, consumed by the SDL callback
-    SDL_AudioDeviceID dev;
+    SDL_AudioDeviceID dev;               // own device, or 0
+    void *mix;                           // stream in the OMT sound mixer (bink_mixer.h), or NULL
+    const BinkMixer *mixer;
     int channels, rate;
     std::vector<float> ring;
     size_t ringPos;                      // read position in ring (floats)
@@ -37,11 +41,14 @@ struct BinkState {
 int g_surfaceType = BINKSURFACE32;
 bool g_soundSet = false;
 
-void audioCallback(void *ud, Uint8 *stream, int len)
+void pauseAudio(BinkState *s, bool pause);
+inline bool hasAudio(const BinkState *s) { return s->dev || s->mix; }
+inline void lockAudio(BinkState *s) { if (s->mix) s->mixer->lock(s->mix); else SDL_LockAudioDevice(s->dev); }
+inline void unlockAudio(BinkState *s) { if (s->mix) s->mixer->unlock(s->mix); else SDL_UnlockAudioDevice(s->dev); }
+
+// Fills 'want' floats from the ring; runs with the audio locked.
+void pullFloats(BinkState *s, float *out, size_t want)
 {
-    BinkState *s = (BinkState *)ud;              // runs with the device locked
-    float *out = (float *)stream;
-    size_t want = (size_t)len / sizeof(float);
     size_t have = s->ring.size() - s->ringPos;
     size_t n = have < want ? have : want;
     if (n) memcpy(out, &s->ring[s->ringPos], n * sizeof(float));
@@ -54,12 +61,19 @@ void audioCallback(void *ud, Uint8 *stream, int len)
     }
 }
 
+void audioCallback(void *ud, Uint8 *stream, int len) { pullFloats((BinkState *)ud, (float *)stream, (size_t)len / sizeof(float)); }
+void mixerPull(void *ud, float *out, int frames)
+{
+    BinkState *s = (BinkState *)ud;
+    pullFloats(s, out, (size_t)frames * (size_t)s->channels);
+}
+
 double ringSeconds(BinkState *s)
 {
-    if (!s->dev) return 0;
-    SDL_LockAudioDevice(s->dev);
+    if (!hasAudio(s)) return 0;
+    lockAudio(s);
     size_t n = s->ring.size() - s->ringPos;
-    SDL_UnlockAudioDevice(s->dev);
+    unlockAudio(s);
     return (double)n / (double)(s->channels * s->rate);
 }
 
@@ -75,9 +89,9 @@ void appendAudio(BinkState *s, AVFrame *f)
     } else {
         memcpy(&tmp[0], f->data[0], tmp.size() * sizeof(float));
     }
-    SDL_LockAudioDevice(s->dev);
+    lockAudio(s);
     s->ring.insert(s->ring.end(), tmp.begin(), tmp.end());
-    SDL_UnlockAudioDevice(s->dev);
+    unlockAudio(s);
 }
 
 // Reads the next packet: audio goes to the decoder and the ring, video to the queue.
@@ -88,7 +102,7 @@ bool pump(BinkState *s)
     if (r < 0) { s->eof = true; return false; }
     if (s->pkt->stream_index == s->vstream) {
         s->vqueue.push_back(av_packet_clone(s->pkt));
-    } else if (s->pkt->stream_index == s->astream && s->adec && s->dev) {
+    } else if (s->pkt->stream_index == s->astream && s->adec && hasAudio(s)) {
         if (avcodec_send_packet(s->adec, s->pkt) >= 0)
             while (avcodec_receive_frame(s->adec, s->aframe) >= 0) appendAudio(s, s->aframe);
     }
@@ -98,15 +112,21 @@ bool pump(BinkState *s)
 
 void fillAudio(BinkState *s, double seconds)
 {
-    while (!s->eof && (s->vqueue.empty() || (s->dev && ringSeconds(s) < seconds))) pump(s);
+    while (!s->eof && (s->vqueue.empty() || (hasAudio(s) && ringSeconds(s) < seconds))) pump(s);
+}
+
+void pauseAudio(BinkState *s, bool pause)
+{
+    if (s->mix) s->mixer->pause(s->mix, pause);
+    else if (s->dev) SDL_PauseAudioDevice(s->dev, pause ? 1 : 0);
 }
 
 double clockMs(BinkState *s)
 {
-    if (s->dev) {
-        SDL_LockAudioDevice(s->dev);
+    if (hasAudio(s)) {
+        lockAudio(s);
         uint64_t p = s->played;
-        SDL_UnlockAudioDevice(s->dev);
+        unlockAudio(s);
         return 1000.0 * (double)p / (double)s->rate;
     }
     return s->paused ? (double)(s->pauseTicks - s->startTicks) : (double)(SDL_GetTicks() - s->startTicks);
@@ -118,7 +138,7 @@ void startClock(BinkState *s)
     s->started = true;
     fillAudio(s, 0.5);
     s->startTicks = SDL_GetTicks();
-    if (s->dev && !s->paused) SDL_PauseAudioDevice(s->dev, 0);
+    if (!s->paused) pauseAudio(s, false);
 }
 
 std::string fixPath(const char *name)
@@ -136,6 +156,12 @@ void openAudio(BinkState *s, const AVCodec *acodec, AVStream *as)
     s->channels = s->adec->ch_layout.nb_channels;
     s->rate = s->adec->sample_rate;
     if (s->channels < 1 || s->channels > 2 || s->rate <= 0) { avcodec_free_context(&s->adec); return; }
+    // port: through the OMT sound mixer when the engine is linked (see bink_mixer.h), else an SDL device of our own.
+    s->mixer = omt_sound_get_bink_mixer ? omt_sound_get_bink_mixer() : NULL;
+    if (s->mixer) {
+        s->mix = s->mixer->open(s->rate, s->channels, mixerPull, s);
+        if (s->mix) return;
+    }
     if (!SDL_WasInit(SDL_INIT_AUDIO) && SDL_InitSubSystem(SDL_INIT_AUDIO) < 0) return;
     SDL_AudioSpec want, have;
     SDL_zero(want);
@@ -149,7 +175,8 @@ void openAudio(BinkState *s, const AVCodec *acodec, AVStream *as)
 
 extern "C" {
 
-// 0x40c2a0 hands the OMT sound manager's DirectSound pointer here; ours has no use for it.
+// 0x40c2a0 hands the OMT sound manager's DirectSound pointer here; ours has no use for it: audio
+// goes through omt_sound_get_bink_mixer() (the manager's mixer) whenever the engine is linked.
 int BinkOpenDirectSound(uintptr_t param) { (void)param; return 1; }
 int BinkSetSoundSystem(BINKSNDSYSOPEN open, uintptr_t param) { g_soundSet = true; return open ? open(param) : 0; }
 void BinkPortSetSurfaceType(int type) { g_surfaceType = type; }
@@ -202,6 +229,7 @@ void BinkClose(HBINK b)
 {
     if (!b) return;
     BinkState *s = (BinkState *)b->priv;
+    if (s->mix) s->mixer->close(s->mix);
     if (s->dev) SDL_CloseAudioDevice(s->dev);       // joins the callback thread first
     for (size_t i = 0; i < s->vqueue.size(); i++) av_packet_free(&s->vqueue[i]);
     av_frame_free(&s->frame); av_frame_free(&s->aframe); av_packet_free(&s->pkt);
@@ -246,7 +274,7 @@ void BinkPause(HBINK b, int pause)
     s->paused = pause != 0;
     if (s->paused) s->pauseTicks = SDL_GetTicks();
     else s->startTicks += SDL_GetTicks() - s->pauseTicks;
-    if (s->dev && s->started) SDL_PauseAudioDevice(s->dev, s->paused ? 1 : 0);
+    if (s->started) pauseAudio(s, s->paused);
 }
 
 static inline uint8_t clamp8(int v) { return (uint8_t)(v < 0 ? 0 : v > 255 ? 255 : v); }
