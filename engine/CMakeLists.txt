@@ -67,6 +67,35 @@ if(ANDROID)
   target_link_libraries(omt PUBLIC android log)
 endif()
 
+
+# --------------------------------------------------------------------------- OMT 1.x engine layer
+# engine/omt1: the OMT.dll (OMT 1.x, Aug 2002) classes sb2.exe uses, rebuilt from the DLL, on the
+# shared OMT core (streams, database, math, messages) and an SDL/GL back end (sdl/OMediaSDLGfx.cpp).
+# Its own include path: the OMT 2.5 world/graphics headers of the same names are not visible.
+file(GLOB_RECURSE OMT1_SRC omt1/*.cpp)
+set(OMT1_SHARED_DIRS Core Utility Math Messages Compression Stream/Core Stream/Class Stream/Formatted Stream/Database)
+set(OMT1_SHARED_SRC "")
+set(OMT1_INC "")
+file(GLOB OMT1_DIRS LIST_DIRECTORIES true omt1/*)
+foreach(d ${OMT1_DIRS})
+  if(IS_DIRECTORY ${d})
+    list(APPEND OMT1_INC ${d})
+  endif()
+endforeach()
+foreach(d ${OMT1_SHARED_DIRS})
+  file(GLOB s OMTClasses/${d}/*.cpp)
+  list(APPEND OMT1_SHARED_SRC ${s})
+  list(APPEND OMT1_INC ${CMAKE_CURRENT_SOURCE_DIR}/OMTClasses/${d})
+endforeach()
+add_library(omt1 STATIC ${OMT1_SRC} ${OMT1_SHARED_SRC} sdl/OMediaSDLCore.cpp sdl/OMediaSDLGfx.cpp)
+target_include_directories(omt1 PUBLIC ${OMT1_INC} sdl ${SDL2_INCLUDE_DIRS} ${OMT_GL_INC})
+target_compile_definitions(omt1 PUBLIC OMT1_ENGINE OMD_SDL_NO_GL_WRAP GL_GLEXT_PROTOTYPES)
+target_compile_options(omt1 PRIVATE -Wno-deprecated -Wno-write-strings -Wno-multichar -Werror=int-to-pointer-cast -fno-strict-aliasing)
+target_link_libraries(omt1 PUBLIC ${OMT_SDL} ${OMT_GL_LIBS} ZLIB::ZLIB)
+if(OMT_GL4ES)
+  target_compile_definitions(omt1 PUBLIC OMT_USE_GL4ES)
+endif()
+
 # --------------------------------------------------------------------------- game importer
 # Installs the game files from the game's CD image (.iso): ISO 9660 + InstallShield cabinet
 # (unshield, MIT, fetched by fetch-deps.sh). Android: libimporter.so for the setup screen.
@@ -117,6 +146,10 @@ else()
   add_executable(omt_viewer viewer/OMTViewer.cpp ${OMT_MAIN})
   target_link_libraries(omt_viewer omt)
   target_compile_options(omt_viewer PRIVATE -w -fpermissive)
+
+  add_executable(omt1_view tests/omt1_view.cpp ${OMT_MAIN})
+  target_link_libraries(omt1_view omt1)
+  target_compile_options(omt1_view PRIVATE -Wno-multichar)
 
   add_executable(omt_datatest tests/omt_datatest.cpp ${OMT_MAIN})
   target_link_libraries(omt_datatest omt)
