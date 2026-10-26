@@ -95,6 +95,9 @@ endif()
 add_library(granny_compat STATIC ${CMAKE_CURRENT_SOURCE_DIR}/../game/granny/granny_compat.cpp
   ${CMAKE_CURRENT_SOURCE_DIR}/../game/granny/granny_grn.cpp ${CMAKE_CURRENT_SOURCE_DIR}/../game/granny/granny_bink.cpp)
 target_include_directories(granny_compat PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/../game/granny)
+
+# game/bink: binkw32.dll replacement on a minimal FFmpeg (tools/ffmpeg/build-ffmpeg.sh), plus the bink_play tool
+include(${CMAKE_CURRENT_SOURCE_DIR}/../game/bink/CMakeLists.txt)
 target_compile_options(granny_compat PRIVATE -ffp-contract=off -fno-fast-math)
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(i.86|x86)$")
   target_compile_options(granny_compat PRIVATE -msse2 -mfpmath=sse)

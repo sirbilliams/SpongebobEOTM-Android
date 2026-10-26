@@ -7,3 +7,6 @@ GL4ES_COMMIT=a025615bc79ac43ec911dced8fe5b8eb45a0b72d
 UNSHIELD_REPO=https://github.com/twogood/unshield
 UNSHIELD_REF=1.5.1
 UNSHIELD_COMMIT=871c2bf9a5694e694abeeeceb034a687fd29b243
+FFMPEG_REPO=https://github.com/FFmpeg/FFmpeg
+FFMPEG_REF=n7.1.5
+FFMPEG_COMMIT=3a0867c2bfda4a4d4309ca1a8cbdc6175e67f587

@@ -11,6 +11,7 @@ at [`android/app/src/main/assets/licenses/`](android/app/src/main/assets/license
 | [SDL2](#sdl2) | 2.32.10 (`5d24957`) | zlib | window, OpenGL context, input, sound, Android glue |
 | [HIDAPI](#hidapi-inside-sdl2) (inside SDL2) | as in SDL 2.32.10 | BSD-style (chosen of its three) | gamepads over USB / Bluetooth |
 | [gl4es](#gl4es) | `a025615` | MIT | the engine's OpenGL 1.x on OpenGL ES 2 |
+| [FFmpeg](#ffmpeg) | n7.1.5 (`3a0867c`) | LGPL 2.1 or later | playing the game's Bink movies (minimal build, dynamically linked) |
 | [unshield](#unshield) | 1.5.1 (`871c2bf`) | MIT | installing the game from the CD's InstallShield cabinet |
 
 zlib is not bundled: the app uses Android's own `libz` (the desktop build, the system's). The app's
@@ -57,3 +58,12 @@ Copyright (c) 2003 David Eriksson. MIT licence: `assets/licenses/unshield-MIT.tx
 - **RAD Game Tools' Granny.** `game/granny/` is our own reimplementation of the few Granny 1.x
   functions the game calls; it reads the game's `.grn` files, and the player's own `granny.dll` as a
   data file (it is never loaded or run).
+
+## FFmpeg
+
+Copyright (c) the FFmpeg developers. LGPL version 2.1 or later; built with `--disable-gpl --disable-nonfree`
+by `tools/ffmpeg/build-ffmpeg.sh` from the pinned source (`deps.lock`, fetched by `fetch-deps.sh`), unmodified.
+The build is minimal (`--disable-everything`): only the Bink demuxer, the Bink video decoder and the two
+Bink audio decoders, in three shared libraries (`libavformat`, `libavcodec`, `libavutil`) that the app loads
+dynamically, so they can be replaced by a rebuilt copy (LGPL section 6). `game/bink` is the app's own code
+that calls them.
