@@ -131,6 +131,8 @@ granny_result GrannyUnlockRendering(granny_uint32 l0, granny_uint32 l1);
 granny_result GrannyGetNewTexturesLeft(granny_uint32 version, granny_uint32 *count);
 granny_result GrannyLockNextNewTexture(granny_uint32 version, granny_new_texture *texture);
 granny_result GrannyUnlockNewTexture(granny_new_texture *texture, granny_cookie cookie);
+granny_result GrannyLockRenderingStateTexture(granny_rendering_state *state, granny_new_texture *texture);
+granny_result GrannyUnlockRenderingStateTexture(granny_rendering_state *state, granny_new_texture *texture, granny_cookie cookie);
 granny_result GrannyGetBoneIndexFromName(granny_uint32 s0, granny_uint32 s1, const char *name, granny_uint32 *index);
 granny_result GrannyAttachSequence(granny_uint32 s0, granny_uint32 s1, granny_uint32 bone,
                                    granny_uint32 p0, granny_uint32 p1, granny_uint32 parent_bone,

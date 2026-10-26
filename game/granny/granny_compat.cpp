@@ -921,13 +921,10 @@ granny_result GrannyGetNewTexturesLeft(granny_uint32 version, granny_uint32 *cou
 	return ret(GrannyOK);
 }
 
-granny_result GrannyLockNextNewTexture(granny_uint32 version, granny_new_texture *t)
+/* the fields of a new texture, as filled in by GrannyLockNextNewTexture and (0x10015bd0) by
+   GrannyLockRenderingStateTexture */
+static void fill_new_texture(granny_new_texture *t, TextureInst *ti)
 {
-	if (!g_open || version != VERSION_HANDLE) return ret(GrannyInvalidHandle);
-	if (!t) return ret(GrannyInvalidPointer);
-	if (g_new_textures.empty()) return ret(GrannyInvalidCall);
-	TextureInst *ti = g_new_textures.front();
-	g_new_textures.erase(g_new_textures.begin());
 	const TextureData &d = ti->model->file->textures[ti->index];
 	memset(t, 0, sizeof *t);
 	t->version = VERSION_HANDLE;
@@ -935,6 +932,16 @@ granny_result GrannyLockNextNewTexture(granny_uint32 version, granny_new_texture
 	t->size = (u32)d.pixels.size();
 	t->pixels = d.pixels.empty() ? 0 : &d.pixels[0];
 	t->internal = ti;
+}
+
+granny_result GrannyLockNextNewTexture(granny_uint32 version, granny_new_texture *t)
+{
+	if (!g_open || version != VERSION_HANDLE) return ret(GrannyInvalidHandle);
+	if (!t) return ret(GrannyInvalidPointer);
+	if (g_new_textures.empty()) return ret(GrannyInvalidCall);
+	TextureInst *ti = g_new_textures.front();
+	g_new_textures.erase(g_new_textures.begin());
+	fill_new_texture(t, ti);
 	return ret(GrannyOK);
 }
 
@@ -946,6 +953,50 @@ granny_result GrannyUnlockNewTexture(granny_new_texture *t, granny_cookie cookie
 	for (size_t i = 0; i < g_models.size() && !live; i++)
 		for (size_t k = 0; k < g_models[i]->textures.size(); k++) if (g_models[i]->textures[k] == ti) live = true;
 	if (!live) return ret(GrannyInvalidPointer);
+	ti->cookie = cookie;
+	ti->delivered = true;
+	t->internal = 0;
+	return ret(GrannyOK);
+}
+
+/* The texture of the rendering state that is locked right now, to be handed over again with a new cookie
+   (sb2.exe 0x4053c0 and 0x4039c0 swap a state's material this way).  The DLL keeps the lock in the version
+   object (+0x170, one at a time).  */
+static granny_new_texture *g_state_texture_lock;
+
+/* 0x10004200 -> 0x10013060 -> 0x10015bd0 */
+granny_result GrannyLockRenderingStateTexture(granny_rendering_state *state, granny_new_texture *t)
+{
+	if (!state) return ret(GrannyInvalidPointer);
+	if (!t) return ret(GrannyInvalidPointer);
+	if (!g_open || state->sequence[0] != VERSION_HANDLE) return ret(GrannyInvalidHandle);
+	granny_result e = check_lock(state->sequence[0], state->sequence[1]);    /* 0x10013060: the sequence id is state+0xc */
+	if (e) return ret(e);
+	if (g_state_texture_lock) return ret(GrannyInvalidCall);
+	/* port: the DLL takes the texture of the state that is locked now (the list at +0x188 indexed by +0x18c, which
+	   UnlockRenderingState advances); without a locked state there is none. */
+	if (!g_lock->state_locked || g_lock->next == 0) return ret(GrannyInvalidCall);
+	const std::pair<u32, u32> &cur = g_lock->states[g_lock->next - 1];
+	const MeshState &ms = seq_file(g_lock->seq)->meshes[cur.first].states[cur.second];
+	if (ms.texture >= g_lock->seq->model->textures.size()) return ret(GrannyInvalidCall);
+	fill_new_texture(t, g_lock->seq->model->textures[ms.texture]);
+	t->version = state->sequence[0];                                          /* 0x10004383 */
+	g_state_texture_lock = t;
+	return ret(GrannyOK);
+}
+
+/* 0x10004450 -> 0x10013100 -> 0x10015ef0 */
+granny_result GrannyUnlockRenderingStateTexture(granny_rendering_state *state, granny_new_texture *t, granny_cookie cookie)
+{
+	if (!state) return ret(GrannyInvalidPointer);
+	if (!t) return ret(GrannyInvalidPointer);
+	if (!g_open || state->sequence[0] != VERSION_HANDLE) return ret(GrannyInvalidHandle);
+	granny_result e = check_lock(state->sequence[0], state->sequence[1]);
+	if (e) return ret(e);
+	if (!g_state_texture_lock) return ret(GrannyInvalidCall);
+	if (g_state_texture_lock != t) return ret(GrannyInvalidPointer);
+	g_state_texture_lock = 0;
+	TextureInst *ti = (TextureInst *)t->internal;     /* 0x10015fad: the texture's cookie, delivered flag */
 	ti->cookie = cookie;
 	ti->delivered = true;
 	t->internal = 0;
@@ -1116,6 +1167,7 @@ granny_result GrannyClose(granny_uint32 version)
 		release_file(m->file); delete m; g_models.pop_back();
 	}
 	g_new_textures.clear();
+	g_state_texture_lock = 0;
 	g_open = false;
 	return ret(GrannyOK);
 }
