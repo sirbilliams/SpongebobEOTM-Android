@@ -696,6 +696,20 @@ FileData *grn_load(const std::string &path, granny_result *err, std::vector<std:
 	f->refs = 0;
 	f->has_model = f->has_anim = false;
 	f->duration = 0.0;
+	f->is_private = false;
+	/* the art tool info: node 0x1003 of the file's header section, 19 dwords { 1, 2, 3 (string numbers?), origin[3],
+	   axes[9] (right, up, back, units folded in: 39.37 for MAX), 2, 4, 3, 5 }.  granny.dll keeps origin and axes
+	   in the model / animation object (10023980 copies them to +0x7c / +0x88, animations +0x30 / +0x3c).  All 674
+	   files of the game carry the same values. */
+	memset(f->art_origin, 0, sizeof f->art_origin);
+	memset(f->art_axes, 0, sizeof f->art_axes);
+	for (size_t i = 0; i < g.nodes.size(); i++)
+		if (g.nodes[i].tag == 0x1003 && g.nodes[i].off + 60 <= g.b.size())    /* (its 'end' is not set: the next entry is the 0xffff marker) */
+		{
+			for (int k = 0; k < 3; k++) f->art_origin[k] = g.f(g.nodes[i].off + 12 + 4 * k);
+			for (int k = 0; k < 9; k++) f->art_axes[k] = g.f(g.nodes[i].off + 24 + 4 * k);
+			break;
+		}
 
 	/* 0b01 > 0b00 tool nodes (bone and track names) */
 	std::vector<std::string> tool;

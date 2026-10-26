@@ -97,6 +97,8 @@ struct FileData          /* one opened file (shared by all opens of the same pat
 	std::vector<TextureData> textures;
 	std::vector<Mesh> meshes;
 	D duration;
+	float art_origin[3], art_axes[9];   /* the art tool's coordinate system (GrannyGetToolCoordinateSystemFor...) */
+	bool is_private;                    /* a copy made by GrannyTransformModel/Animation, not in the shared table */
 	std::vector<Track> tracks;    /* knots and control points as in the file (padded by the runtime) */
 };
 
