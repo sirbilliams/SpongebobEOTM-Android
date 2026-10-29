@@ -1,0 +1,188 @@
+# Chapter 3 route (docs/chapter3.md), for SB_TEST_PLAYTHROUGH
+scene c3l2s1
+idle
+shot 00-c3l2s1-start
+click "Walk to The Diner"
+scene c3l2s2
+idle
+click "Enter The Diner"
+scene c3l2s4
+idle
+shot 01-c3l2s4-diner
+talk patalteat AAA
+idle
+talk stella BAA
+idle
+grab ilb1
+idle
+have ilb1
+shot 02-c3l2s4-lunch
+map
+scene c3l1s1
+idle
+shot 03-c3l1s1-map
+click "Go to Jellyfish Fields"
+scene c3l3s1
+idle
+shot 04-c3l3s1
+click "Walk to Other Side"
+scene c3l3s2
+idle
+shot 05-c3l3s2
+click @612,280
+scene c3l3s4
+idle
+shot 06-c3l3s4
+talk sanjelly AAA
+idle
+use ilb1 sanjelly
+idle
+shot 07-c3l3s4-lunch
+map
+scene c3l1s1
+idle
+shot 08-c3l1s1-map2
+click "Go to Home Lane"
+scene c3l4s1
+idle
+shot 09-c3l4s1
+click "Enter Squidward's House"
+scene c3l4s2
+idle
+shot 10-c3l4s2
+click "Walk to TV"
+scene c3l4s0
+idle
+shot 11-c3l4s0-tv
+say
+idle
+scene c3l4s2
+idle
+shot 12-c3l4s2-after-tv
+expect 340DAA
+save 0
+map
+scene c3l1s1
+idle
+click "Go to Sardine's"
+scene c3l5s1
+idle
+shot 13-c3l5s1
+click "Enter Sardine's"
+scene c3l5s2
+idle
+shot 14-c3l5s2
+talk nelson AAA ABA AXA
+idle
+expect 352ABA
+click "Walk to Other Side"
+scene c3l5s3
+idle
+shot 15-c3l5s3
+grab igl1
+idle
+have igl1
+save 1
+map
+scene c3l1s1
+idle
+click "Go to Home Lane"
+scene c3l4s1
+idle
+click "Enter Squidward's House"
+scene c3l4s2
+idle
+click "Walk Up Stairs"
+scene c3l4s3
+idle
+shot 16-c3l4s3-bed
+use igl1 squidon
+scene c3l4s4
+idle
+shot 17-c3l4s4-dream
+click "Walk Up Road"
+scene c3l4s5
+idle
+shot 18-c3l4s5
+click "Walk Up Stairs"
+scene c3l4s6
+idle
+shot 19-c3l4s6
+click "Walk Down Aisle"
+scene c3l4s7
+idle
+shot 20-c3l4s7
+talk squidplay
+scene c3l4s3
+idle
+shot 21-c3l4s3-awake
+have icl1
+save 2
+click "Walk Down Stairs"
+scene c3l4s2
+idle
+click "Exit Squidward's House"
+scene c3l4s1
+idle
+click "Enter SpongeBob's House"
+scene c3l4s8
+idle
+shot 22-c3l4s8-house
+click "Walk to Sitting Area"
+scene c3l4s9
+idle
+shot 23-c3l4s9-snakey
+use icl1 snakey
+idle
+shot 24-c3l4s9-charmed
+grab iwh1
+idle
+have iwh1
+shot 25-c3l4s9-helmet
+click "Walk to Living Room"
+scene c3l4s8
+idle
+map
+scene c3l1s1
+idle
+click "Go to Sandy's House"
+scene c3l6s0
+idle
+shot 26-c3l6s0
+use iwh1 SpongeBob
+scene c3l6s0
+idle
+shot 27-c3l6s0-helmet
+click "Sandy's Tree Dome"
+scene c3l6s1
+idle
+shot 28-c3l6s1
+talk sandress AAA
+idle
+save 3
+click "Walk to Other Side"
+scene c3l6s2
+idle
+shot 29-c3l6s2
+click "Walk Behind Picnic Table"
+scene c3l6s3
+idle
+shot 30-c3l6s3-tanks
+grab iot1
+idle
+have iot1
+click "Exit Picnic Table"
+scene c3l6s2
+idle
+click "Walk to Sandy's Tree"
+scene c3l6s1
+idle
+click "Enter Sandy's Tree"
+scene c3l6s4
+idle
+shot 31-c3l6s4
+use iot1 sandress
+scene c4l0s1
+idle
+shot 32-c4l0s1
+end

@@ -27,6 +27,7 @@ struct Actor3D {
     enum Mode { Idle, Loop, OneShot, Talk };
     Mode mode;
     float x, y, z;                    // world position
+    float prevX, prevY, prevZ;        // 0x404..: the position of the last place (the click rectangle follows the screen delta)
     int heading;                      // 0x4000 = 360 degrees
     bool kicking; // lane d: 0x410 kick movement, handled by Kick.cpp
     bool walking; float tx, tz, speed;
@@ -116,7 +117,8 @@ public:
     bool rotateToward(SceneObject* target);                  // vt+0x13c (heading toward target, 500): true = turning
     bool rotatePlayer(int heading);                          // vt+0x13c (heading, 500)
     bool touching(SceneObject* o);                           // vt+0x128 (0x4318c0)
-    void startPickup(SceneObject* item);                     // vt+0x100 (0x433910)
+    void startPickup(SceneObject* item);
+    void takeItem(SceneObject* it, Actor3D* a);
     void playerDoor();                                       // vt+0xb4 ("door", 0, 1.0)
     void walkIn();                                           // DoSwitch tail (0x40b720): the player walks into the scene
     bool doorBusy();                                         // DoSwitch head: the door / walk animation or a turn is running

@@ -293,6 +293,8 @@ void GameScene::enter(int startPoint)
                        o->altEvent.c_str(), o->itemAccept.c_str(), o->itemEvent.c_str(), o->wrongItemEvent.c_str(), o->haveItemEvent.c_str(), o->visibleCond.c_str(), o->clickable, o->pickup, o->addInv, o->radius, o->px, o->py, o->pz);
         }
     }
+    // "here 8".."9" (0x43xxxx scene init): the TV scene c3l4s0 (0x403) starts its script (lane a, chapter 3 route)
+    if (sceneId_ == 0x403) game_->switchTo("snelson");
     // "here 10a": the scene's own enter event, or the event left by the last movie / script (game+0x186)
     if (game_->chained.empty()) {
         if (!enterEvent_.empty()) {
@@ -614,7 +616,7 @@ void GameScene::itemEvent(SceneObject* o, bool touching)
     if (game_->cond(o->condition.c_str(), touching)) {
         World3D* w = game_->world3d();
         Actor3D* p = w ? w->player() : 0;
-        if (!p) return;                                         // port: item vt+0x104 without a player does not occur in the data
+        if (!p) { if (w) w->takeItem(o, 0); return; }           // 0x4234d0: no player (c3l6s3): the item's vt+0x104 takes it at once
         if (!game_->state().debugAll()) {
             if (!touching && w->walkTo(o, o->px, o->pz)) return;
             if (w->rotateToward(o)) { game_->setPending(o, true, ""); return; }
