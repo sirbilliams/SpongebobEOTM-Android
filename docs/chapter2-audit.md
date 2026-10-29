@@ -62,15 +62,15 @@ Sky/background: every scene draws its pre-drawn sceneart (no black or missing ba
 | script | scene | result |
 |---|---|---|
 | s232unblock, sbrady, scamera, scandy, sdrapes, sempty, sempty2, sfill, sfill2, sjojo_idle242, sload2, smack, smack2, smeanwhile3/3b, smegaon, smegascreen, splank, sslip, stransition3/3b, stumweed_idle232, swand (walk part), sleon, scommercial | various | run, no stub |
-| s243up/down, s244up/down, s244up2/down2, s255up/down | c2l4s3, c2l4s4, c2l5s5 | **climb stub** (values 200, -200, 220, -220, 305, -305; actor does not climb) |
+| s243up/down, s244up/down, s244up2/down2, s255up/down | c2l4s3, c2l4s4, c2l5s5 | ~~climb stub~~ **fixed** (lane f, see "Fixed in lane f" below) |
 | shavetool, stoolbox | c2l4s2.. | **attach stub** `itb2 Bone01 Bip01 R Hand`; `stoolbox` also skipif |
-| sflush | c2l2s3 | `blending off` stub (game+0x251), `shadow off` no-op, sound toilet ok |
-| sthunder, sthunder2 | c2l2s3 | `shake 1 s` goes to Scene::shake (timer only; confirm the camera shake is drawn) |
+| sflush | c2l2s3 | ~~`blending off` stub~~ fixed (game flag), `shadow off` stores the flag (blob shadows not drawn), sound toilet ok |
+| sthunder, sthunder2 | c2l2s3 | ~~`shake` timer only~~ fixed: the 2D objects and the background really shake (see below) |
 | sinitslots, sspinslots, sreturn | c2l5s3 | mini game object + slots init/spin are stubs (4 stub lines each) |
 | smaze0..3 | c2l5s4 | with no mini game object `maze` does `gameSwitch("c2l5s2p2")` (exe behaviour); the `0x436510` branch is a stub |
 | swinner | c2l5s3 | 2 stubs (slots) |
-| swand | c2l4s3 | `attach`, `sparkle 590 270`, `terrain off`, `setdoor` are reached after a long walk; only the walk was verified, `sparkle` is a stub |
-| sgaryg_idle | c2l4s4 | "play anim emofixtie: no such animation / model" (the test ran it with sb as the actor; re-check with garyg active, `garyg_emofixtie.grn` exists) |
+| swand | c2l4s3 | `attach`, `sparkle 590 270` (now drawn), `terrain off`, `setdoor` are reached after a long walk |
+| sgaryg_idle | c2l4s4 | **not a bug**: the earlier "no such animation" came from running it with sb as the actor. With garyg as the actor (`SB_TEST_SCRIPT="60:sgaryg_idle@garyg"`) walkgrid, rotate, idle2, emofixtie, buttons, sounds and the loop run for 1300 frames with no error |
 | schap2end | c2l4s6 | `movie mChapter3 c3l0s1` then scene c3l0s1 + sload3: chapter hand-over works |
 
 ## Script commands / ScriptHost calls c2 uses that c1 does not
@@ -79,13 +79,13 @@ Commands: `anim2d`, `blending`, `climb`, `control`, `maze`, `run`, `script`, `se
 Host calls and state (SceneScriptHost.cpp) and their status:
 | call | status |
 |---|---|
-| `actorClimb` (char vt+0x154) | stub |
+| `actorClimb` (char vt+0x154, 0x4342a0) | fixed (lane f) |
 | `actorAttach` / `actorDetach` / `actorHideAttach` / `actorShowAttach` (vt+0x12c / 0x130, 0x30) | stubs; c2 needs them for the toolbox (`itb2`), `swand` |
-| `sceneSparkle` (HUD object 0x457334, 0x41ebe0) | stub |
-| `gameSetBlending` (game+0x251) | stub |
-| `actorShadow` | no-op by design (blob shadows not drawn) |
+| `sceneSparkle` (HUD object 0x457334, 0x41ebe0) | fixed (lane f): Hud::sparkle |
+| `gameSetBlending` (game+0x251) | fixed (lane f): Game::blending gates the animation blend time |
+| `actorShadow` | stores `Actor3D::shadowOn` (char +0x30c show / hide); blob shadows are still not drawn |
 | `miniGameCreate/Exists`, `miniSlotsInit/Spin`, `miniMaze` | stubs (see below) |
-| `sceneShake` (scene vt+0x15c, 0x43d130) | timer only, not verified visually |
+| `sceneShake` (scene vt+0x15c, 0x43d130) | fixed (lane f): ten 50 ms steps of 2D object / background jitter |
 | `sceneAnim2D`, `sceneSetDoor`, `sceneBlock(unblock)`, `actorRun`, `uiUnlock`, `script` (SB_TEST_SCRIPT path) | implemented |
 Handler addresses in the dispatcher (0x43e110 step): run 0x43e2b5, blending 0x43e5cf, terrain 0x43e6da, shake 0x43e8c7,
 climb 0x43ebb5, sparkle 0x43ec47, unblock 0x43ed67, setdoor 0x43fbed, anim2d 0x43ff4d, slots 0x4400b6, maze 0x4401a3.
@@ -102,6 +102,34 @@ Only **slots** and **maze** are chapter 2. Darts (`c3/sinitdarts`, `c3/sthrow`; 
 The mini game object also has an update hook run from the scene frame (0x4355a0 / 0x435830, 1.3 KB, touches `0x457350` = the
 timer object): that is where the per-frame behaviour lives and why a stub object gives static reels.
 
+## Fixed in lane f (chapter 2 fixes 4, 6, 7, 8 of the list below)
+* **climb** (char vt+0x154 = 0x4342a0, class vtable 0x44e358): arms the next walk, it does not move by itself. It sets
+  `char+0x3f8 = 1` (climbing), `+0x3f4 = y + arg` (target y) and `+0x3f9 = running`. The next `walk` (0x434650) then skips the
+  grid route (straight line to x,z), has no rotate phase, plays `down` (target <= y) or `up` at speed 1 (+1 when running) and
+  stores the horizontal distance in `+0x3fc`. Each frame (0x42f1a0) y moves by `(target - y) * (1 - rem / prev)` (so y follows the
+  horizontal progress), and at arrival y = target and the flag clears. Port: `World3D::climb`, `Actor3D::climbing/climbTarget/climbPrev`,
+  `gridWalk` and `update`. Verified at 1920x1080: s243up lifts SpongeBob from the floor to the upper landing of the stairs, s243down
+  brings him back (`.shots/f/up-sheet.png`, `dn-sheet.png`). The other six scripts use the same path (values 220, 305).
+* **sparkle** (0x41ebe0 stores 3000 ms and x,y at HUD +0x124/+0x128/+0x12c; effect in 0x41e3d0 / 0x41ec90 / 0x41ec20): for 3 s,
+  every frame the live sparkles age (gone at 250 ms) and, when more than 10 ms went by, one `sparkle1..3` canvas of sb2.omt is made
+  at a random quadrant offset 10..41 px from the point (z 10200), at most 10 alive. Port: `Hud::sparkle/updateSparkle/spawnSparkle`.
+  Seen in the swand run (`.shots/f/sp-sheet.png`).
+* **blending** (game+0x251, 1 at start): only gates `GrannySetAnimationParameter(6 and 8, 0.4)` (blend in / out) in the character's
+  play-animation (0x4046d0). Port: `Game::blending`; `World3D::setAnim` blends in over 0.4 s when it is set and not at all when off
+  (was a fixed 0.15 s). The old control is still dropped instead of blending out (granny replacement, noted in OMedia3DGrannyModel.cpp).
+* **shadow on/off** (0x434410 / 0x434430): shows / hides the blob shadow object `char+0x30c`. Port: the flag is stored
+  (`Actor3D::shadowOn`), no blob shadow is drawn yet.
+* **shake** (0x43d130 + the scene update at 0x43afc0): it was only a 1 s timer. The exe runs ten 50 ms steps; the first moves every
+  2D object (2DOB, ANIM) to its place + a random -5..4 px in x and y, the following steps also move the background (z -10000) by
+  its own random offset, the last puts all back and wakes the script (the `shake` command waits). The 3D characters do not shake.
+  Port: `GameScene::shake/shakeStep/shakeObjects`, `place()` adds the offset. Measured on sthunder: ~20 frames of frame-to-frame
+  change, then identical frames (everything restored).
+* **sgaryg_idle**: not a bug (see the table). Finding: the port has no driver for the idle scripts (`s%s_idle`, `s%s_idle%d%d%d`,
+  started from the character update 0x42f1a0 with the character as actor, runner flag +0x1962), so these scripts only run via the
+  test hook (`SB_TEST_SCRIPT="frame:name@actor"`).
+* Engine: `OMediaGfxWorld.cpp` read a 2-byte value at an odd address while unpacking a canvas (UBSan); now `memcpy`.
+* Test hook: `SB_TEST_SCRIPT` takes `frame:name[@actor][,frame:name...]` (the actor is made the active character first).
+
 ## Prioritised fix list (lane-sized)
 1. **Marlin model garbled (c2l5s5, c2l5s6)** - small. `models/people/marlin_model.grn/.omt` renders as jagged triangles with
    wrong colours; every other c2 character is fine. Suspect: a mesh/vertex variant the Granny replacement does not handle (docs/granny-replacement.md
@@ -112,15 +140,15 @@ timer object): that is where the per-frame behaviour lives and why a stub object
    `swinner` follow. Needs reel scroll (2D/3D objects `253light1..3`, the reels) and a win/lose branch.
 3. **Maze (c2l5s2 -> c2l5s4 -> c2l5s5)** - small after 2 (same object). 0x436510 (sequence check, step counter, the five scene
    switches) and the scene-side 0x436250 drip/arch state; unblock/`block` grid already works.
-4. **`climb` (8 scripts: ladders in c2l4s3, c2l4s4, c2l5s5)** - small. Character vt+0x154 (the base class default is the no-op at
+4. DONE (lane f) **`climb` (8 scripts: ladders in c2l4s3, c2l4s4, c2l5s5)** - small. Character vt+0x154 (the base class default is the no-op at
    0x415450; find the character override); the walk part of the same scripts works, climb should move the actor in y by the
    argument over time. Blocks the TV-station and the wizard stairs, so it is on the critical path.
 5. **`attach`/`detach`/hideattach/showattach (toolbox itb2 in shavetool/stoolbox/sjojo/swand)** - small/medium. Bones copied to
    `char+0xa76/+0xa96`, attach object `char+0xad8`; needs a 3D object parented to a named bone of the granny skeleton
    (`Bip01 R Hand`). Handler addresses 0x43e755 (hide/show), 0x43e7f7 (attach), vt+0x12c / 0x130.
-6. **`sparkle` HUD effect (swand) and `blending`/`shadow` (sflush)** - small. `sceneSparkle` 0x41ebe0 on HUD object 0x457334;
+6. DONE (lane f; shadow = flag only) **`sparkle` HUD effect (swand) and `blending`/`shadow` (sflush)** - small. `sceneSparkle` 0x41ebe0 on HUD object 0x457334;
    `game+0x251` blending flag (what it gates: check readers of +0x251); blob shadows are a no-op by design.
-7. **Shake visual (sthunder, sthunder2)** - tiny. `Scene::shake` only sets a timer; verify the camera offset (0x43d130).
+7. DONE (lane f) **Shake visual (sthunder, sthunder2)** - tiny. `Scene::shake` only sets a timer; verify the camera offset (0x43d130).
 8. **Verify in real play (no code defect seen, needs eyes/controls)** - c2l1s1 map hotspots (the "Loading..." plaque), idle scripts
    (sgaryg_idle needs its `emofixtie` animation checked with garyg as the actor, stumweed_idle232 `run`), c2l4s5/c2l4s8 Plankton
    shown only via script, the c2l3s4 / c2l4s2 low-left sb foreshortening in fill mode, `terrain off`/`setdoor` in swand after the walk.

@@ -481,8 +481,19 @@ class StartupApp : public MenuHost
                 // port: replay against the displayed transform before this frame can pan.
                 test_clicks(frame,"SB_TEST_GAME_CLICKS");
                 if(const char *ts=getenv("SB_TEST_SCRIPT")) {    // port: tests only, "frame:name": game->switchTo(name) (a script, comment or scene) at that game frame
-                    unsigned at=0; int n=0;
-                    if(sscanf(ts,"%u:%n",&at,&n)==1 && at==frame) game->switchTo(ts+n);
+                    // "frame:name[@actor][,frame:name...]"
+                    for(const char *q=ts; q && *q; ) {
+                        unsigned at=0; int n=0;
+                        if(sscanf(q,"%u:%n",&at,&n)!=1) break;
+                        const char *e=strchr(q+n,','); std::string nm(q+n, e ? (size_t)(e-(q+n)) : strlen(q+n));
+                        if(at==frame) {                  // "name@actor": that character is the active one first (as for an idle script)
+                            size_t at2=nm.find('@');
+                            if(at2!=std::string::npos) { std::string who=nm.substr(at2+1); nm.resize(at2);
+                                if(game->host()) game->host()->setActiveActor(game->host()->findActor(who.c_str())); }
+                            game->switchTo(nm.c_str());
+                        }
+                        q = e ? e+1 : 0;
+                    }
                 }
                 while(OMediaEventManager::poll(&ev)) {
                     event_manager->handle_sdl_event(&ev);

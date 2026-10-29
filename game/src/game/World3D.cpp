@@ -20,7 +20,7 @@ static const float kRunSpeed = 300.0f;
 
 Actor3D::Actor3D()
     : obj(0), model(0), elem(0), mode(Idle), x(0), y(0), z(0), heading(0), walking(false), tx(0), tz(0), speed(0), rotating(false),
-      rotTarget(0), rotTolerance(0), idling(false), idleLeft(0), waited(false), scheduled(false)
+      rotTarget(0), rotTolerance(0), idling(false), idleLeft(0), waited(false), scheduled(false), climbing(false), climbTarget(0), climbPrev(0), shadowOn(true)
 {
     waypoint = 0; interaction = 0; radius = 50; control = true; useGrid = false;
 }
@@ -176,7 +176,7 @@ void World3D::setAnim(Actor3D* a, const char* name, int loops, float speed, Acto
 {
     a->mode = m;
     a->anim = name;
-    a->model->play(animPath(a, name), speed, loops, 0.15f);
+    a->model->play(animPath(a, name), speed, loops, game_->blending ? 0.4f : 0.0f);   // 0x4046d0: blend params 6 / 8 = 0.4 only while game+0x251 is set (port: blend in only)
 }
 
 void World3D::finished(Actor3D* a)
@@ -276,7 +276,7 @@ bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run)
 {
     const sb::scene::Grid* g = grid(a->y);
     std::vector< std::pair<float,float> > route;
-    if (g && a->useGrid && (!game_->runner() || game_->runner()->terrain())) {
+    if (g && a->useGrid && !a->climbing && (!game_->runner() || game_->runner()->terrain())) {   // 0x434650: a climbing walk skips the grid route
         if (gx < 0 || gz < 0) {
             gx = gridIndex(x, g->o000c, g->o0008, g->halfSize);
             gz = gridIndex(z, g->o0010, g->o0008, g->halfSize);
@@ -343,7 +343,12 @@ bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run)
     a->rotating = false;
     int targetHeading = headingOf(a->tx - a->x, a->tz - a->z);
     int diff = ((targetHeading - a->heading + 8192) & 16383) - 8192;
-    if (abs(diff) >= 500 && exists(a, "rotate")) {
+    if (a->climbing) {            // 0x434650: no rotate phase, "down" / "up" at speed 1 (+1 when running), 0x3fc = the distance
+        a->heading = targetHeading;
+        a->climbPrev = sqrtf((a->tx-a->x)*(a->tx-a->x) + (a->tz-a->z)*(a->tz-a->z));
+        const char* an = a->climbTarget <= a->y ? "down" : "up";
+        if (exists(a, an)) setAnim(a, an, 9999, 1, Actor3D::Loop);
+    } else if (abs(diff) >= 500 && exists(a, "rotate")) {
         a->rotating = true; a->rotTarget = targetHeading; a->rotTolerance = 500;
         setAnim(a, "rotate", 9999, 1, Actor3D::Loop);
     } else {
@@ -373,6 +378,22 @@ void World3D::moveGrid(SceneObject* o, int gx, int gz)
     const sb::scene::Grid* g = a ? grid(a->y) : 0;
     if (!g || gx < 0 || gz < 0 || gx >= (int)g->side || gz >= (int)g->side) return;
     float x,z; gridPoint(*g, (float)gx, (float)gz, x,z); moveTo(o,x,z);
+}
+
+// vt+0x154 (0x4342a0): arms the next walk as a climb; the y target is the current y plus h.
+void World3D::climb(SceneObject* o, float h)
+{
+    Actor3D* a = actorFor(o);
+    if (!a) return;
+    a->climbing = true;
+    a->climbTarget = a->y + h;
+}
+
+// 0x434410 / 0x434430: the blob shadow object (char +0x30c) is hidden / shown.  port: blob shadows are not drawn, the flag is kept.
+void World3D::setShadow(SceneObject* o, bool on)
+{
+    Actor3D* a = actorFor(o);
+    if (a) a->shadowOn = on;
 }
 
 void World3D::setRunning(SceneObject* o)
@@ -529,6 +550,10 @@ void World3D::update(float dtMs)
         if (a->walking && !a->rotating) {
             float dx = a->tx - a->x, dz = a->tz - a->z, d = sqrtf(dx * dx + dz * dz), step = a->speed * dt;
             float tolerance = a->radius * 0.5f; if (tolerance < 25) tolerance = 25;
+            if (a->climbing && a->climbPrev > 0) {          // 0x42f1a0: y follows the horizontal progress towards the target
+                a->y += (a->climbTarget - a->y) * (1.0f - d / a->climbPrev);
+                a->climbPrev = d;
+            }
             if (d <= step || d <= tolerance) {
                 if (d <= step) { a->x = a->tx; a->z = a->tz; }
                 if (++a->waypoint < a->route.size()) {
@@ -536,6 +561,7 @@ void World3D::update(float dtMs)
                     a->heading = headingOf(a->tx-a->x, a->tz-a->z);
                 } else {
                     a->walking = false;
+                    if (a->climbing) { a->climbing = false; a->y = a->climbTarget; a->climbTarget = 0; }   // 0x42f1a0 arrival
                     setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
                     game_->log("walk stopped %s at %g,%g heading %d: idle1\n", a->name.c_str(),a->x,a->z,a->heading);
                     finished(a);

@@ -87,6 +87,7 @@ public:
     int mouseX() const { return mx_; }
     int mouseY() const { return my_; }
     std::string chained;                            // game+0x186: the target to go to after a movie / script
+    bool blending;                                  // game+0x251 (set by the `blending on/off` script command, 1 at start): animations ease in / out over 0.4 s (0x4046d0)
     int optText, optShadows;                        // port: the Options Text / Shadows values (exe +0x270 / +0x274 of the app object); set by the app
     void previewSound(bool voice);                  // 0x4256b0: the Options sample of the Sound / Voice volume
     bool suspended;                                 // port (saves): the game sits behind the menu; mouse and key messages are ignored

@@ -108,7 +108,8 @@ public:
     void transitionClose();
     bool letterboxed() const { return topY_ < 0.0f && topY_ > -239.0f && barState_ != 3 && barState_ != 4; }   // port: companion: the cinematic bars are in (a cutscene runs)
     int  barState() const { return barState_; }     // +0x1c98 (0 = idle)
-    float shakeMs() const { return shake_; }        // camera shake timer
+    float shakeMs() const { return shake_; }        // time to the next shake step (ms)
+    bool shaking() const { return shakeCount_ != 0; }
     float lockMs() const { return lock_; }          // +0x1d4 (0x735): clicks are ignored for 500 ms after entering
     void shake();                                   // scene vt+0x15c
     void setDoor(const char* name);                 // scene+0x1c80
@@ -148,7 +149,11 @@ private:
     int barState_;
     float barHold_;
     float topY_, botY_;
-    float shake_;
+    float shake_;                       // 0x45734c: ms to the next step
+    short shakeCount_;                  // 0x457348: steps left
+    float shakeX_, shakeY_;             // the jitter of the 2D objects
+    void shakeStep(bool background);
+    void shakeObjects();
     float lock_;
     std::string door_;
     SceneObject* lastClicked_;

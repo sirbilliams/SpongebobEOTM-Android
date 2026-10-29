@@ -1,4 +1,5 @@
 #include "Scene.h"
+#include <stdlib.h>
 #include "Game.h"
 #include "World3D.h"
 #include "DialogueUI.h"
@@ -31,7 +32,7 @@ SceneObject::SceneObject()
 
 GameScene::GameScene(Game* game)
     : game_(game), sceneId_(0), artDb_(0), artFile_(0), background_(0), skyScroll_(0), dialogue_(0), barTop_(0), barBot_(0),
-      barState_(0), barHold_(0), topY_(0), botY_(240), shake_(0), lock_(0), lastClicked_(0)
+      barState_(0), barHold_(0), topY_(0), botY_(240), shake_(0), shakeCount_(0), shakeX_(0), shakeY_(0), lock_(0), lastClicked_(0)
 {
     sky_[0] = sky_[1] = 0; skyX_[0] = skyX_[1] = 0;
 }
@@ -248,7 +249,7 @@ void GameScene::place(SceneObject* o)
     float z;
     if (o->kind == SceneObject::Anim2D) z = o->postRender ? 10000.0f : -o->pz;      // 0x4096b0
     else z = o->postRender ? 10000.0f : o->pz;                                        // 0x402400 (flag +0x23a = 0)
-    o->elem->place(o->px, o->py, z);
+    o->elem->place(o->px + shakeX_, o->py + shakeY_, z);   // shake offset: 0x43d130 / 0x43b08b
 }
 
 void GameScene::setHidden(SceneObject* o, bool hide)
@@ -517,7 +518,20 @@ void GameScene::update(float dt)
         game_->switchTo(e.c_str());
     }
     if (lock_ > 0) { lock_ -= dt; if (lock_ < 0) lock_ = 0; }
-    if (shake_ > 0) { shake_ -= dt; if (shake_ <= 0) { shake_ = 0; game_->wake(); } }
+    if (shakeCount_ != 0) {                            // 0x43afce: ten steps of 50 ms; the script waits for the last one
+        shake_ -= dt;
+        if (shake_ <= 0) {
+            --shakeCount_;
+            shake_ = 50.0f;
+            if (shakeCount_ == 0) {                    // 0x43b00f: everything goes back, the script goes on (vt+0xe0)
+                shakeX_ = shakeY_ = 0;
+                shakeObjects();
+                if (background_) background_->place(0, 0, -10000.0f);
+                shake_ = 0;
+                game_->wake();
+            } else shakeStep(true);
+        }
+    }
     updateSky(dt);
     for (size_t i = 0; i < objects_.size(); ++i)
         if (objects_[i]->kind == SceneObject::Anim2D) tickAnim(objects_[i], dt);
@@ -602,7 +616,29 @@ void GameScene::transitionClose()   // 'transition close' (0x43f3b3): bars come 
     barState_ = 3;
 }
 
-void GameScene::shake() { shake_ = 1000.0f; game_->log("      3D: camera shake 1 s (scene vt+0x15c)\n"); }
+// 0x43d130 (scene vt+0x15c): ten steps, 50 ms apart; the 2D objects move to their place plus a random -5..4 px in x and y
+void GameScene::shake()
+{
+    shakeCount_ = 10; shake_ = 50.0f;
+    shakeStep(false);
+}
+
+void GameScene::shakeObjects()
+{
+    for (size_t i = 0; i < objects_.size(); ++i)
+        if (objects_[i]->kind == SceneObject::Obj2D || objects_[i]->kind == SceneObject::Anim2D) place(objects_[i]);
+}
+
+// 0x43b08b: the steps after the first also move the background (0x1c88, z -10000) by its own random offset
+void GameScene::shakeStep(bool background)
+{
+    if (background && background_) {
+        float bx = (float)(rand() % 10 - 5), by = (float)(rand() % 10 - 5);
+        background_->place(bx, by, -10000.0f);
+    }
+    shakeX_ = (float)(rand() % 10 - 5); shakeY_ = (float)(rand() % 10 - 5);
+    shakeObjects();
+}
 void GameScene::setDoor(const char* name) { door_ = name; }
 
 }  // namespace sbgame
