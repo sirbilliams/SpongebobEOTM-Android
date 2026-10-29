@@ -11,14 +11,15 @@ Not affiliated with or endorsed by THQ, AWE Games, Nickelodeon or the rights hol
 
 ## Status
 
-About 73% of the way to the goal (see `docs/PLAN.md` for the milestones). Last updated 2026-10-29.
+About 78% of the way to the goal (see `docs/PLAN.md` for the milestones). Last updated 2026-10-29.
 
-- **Chapters 1 and 2 play through** from New Game to the chapter 3 title, checked by scripted playthroughs
-  (`tools/test/chapter1.route`, `chapter2.route`) that drive the real game through every scene.
+- **Chapters 1, 2 and 3 play through**, and chapter 4's route reaches the end movie, the credits and the
+  post-game Krusty Krab. Checked by scripted playthroughs (`tools/test/chapter1..4.route`) that drive the
+  real game through every scene.
 - All five mini-games work (darts, kick, slots, maze, phone), and the ending plays the end movie and credits.
-- Every scene of all four chapters loads and every script runs; chapters 3 and 4 are being played through now.
+- SpongeBob-themed cursors (Spatula, Net, Bubble) or the classic arrows, chosen in the launcher.
 - Saves use the game's own format; Save, Load, Resume, Options, Help and View Movies all work.
-- Still to do: finishing the chapter 3 and 4 playthroughs, a full play-through on the AYN Thor, saves
+- Still to do: the final checks of the chapter 4 playthrough, a full play-through on the AYN Thor, saves
   export/import, lid suspend and casting.
 
 ## Screenshots
@@ -44,6 +45,14 @@ the game files from the original CD.
 | Widescreen: Fill | Widescreen: Side panels |
 | ![Bottom-screen panel](docs/screenshots/panel.jpg) | ![Bottom-screen touchpad](docs/screenshots/touchpad.jpg) |
 | Thor bottom screen: panel (hint, inventory) | Thor bottom screen: touchpad mode |
+| ![Lunch at the diner](docs/screenshots/ch3-lunch.jpg) | ![The dream](docs/screenshots/ch3-dream.jpg) |
+| Chapter 3: lunch with Patrick and Stella | Chapter 3: the dream |
+| ![Oxygen Springs gate](docs/screenshots/ch4-gate.jpg) | ![Tony the Bouncer](docs/screenshots/ch4-bouncer.jpg) |
+| Chapter 4: the gate | Chapter 4: Tony the Bouncer |
+
+![Cursor themes](docs/screenshots/cursors.jpg)
+
+Cursor themes: Spatula, Net, Bubble and Classic, each with pointer, hover, item-in-hand and wait shapes.
 
 ## Features
 
