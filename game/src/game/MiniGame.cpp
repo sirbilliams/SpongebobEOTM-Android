@@ -4,7 +4,7 @@
 #include <stdio.h>
 
 namespace sbgame {
-MiniGame::MiniGame(Game* g) : game_(g), step_(0), spins_(0), armed_(false), failed_(false), resultPending_(false), elapsed_(0)
+MiniGame::MiniGame(Game* g) : game_(g), step_(0), spins_(0), armed_(false), failed_(false), resultPending_(false), elapsed_(0), phone_(g)
 {
     for (int i=0;i<3;++i) { target_[i]=-1; running_[i]=false; }
 }
@@ -72,6 +72,7 @@ void MiniGame::slotsSpin() // 0x436090
 }
 void MiniGame::update(float dt) // slots branch of 0x435830
 {
+    phone_.update(dt); // chapter 4 phone (Phone.cpp)
     GameScene* s=game_->scene(); if(!s || s->name()!="c2l5s3") return;
     if(running_[2]) {
         elapsed_+=dt;

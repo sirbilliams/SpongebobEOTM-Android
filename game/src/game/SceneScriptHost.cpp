@@ -325,8 +325,8 @@ void SceneScriptHost::miniGameCreate() { g_->createMiniGame(); }
 void SceneScriptHost::miniSlotsInit() { g_->miniGame()->slotsInit(); }
 void SceneScriptHost::miniSlotsSpin() { g_->miniGame()->slotsSpin(); }
 void SceneScriptHost::miniMaze(int n) { g_->miniGame()->maze(n); }
-void SceneScriptHost::miniPhoneKey(int n) { stub("phone key %d 0x436640", n); }
-void SceneScriptHost::miniPhoneReset() { stub("phone reset 0x436610"); }
+void SceneScriptHost::miniPhoneKey(int n) { g_->miniGame()->phone().key(n); } // chapter 4 phone (Phone.cpp)
+void SceneScriptHost::miniPhoneReset() { g_->miniGame()->phone().reset(); } // chapter 4 phone (Phone.cpp)
 void SceneScriptHost::miniDarts(int op) { stub("darts %d (0x436990 / 0x4369c0)", op); }
 
 }  // namespace sbgame
