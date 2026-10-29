@@ -1,7 +1,7 @@
 package android.view;
 import android.content.Context;
 import android.graphics.Canvas;
-/** Desktop shim (tools/companion): a size and onDraw. */
+/** Desktop shim (tools/launcher): a size and onDraw. */
 public class View {
     private int mW, mH;
     public View(Context c) {}
@@ -12,6 +12,8 @@ public class View {
     public void setFocusable(boolean b) {}
     public void setFocusableInTouchMode(boolean b) {}
     public void postInvalidateDelayed(long ms) {}
+    public void postInvalidateOnAnimation() {}
+    public boolean isInTouchMode() { return false; }
     public boolean onKeyDown(int key, KeyEvent e) { return false; }
     public boolean onGenericMotionEvent(MotionEvent e) { return false; }
     public void setBackgroundColor(int c) {}

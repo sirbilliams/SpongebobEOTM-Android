@@ -71,11 +71,9 @@ start point 1. When the saved position is not (0,0,0,0) the progress object reme
 
 ## Android: export and import
 
-Saves live in `saved/` of the app's game folder (`<game folder>/saved/slot0.sb2` ... `slot98.sb2`, `quick.sb2`; the folder the importer fills
-with `sb2.exe`, `scenes/`, ...). To export a save a user copies that folder (or single slot files) out with a file manager or `adb pull`; to import,
-copies the files back over the slot files while the game is closed. The files are self contained and not tied to the device. Slots are plain
-numbered files: a new slot needs no index. Bill wants an export/import UI later: it is a copy of these files (or one zip of `saved/`); the
-only rule for the UI is to import over `slotN.sb2` of an unused number, or to ask before replacing a used one.
+Saves live in `saved/` of the app's game folder (`<game folder>/saved/slot0.sb2` ... `slot98.sb2`, `quick.sb2`). The launcher's
+Saves page exports them (all, or one) to a .zip and imports a .zip with a preview before anything is replaced; see
+docs/launcher.md (`SaveFiles`). The files are self contained and not tied to the device; a file manager / `adb pull` works too.
 
 ## Tests (desktop, inside the omtbuild box)
 
