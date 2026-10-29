@@ -477,6 +477,10 @@ class StartupApp : public MenuHost
                 SDL_Event ev; bool leave=false;
                 // port: replay against the displayed transform before this frame can pan.
                 test_clicks(frame,"SB_TEST_GAME_CLICKS");
+                if(const char *ts=getenv("SB_TEST_SCRIPT")) {    // port: tests only, "frame:name": game->switchTo(name) (a script, comment or scene) at that game frame
+                    unsigned at=0; int n=0;
+                    if(sscanf(ts,"%u:%n",&at,&n)==1 && at==frame) game->switchTo(ts+n);
+                }
                 while(OMediaEventManager::poll(&ev)) {
                     event_manager->handle_sdl_event(&ev);
                     if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); game->mouseMove(x,y); }
