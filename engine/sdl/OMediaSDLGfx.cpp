@@ -343,6 +343,7 @@ void omgl_window_to_logical(int &x, int &y) {
     x=(int)floor((x*(float)ws_dw/w-ws_x)*omg_lw/ws_w);
     y=(int)floor((y*(float)ws_dh/h-ws_y)*omg_lh/ws_h);
 }
+void omgl_logical_size(int &w, int &h) { w=omg_lw; h=omg_lh; }
 void omgl_logical_to_window(int &x, int &y) {
     if(!omg_win) return;
     int w,h; SDL_GetWindowSize(omg_win,&w,&h);

@@ -7,6 +7,7 @@
 #include "OMediaDefMessages.h"
 #include "OMediaWindow.h"
 #include "OMediaSDLRetarget.h"
+#include "OMediaEventManager.h"
 
 // sdl/OMediaSDLInput.cpp, sdl/OMediaSDLVideo.cpp
 OMediaInputEngine *omf_SDLCreateInputEngine(OMediaWindow *master);
@@ -222,7 +223,7 @@ OMediaInputDriver::~OMediaInputDriver()
 bool OMediaInputDriver::mouse_down(void)
 {
 	omf_start_touch_watch();
-	if (omg_touch.down) return true;
+	if (omg_touch.down || OMediaEventManager::pad_button_down()) return true;
 	return (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
 }
 
