@@ -1,6 +1,8 @@
 package com.sirbilliams.spongebob;
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
@@ -15,8 +17,11 @@ import android.view.View;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * port: the bottom-screen companion panel of the dual-screen mode (docs/companion.md). Everything is drawn
@@ -42,6 +47,7 @@ public class CompanionView extends View {
     private static final int RED = 0xFFD1493B, TEAL = 0xFF28B7B0;
 
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint picPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final RectF r = new RectF();
     private final Path path = new Path();
     private Sender sender;
@@ -52,6 +58,10 @@ public class CompanionView extends View {
     private String speaker = "", line = "";
     private boolean dialogue, choiceMode, cutscene;
     private final List<String> items = new ArrayList<String>();
+    private final List<String> itemNames = new ArrayList<String>();     // display names, parallel to items ("names" in the snapshot)
+    private String iconDir = "";                                        // folder of <id>.png pictures the game renders from the player's own files
+    private final Map<String, Bitmap> pics = new HashMap<String, Bitmap>();
+    private final Map<String, Long> picMiss = new HashMap<String, Long>();   // when a missing picture was last looked for
     private final List<String> choices = new ArrayList<String>();
     private final List<String> visited = new ArrayList<String>();
     private int invPage;
@@ -75,7 +85,7 @@ public class CompanionView extends View {
     /** Parses a snapshot (null / empty: the game is not running yet) and redraws. */
     public void setSnapshot(String json) {
         haveGame = false; dialogue = choiceMode = cutscene = false;
-        items.clear(); choices.clear(); visited.clear();
+        items.clear(); itemNames.clear(); choices.clear(); visited.clear(); iconDir = "";
         sceneTitle = chapterTitle = hint = caption = selected = speaker = line = "";
         if (json != null && json.length() > 2) {
             try {
@@ -88,6 +98,8 @@ public class CompanionView extends View {
                 selected = o.optString("sel", "");
                 cutscene = o.optInt("cut", 0) != 0;
                 strings(o.optJSONArray("items"), items);
+                strings(o.optJSONArray("names"), itemNames);
+                iconDir = o.optString("icons", "");
                 strings(o.optJSONArray("visited"), visited);
                 JSONObject d = o.optJSONObject("dlg");
                 if (d != null) {
@@ -102,6 +114,28 @@ public class CompanionView extends View {
             }
         }
         invalidate();
+    }
+
+    /** The item's picture (a small PNG the game wrote), or null (not there yet, or not readable): then the initials badge is drawn. */
+    private Bitmap picture(String id) {
+        if (iconDir.length() == 0 || id == null || id.length() == 0) return null;
+        Bitmap b = pics.get(id);
+        if (b != null) return b;
+        long now = SystemClock.uptimeMillis();
+        Long last = picMiss.get(id);
+        if (last != null && now - last < 1500) return null;           // the game renders it a moment after the item appears
+        File f = new File(iconDir, id.toLowerCase() + ".png");
+        if (f.isFile()) {
+            try { b = BitmapFactory.decodeFile(f.getPath()); } catch (RuntimeException e) { b = null; }
+        }
+        if (b == null) { picMiss.put(id, now); return null; }
+        pics.put(id, b);
+        return b;
+    }
+
+    private String itemName(int idx, String id) {
+        if (idx >= 0 && idx < itemNames.size() && itemNames.get(idx).length() > 0) return itemNames.get(idx);
+        return prettyName(id);
     }
 
     private static void strings(JSONArray a, List<String> out) {
@@ -465,7 +499,7 @@ public class CompanionView extends View {
         boolean compact = dialogue && choiceMode;
         float headH = 44;
         text(c, "POCKET", 52, top + 32, 28, GOLD, true, Paint.Align.LEFT);
-        if (selected.length() > 0) text(c, "In hand: " + prettyName(selected), 1200, top + 32, 26, 0xFFFFFFFF, true, Paint.Align.RIGHT);
+        if (selected.length() > 0) text(c, "In hand: " + itemName(items.indexOf(selected), selected), 1200, top + 32, 26, 0xFFFFFFFF, true, Paint.Align.RIGHT);
         float y0 = top + headH;
         float avail = bottom - y0;
         int cols = compact ? 4 : 3;
@@ -490,7 +524,7 @@ public class CompanionView extends View {
             int idx = invPage * perPage + i;
             if (idx >= items.size()) break;
             float x = 40 + (i % cols) * (cw + gap), y = y0 + (i / cols) * (ch + gap);
-            itemCard(c, x, y, x + cw, y + ch, items.get(idx), compact);
+            itemCard(c, x, y, x + cw, y + ch, items.get(idx), itemName(idx, items.get(idx)), compact);
         }
         if (pages > 1) {
             float py = bottom - 4;
@@ -502,8 +536,8 @@ public class CompanionView extends View {
         }
     }
 
-    /** An inventory item as a card: a coloured badge with its initials (the art is not ours), and its name. */
-    private void itemCard(Canvas c, float l, float t, float rr, float b, String id, boolean compact) {
+    /** An inventory item as a card: its picture (the game renders it from the player's files), else a coloured badge with its initials; and its name. */
+    private void itemCard(Canvas c, float l, float t, float rr, float b, String id, String name, boolean compact) {
         boolean sel = id.equalsIgnoreCase(selected);
         Hit h = new Hit(l, t, rr, b, sel ? "noitem" : "item:" + id);
         hits.add(h);
@@ -516,17 +550,31 @@ public class CompanionView extends View {
         }
         float cx = compact ? l + 62 : (l + rr) / 2, cy = compact ? (t + b) / 2 : t + 78;
         float rad = compact ? 40 : 56;
-        int hue = hue(id);
-        p.setStyle(Paint.Style.FILL); p.setColor(0x55000000);
-        c.drawCircle(cx + 3, cy + 5, rad, p);
-        p.setColor(hue);
-        c.drawCircle(cx, cy, rad, p);
-        p.setColor(0x33FFFFFF);
-        c.drawCircle(cx - rad * 0.3f, cy - rad * 0.35f, rad * 0.5f, p);
-        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(5); p.setColor(WOOD_EDGE);
-        c.drawCircle(cx, cy, rad, p);
-        text(c, initials(id), cx, cy + rad * 0.3f, rad * 0.9f, 0xFFFFFFFF, true, Paint.Align.CENTER);
-        String name = prettyName(id);
+        Bitmap pic = picture(id);
+        if (pic != null) {                                   // a bubble with the item's picture in it
+            p.setStyle(Paint.Style.FILL); p.setColor(0x55000000);
+            c.drawCircle(cx + 3, cy + 5, rad, p);
+            p.setColor(0xFF3B8FC4);
+            c.drawCircle(cx, cy, rad, p);
+            p.setColor(0x33FFFFFF);
+            c.drawCircle(cx - rad * 0.3f, cy - rad * 0.35f, rad * 0.5f, p);
+            float half = rad * 0.92f;
+            r.set(cx - half, cy - half, cx + half, cy + half);
+            c.drawBitmap(pic, null, r, picPaint);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(5); p.setColor(WOOD_EDGE);
+            c.drawCircle(cx, cy, rad, p);
+        } else {
+            int hue = hue(id);
+            p.setStyle(Paint.Style.FILL); p.setColor(0x55000000);
+            c.drawCircle(cx + 3, cy + 5, rad, p);
+            p.setColor(hue);
+            c.drawCircle(cx, cy, rad, p);
+            p.setColor(0x33FFFFFF);
+            c.drawCircle(cx - rad * 0.3f, cy - rad * 0.35f, rad * 0.5f, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(5); p.setColor(WOOD_EDGE);
+            c.drawCircle(cx, cy, rad, p);
+            text(c, initials(id), cx, cy + rad * 0.3f, rad * 0.9f, 0xFFFFFFFF, true, Paint.Align.CENTER);
+        }
         if (compact) {
             List<String> lines = wrap(name, 26, rr - (cx + rad) - 24, 3, true);
             float ty = (t + b) / 2 - (lines.size() - 1) * 15 + 9;

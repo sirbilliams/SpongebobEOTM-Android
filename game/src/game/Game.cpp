@@ -2,6 +2,8 @@
 #include "DialogueUI.h"
 #include "SceneScriptHost.h"
 #include "World3D.h"
+#include "Hud.h"        // port: hud
+#include "Cursor.h"     // port: cursor
 #include "../port/CompanionFeed.h"
 #include "OMediaFilePath.h"
 #include "OMediaSoundManager.h"
@@ -54,7 +56,7 @@ bool OmtFile::open(const std::string& file)
 Game::Game()
     : movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
       pendingId_(0), pendingStart_(0), runner_(0), host_(0), hoverCap_(0), commentCap_(0), commentMs_(0), mx_(320), my_(240),
-      inputAttached_(false), commentBlock_(0), commentVoice_(false)
+      inputAttached_(false), commentBlock_(0), commentVoice_(false), hud_(0), cursor_(0)
 {
 }
 
@@ -69,6 +71,8 @@ Game::~Game()
     delete commentBlock_;
     delete hoverCap_;
     delete commentCap_;
+    delete cursor_;     // port: cursor
+    delete hud_;        // port: hud
     delete w3_;
     w3_ = 0;
     delete scene_;
@@ -115,6 +119,8 @@ bool Game::init(const std::string& root, OMediaCanvas* canvas)
     host_ = new SceneScriptHost(this);
     state_.chapter = 1;
     itemsBank_.open(root + "/sounds/items.omt");
+    hud_ = new Hud(this);         // port: hud (the exe's HUD object 0x457334)
+    cursor_ = new Cursor(this);   // port: cursor
     return true;
 }
 
@@ -133,8 +139,12 @@ void Game::listen_to_message(omt_Message msg, void* param)
     if (msg == omsg_MouseClick) {
         OMediaEvent* ev = (OMediaEvent*)param;
         mouseDown(ev->x, ev->y);
+    } else if (msg == omsg_MouseClick_Up) {                      // port: hud (0x420b20 runs on the release)
+        OMediaEvent* ev = (OMediaEvent*)param;
+        if (hud_) hud_->onMouseUp(ev->x, ev->y);
     } else if (msg == omsg_KeyDown) {
         OMediaEvent* ev = (OMediaEvent*)param;
+        if (hud_ && (ev->key == 27 || ev->character == 27) && hud_->onEscape()) return;   // port: hud
         if (scene_ && scene_->dialogue()) scene_->dialogue()->onKey(ev->key ? ev->key : (int)ev->character);
     }
 }
@@ -144,6 +154,7 @@ void Game::mouseDown(int x, int y)
     mx_ = x; my_ = y;
     if (!scene_) return;
     if (scene_->dialogue() && scene_->dialogue()->busy()) { scene_->dialogue()->onClick(x, y); return; }
+    if (hud_ && hud_->onMouseDown(x, y)) return;                // port: hud (0x420d50)
     if (runner_) runner_->onClick((short)x, (short)y);        // 0x43dea0
     scene_->click(x, y);
 }
@@ -151,6 +162,7 @@ void Game::mouseDown(int x, int y)
 void Game::mouseMove(int x, int y)
 {
     mx_ = x; my_ = y;
+    if (hud_) hud_->onMove(x, y);                               // port: hud
     if (scene_ && scene_->dialogue() && scene_->dialogue()->busy()) scene_->dialogue()->onMove(x, y);
 }
 
@@ -384,7 +396,7 @@ void Game::update(float dt)
     OMediaSoundManager* m = OMediaSoundManager::getdefaultmanager();
     for (int i = 0; i < m->get_nchannels(); ++i) m->get_channel(i)->spend_time();
     doSwitch();
-    if (!scene_) return;
+    if (!scene_) { if (cursor_) cursor_->update(mx_, my_); return; }   // port: cursor
     scene_->update(dt);
     if (scene_->dialogue()) scene_->dialogue()->update(dt);
     host_->update(dt);
@@ -394,6 +406,7 @@ void Game::update(float dt)
         else if (runner_ && runner_->soundDone()) wake();     // sound wait (0x43d6e0)
     }
     updateComment(dt);
+    if (hud_) hud_->update(dt);        // port: hud
     sbport::companionTick(this, dt);   // port: companion
     // the hover description follows the cursor (game cursor object +0x88, vt+0x30)
     std::string h;
@@ -401,6 +414,7 @@ void Game::update(float dt)
         SceneObject* o = scene_->hover(mx_, my_);
         if (o) h = o->description;
     }
+    if (hud_) { std::string hc; if (hud_->caption(&hc)) h = hc; }   // port: hud (0x4201c0: the HUD's caption wins)
     if (h != hoverText_) {
         hoverText_ = h;
         delete hoverCap_;
@@ -420,6 +434,7 @@ void Game::update(float dt)
         if (y + hh > 476) y = my_ - 8 - (int)hh;
         hoverCap_->place((float)x, (float)y, 10200.0f);
     }
+    if (cursor_) cursor_->update(mx_, my_);   // port: cursor
 }
 
 }  // namespace sbgame

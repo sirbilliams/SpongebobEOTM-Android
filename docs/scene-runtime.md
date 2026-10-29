@@ -61,7 +61,7 @@ exe does (`+0x4c`).
 skipped (unless debug or the last clicked), ANIMs skipped when hidden and not toggleable or `Stay on Last Frame` while playing, SPOTs with
 `Rollover uses Cond.` need their Condition, then the rectangle test. Hit: `pickEvent` (0x415a70): `Have Item Event` if used, else Event when the Condition
 holds (plays Sound Name panned by screen x < 221 / > 419), else Alt Event; `" "` and `"0"` mean none; the result goes to `switchTo`. `useItem` (0x415c30)
-is written but the HUD (item in hand) that calls it is not. `// 3D:` the grid walk, 3D picking (characters, items, triggers) and the player's start
+is called by the HUD (`Hud::dropAt`, see "HUD and cursor" below). `// 3D:` the grid walk, 3D picking (characters, items, triggers) and the player's start
 point are lane A's.
 **ANIM** (0x408cb0, simplified): frames advance at `1000/fps` ms, `Loop Count` passes (or continuous), `Reverse When Done` ping-pongs, `Stay on Last
 Frame` or back to frame 1, `Play Interval` s restarts an idle one, `Click to Play` starts it on a click (event at the begin with `Event Play @
@@ -103,7 +103,43 @@ script go on. `voiceBusy` = dialogue active (+0x19), `voiceDone` = 0x4371c0 (tru
 * one scene at a time; text wrapping by `TextBlock` (one caption per row), highlight is a box; hover text placement is approximate (cursor + 14, 16).
 * not done: the HUD / inventory bar (0x4201c0, 0x420b20, 0x420d50: item drag, "Show Inventory", map, hint), the cursor object (game+0x88), the 3D
   triggers/doors, save games (0x416ed0), mini games, `shock` / `sparkle` effects, movies (hook only), scene switch
+* not done: the pause / main menu (HUD menu button logs only), the hint's voice, the 3D
+  world, characters, grid walking, triggers/doors, save games (0x416ed0), mini games, `shock` / `sparkle` effects, movies (hook only), scene switch
   "loading" cover, dialogue specials per scene id (0x411ba0 tail), the speaker camera/actor swapping in 0x412d00.
+
+## HUD and cursor (`Hud.{h,cpp}`, `Cursor.{h,cpp}`)
+The exe's HUD object (global 0x457334) and the game cursor object (game+0x88). One `Hud` and one `Cursor` live in `Game` (`hud()`, `cursor()`); the
+hooks in the shared files are the lines marked `// port: hud` / `// port: cursor` (Game.cpp / Game.h: create, mouse down / up / move, Esc, the
+per-frame `update`, the caption override; SceneScriptHost.cpp: `uiAddItem` -> `Hud::addItem`).
+| exe | here |
+|---|---|
+| 0x4201c0 pointer over the HUD (captions, "Show Inventory" / "Hide Inventory" / "Use Map" / "Get a Hint" / "Main Menu" / the item's name / "Empty"; with an item in hand "Use %s with %s" / "Use %s on %s" / "Give %s to %s" / "Swap %s with %s") | `Hud::caption` (feeds `Game::update`'s hover caption) |
+| 0x420d50 mouse down (chest, map, menu, hint, slot -> pick the item up) | `Hud::onMouseDown` |
+| 0x420b20 the item is let go (own / free slot: stays; other item: 0x421880 combine or comment `H000F`; a scene object: `GameScene::useItem` 0x415c30, the bar closes, an accepted item is removed) | `Hud::onMouseUp` / `dropAt`, `combine` (6 recipes: ikp1+ikp2 = ikp3, ikp2+ikp7 / ikp3+ikp5 = ikp6, ikp1+ikp5 = ikp7, iuc1+ict1 = ict2, ifm1+ikc1 = ikc2) |
+| 0x420a30 / 0x420a70 / 0x420ab0 slot under a point (x 64 + 64 i, y < 64, six slots) / item in a slot / slots laid out again | `spotAt`, `itemInSlot` |
+| 0x421390 open / close the bar, 0x4208f0 / 0x420990 button states (faint `...t` canvas, solid one under the pointer) | `setOpen`, `update` |
+| 0x41f2d0 `add`: the item (name, description = the command's 2nd argument) appears at (320, 240) (special start points for ikp5, ivt1 in 0x20204, inc1 in 0x10304) and flies into its slot | `addItem`, `update` (`fly_`) |
+| 0x421090 / 0x420fc0 the bar is shown / hidden | `wanted()`: scenes of a level (not level 0), no script without `control` |
+Art (all from `sb2.omt`, nothing copied): `inv` / `chest1t` (closed chest, solid / faint), `inv2` / `chest2t` (open chest), `help` / `helpt`, `menu` / `menut`,
+`map` / `mapt`, `bubble1` (slot with an item) / `bubblet` (empty slot). Layout (y 0): chest x 0, six slots x 64..448, hint 448, menu 512, map 576.
+* **Items are 3D pictures.** An inventory item is the item's Granny model (`models/items/<name>_model`, from the player's files) shown through its own
+  64x64 `OMediaVPElement` (own `OMedia3DWorld` + viewport, camera at the origin, model centred and scaled to fill the box, one light, slow turn
+  under the pointer). The item in hand is the same element at pointer - 32 (box kept on screen), above the bar.
+* **Input.** Mouse down on a slot picks the item up. A button release away from the slot lets it go there (drag); a click on the slot keeps it in hand
+  and the next click uses it (also how the companion panel hands one over: `holdFromPanel`). Esc puts it back. On the Thor the touch is the pointer, so
+  the same code serves a finger. The progress object's item list stays "ever found" (conditions `I<name>`), the HUD list is what is carried: used and
+  combined items leave the HUD only (as 0x42a290, which does not touch the progress list).
+* **Cursor.** sb2.exe has no pointer art: it uses the Windows arrow, and the hourglass (`OMediaMouseCursor::set_shape(Arrow / Clock)`) while loading;
+  the held item is its own picture. The port hides the system cursor and draws a sprite (`Cursor`; four shapes drawn in code: Normal, Hotspot (a pointing hand
+  over something clickable or a bar button), Hand (item in hand, gold arrow), Wait (a scene switch is pending)). The sprite is the last element of the world each
+  frame, so it is on top. On Android it is the last touch position.
+* **Engine finding.** `OMedia2DWorld` draws in link order (its sort mode is None, as the exe's), z only orders sub-elements. `Hud` and `Cursor` therefore build
+  their elements with the first scene and link them again after every scene load (`Hud::relink`); elements linked at start-up would be under the scene.
+* Port-only: the pickup flight is 1200 ms (the exe's +0x140 = 2000) so it ends with the script's wait; slot full = item not added; the hint button shows the
+  first help line whose condition holds as a text block (no voice); the menu button logs only; the map button runs `c<chapter>l1s1p1` (0x455234).
+* Test hooks (desktop only): `SB_TEST_ITEMS="isp1:Shovel and Pail,ict2:Urchin Chip Pie"` puts items in the bar when a scene runs, `SB_TEST_HOLD=<item>`,
+  `SB_TEST_MOUSE=x:y`, `SB_TEST_CURSOR=<0..3>`, `SB_HUD_DEBUG=1`, `SB_NO_GAME_CURSOR=1`. Example (chapter 1, Larry accepts the pie, script `slarryjog`):
+  `SB_SKIP_MOVIES=1 SB_TEST_NEWGAME=1 SB_TEST_SCENE=c1l5s4 SB_TEST_ITEMS=isp1:Shovel\ and\ Pail,ict2:Urchin\ Chip\ Pie SB_TEST_GAME_CLICKS=150:30:30,330:160:32,520:427:267`.
 
 ## sb_scenetest
 `sb_scenetest <game folder> [frames] [shots dir]` (headless, `DISPLAY=:82 SDL_AUDIODRIVER=dummy`): opens the first scene `c1l0s1`, its script `sload1`

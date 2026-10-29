@@ -66,6 +66,8 @@ std::string CompanionJsonOf(const CompanionState& s)
     o += ",\"caption\":"; esc(o, s.caption);
     o += ",\"sel\":"; esc(o, s.selected);
     o += ",\"items\":"; arr(o, s.items);
+    o += ",\"names\":"; arr(o, s.itemNames);
+    o += ",\"icons\":"; esc(o, s.iconDir);
     o += ",\"visited\":"; arr(o, s.visited);
     if (s.dialogue) {
         o += s.choiceMode ? ",\"dlg\":{\"choice\":1" : ",\"dlg\":{\"choice\":0";

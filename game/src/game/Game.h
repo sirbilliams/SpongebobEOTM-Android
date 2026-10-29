@@ -26,6 +26,8 @@ namespace sbgame {
 
 class SceneScriptHost;
 class World3D;
+class Hud;      // port: hud
+class Cursor;   // port: cursor
 
 // A file-backed OMT database kept open (the exe keeps them for the whole scene).
 struct OmtFile {
@@ -66,6 +68,9 @@ public:
     void forceRedraw();                             // port (saves): the menu drew over the canvas; the next frame repaints all
     GameScene* scene() { return scene_; }
     World3D* world3d() { return w3_; }
+    Hud* hud() { return hud_; }                    // port: hud
+    Cursor* cursor() { return cursor_; }           // port: cursor
+    bool pendingScene() const { return pendingId_ != 0; }   // port: cursor (a scene switch is waiting: the wait cursor)
     OMedia2DWorld* world() { return world_; }
     OMediaViewPort* viewport() { return vp_; }
     OMediaDataBase* sb2Db() { return sb2_.db; }
@@ -139,6 +144,8 @@ private:
     TextBlock* commentBlock_;
     bool commentVoice_;
     std::string hoverText_;
+    Hud* hud_;                    // port: hud
+    Cursor* cursor_;              // port: cursor
 };
 
 }  // namespace sbgame
