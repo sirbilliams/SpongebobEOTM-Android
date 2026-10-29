@@ -62,7 +62,7 @@ void OMedia3DGLRasterizer::start(OMediaGfxWorld *w, short x, short y, short rw, 
 	if (!s || !s->fbo) {target = NULL; return;}
 	omgl_surface_bind(s);
 	glEnable(GL_SCISSOR_TEST);
-	glScissor(x, s->height - (y + rh), rw, rh);
+	glScissor(x * s->scale, (s->height - (y + rh)) * s->scale, rw * s->scale, rh * s->scale);		// port: HD: the surface may be rendered at a multiple of its size
 	glClearDepth(1.0);
 	glDepthMask(GL_TRUE);
 	glClear(GL_DEPTH_BUFFER_BIT);

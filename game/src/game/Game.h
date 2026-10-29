@@ -158,6 +158,7 @@ private:
     GameState state_;
     OMedia2DWorld* world_;
     OMediaViewPort* vp_;
+    int skyChapter_;                        // port: HD pack: the chapter of skies_
     OmtFile skies_;                         // game+0x64: sceneart/c%dskies.omt
     OMediaCanvas* skyCache_[10];            // game+0x70 + index*4
     OmtFile musicBank_;                     // game+0x60: music\c%d.omt

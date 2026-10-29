@@ -1,4 +1,5 @@
 #include "Scene.h"
+#include "OMediaGLBackend.h"   // port: HD pack
 #include "MiniGame.h" // chapter 2: maze TRIG picking pass (0x43a310)
 #include <stdlib.h>
 #include "Game.h"
@@ -54,10 +55,14 @@ GameScene::~GameScene()
 
 OMedia2DWorld* GameScene::world() { return game_->world(); }
 
+static std::string lowerName(std::string s) { for (size_t i = 0; i < s.size(); i++) s[i] = (char)tolower((unsigned char)s[i]); return s; }
+
 OMediaCanvas* GameScene::canvasNamed(const std::string& n)
 {
     OMediaCanvas* c = 0;
     if (artDb_) c = (OMediaCanvas*)artDb_->get_object(OMediaCanvas::db_type, n);   // scene+0x23c
+    if (c && n.compare(0, 10, "background") == 0 && c->getgfxworld())    // port: HD pack (docs/hd-pack.md): the background's picture
+        omgl_hd_attach(c->getgfxworld(), ("sceneart/" + name_ + "/" + lowerName(n)).c_str());
     if (!c && game_->sb2Db()) c = (OMediaCanvas*)game_->sb2Db()->get_object(OMediaCanvas::db_type, n);  // game+0x88 +0x18
     return c;
 }
