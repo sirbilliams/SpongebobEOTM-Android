@@ -1,0 +1,15 @@
+# Chapter 1 route (docs/chapter1.md), for SB_TEST_PLAYTHROUGH
+scene c1l2s6
+idle
+shot 01-c1l2s6-outside
+click "Enter The Krusty Krab"
+scene c1l2s1
+idle
+shot 02-c1l2s1-dining
+talk fish AAA AAA ABA ABA ABA AXA
+idle
+expect 121AAA 121ABA
+click ikp4
+idle
+have ikp4
+end

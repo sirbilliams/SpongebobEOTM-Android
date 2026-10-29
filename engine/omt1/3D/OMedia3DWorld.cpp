@@ -256,6 +256,18 @@ bool OMedia3DVPModel::get_element_bounds(const OMedia3DShapeElement *e, float &l
 	return true;
 }
 
+bool OMedia3DVPModel::project_point(float x, float y, float z, float &sx, float &sy) const
+{
+	if (scale_x == 0) return false;
+	OMedia3DVector c(x - viewx, y - viewy, z - viewz);
+	c.inv_rotate(-viewax, -vieway, -viewaz);
+	if (c.z < ((OMedia3DWorld*)world)->near_z) return false;
+	float iz = 1.0f / c.z;
+	sx = c.x * iz * scale_x + center_x + left;
+	sy = c.y * iz * scale_y + center_y + top;
+	return true;
+}
+
 // 0x10033660. Without a canvas or a rasterizer nothing is drawn. The double canvas is swapped as the base model does.
 void OMedia3DVPModel::render(void)
 {

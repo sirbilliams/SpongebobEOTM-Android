@@ -16,6 +16,7 @@
 #include "OMediaGLBackend.h"
 #include "../game/SceneScriptHost.h"
 #include "../game/SaveGame.h"
+#include "Playthrough.h"
 #include <stdexcept>
 #include "CrashLog.h"
 #include <stdio.h>
@@ -400,6 +401,26 @@ class StartupApp : public MenuHost
         SDL_Log("test dump %s: scene %08x %s",var,f.sceneId,ok?"written":"FAILED");
     }
 
+    // port: tests only (SB_TEST_PLAYTHROUGH, game/src/port/Playthrough.h): a logical click through the SDL event path, a save
+    static void pt_click(int x, int y) {
+        SDL_Window *win=SDL_GL_GetCurrentWindow();
+        if(!win) return;
+        int px=x, py=y; omgl_logical_to_window(px,py);
+        SDL_WarpMouseInWindow(win,px,py);
+        SDL_Event e; SDL_zero(e); e.type=SDL_MOUSEMOTION; e.motion.x=px; e.motion.y=py; SDL_PushEvent(&e);
+        e.type=SDL_MOUSEBUTTONDOWN; e.button.button=SDL_BUTTON_LEFT; e.button.x=px; e.button.y=py; SDL_PushEvent(&e);
+        e.type=SDL_MOUSEBUTTONUP; SDL_PushEvent(&e);
+    }
+    static StartupApp *pt_app;
+    static void pt_save(sbgame::Game *game, int slot) {
+        std::vector<unsigned char> thumb;
+        sbgame::SaveGame::grabThumb(pt_app->screen->getdefaultdrawgfxworld(),thumb);
+        sbgame::SaveFile f;
+        sbgame::SaveGame::capture(game->state(),game->state().sceneId,"Playthrough",thumb,f);
+        bool ok=sbgame::SaveGame::write(sbgame::SaveGame::slotPath(slot),f);
+        SDL_Log("playthrough: saved slot %d scene %08x %s",slot,f.sceneId,ok?"written":"FAILED");
+    }
+
     // false: quit the application; true: back to the menu
     bool run_game(SDL_Window *win) {
         (void)win;
@@ -417,6 +438,7 @@ class StartupApp : public MenuHost
                 movie_ok=true; movie_done=false;
                 game->movieHook=game_movie; game->movieHookData=this;
                 game->logFile=getenv("SB_GAME_LOG")?stdout:NULL;
+                if(game->logFile) setvbuf(stdout,NULL,_IOLBF,0);      // port: tests read the log of a run that is cut off
                 SDL_ShowCursor(SDL_ENABLE);
                 const char *first=getenv("SB_TEST_SCENE");
                 std::string scene;
@@ -439,9 +461,17 @@ class StartupApp : public MenuHost
             }
             SDL_ShowCursor(SDL_ENABLE);
             unsigned frame=0, last=0;
+            sbport::Playthrough *pt=NULL;
+#ifndef __ANDROID__
+            if(getenv("SB_TEST_PLAYTHROUGH")) { pt=new sbport::Playthrough(getenv("SB_TEST_PLAYTHROUGH")); pt_app=this; }
+#endif
             for(;;) {
                 if(event_manager->quit_requested()) { result=false; break; }
                 SDL_Event ev; bool leave=false;
+                if(pt) {
+                    bool failed=false;
+                    if(!pt->tick(game,pt_click,pt_save,&failed)) { SDL_Log("playthrough %s", failed?"FAILED":"done"); delete pt; pt=NULL; result=false; break; }
+                }
                 // port: replay against the displayed transform before this frame can pan.
                 test_clicks(frame,"SB_TEST_GAME_CLICKS");
                 while(SDL_PollEvent(&ev)) {
@@ -501,6 +531,7 @@ class StartupApp : public MenuHost
 	}
 
 };
+StartupApp *StartupApp::pt_app = NULL;
 
 void omt_main(void)
 {

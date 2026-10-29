@@ -22,7 +22,8 @@ static bool nonEmptyEvent(const std::string& e)
 
 SceneObject::SceneObject()
     : kind(Obj2D), tag(0), x1(0), y1(0), x2(0), y2(0), gridX(0), gridY(0), used(false), px(0), py(0), pz(0),
-      postRender(false), rolloverCond(false), clickable(false), userCtl(false), elem(0), nFrames(0), fps(0), clickToPlay(0),
+      postRender(false), rolloverCond(false), clickable(false), userCtl(false), radius(0), rotation(0), pickup(0), addInv(0),
+      requireEnter(0), isDoor(0), useCond(0), faceHeading(0), facePlayer(0), hidden3D(false), elem(0), nFrames(0), fps(0), clickToPlay(0),
       interval(0), continuous(0), framePerClick(0), loops(0), reverse(0), soundFrame(0), stayOnLast(0),
       allowToggle(0), startOn(0), eventAtBegin(0), playing(false), frame(0), dir(1), loopsDone(0), frameMs(0),
       intervalSec(0), paused(false), eventPending(false)
@@ -31,7 +32,7 @@ SceneObject::SceneObject()
 
 GameScene::GameScene(Game* game)
     : game_(game), sceneId_(0), artDb_(0), artFile_(0), background_(0), skyScroll_(0), dialogue_(0), barTop_(0), barBot_(0),
-      barState_(0), barHold_(0), topY_(0), botY_(240), shake_(0), lock_(0), lastClicked_(0)
+      barState_(0), barHold_(0), topY_(0), botY_(240), shake_(0), lock_(0), doorTrig_(0), lastClicked_(0)
 {
     sky_[0] = sky_[1] = 0; skyX_[0] = skyX_[1] = 0;
 }
@@ -149,6 +150,7 @@ void GameScene::buildObjects()
             o->px = d.o0230; o->py = d.o0234; o->pz = d.o0238;
             baseFields(o, d.o0020, d.o0040, d.o0060, d.o0120, (short)d.o0014, (short)d.o0016, (short)d.o0018, (short)d.o001a, (short)d.o016c, (short)d.o016e);
             o->visibleCond = d.o0100.text(); o->clickable = d.o0246 != 0;
+            o->radius = d.o023c; o->rotation = (short)d.o0240; o->pickup = (short)d.o0278; o->addInv = (short)d.o027a;
             break; }
         case CharacterTag: {
             const Character& d = r.data.character;
@@ -159,6 +161,7 @@ void GameScene::buildObjects()
             o->itemAccept = d.o0080.text(); o->itemEvent = d.o00a0.text(); o->wrongItemEvent = d.o00c0.text();
             o->haveItemEvent = d.o00e0.text(); o->visibleCond = d.o0100.text(); o->clickable = d.o0246 != 0;
             o->userCtl = d.o027e != 0;
+            o->radius = d.o023c; o->rotation = (short)d.o0240; o->facePlayer = (short)d.o02a0; o->faceHeading = (short)d.o02a4;
             break; }
         case TriggerTag: {
             const Trigger& d = r.data.trigger;
@@ -167,6 +170,8 @@ void GameScene::buildObjects()
             baseFields(o, d.o0020, d.o0040, d.o0060, d.o0120, (short)d.o0014, (short)d.o0016, (short)d.o0018, (short)d.o001a, (short)d.o016c, (short)d.o016e);
             o->itemAccept = d.o0080.text(); o->itemEvent = d.o00a0.text(); o->wrongItemEvent = d.o00c0.text();
             o->haveItemEvent = d.o00e0.text(); o->visibleCond = d.o0100.text(); o->soundName = d.o0140.text();
+            o->radius = d.o023c; o->requireEnter = (short)d.o0278; o->rotation = (short)d.o027a; o->isDoor = (short)d.o027c;
+            o->useCond = (short)d.o027e; o->doorAnim = d.o0280.text();
             break; }
         default:
             delete o;
@@ -332,6 +337,7 @@ void GameScene::refreshVisibility()             // 0x438ad0
     if (game_->world3d()) game_->world3d()->refreshVisibility();      // the CHAR / ITEM cases
     for (size_t i = 0; i < objects_.size(); ++i) {
         SceneObject* o = objects_[i];
+        if (o->kind == SceneObject::Trigger && !o->visibleCond.empty()) o->hidden3D = !game_->cond(o->visibleCond.c_str());
         if (!o->elem || o->visibleCond.empty()) continue;
         bool vis = game_->cond(o->visibleCond.c_str());
         bool hidden = o->elem->get_hide_count() != 0;
@@ -396,7 +402,7 @@ void GameScene::tickAnim(SceneObject* o, float dtMs)   // 0x408cb0, simplified: 
                     if (o->stayOnLast) next = n - 1; else next = 0;
                     o->frame = next;
                     o->elem->setcanvas(o->frames[next]);
-                    if (o->eventPending) { o->eventPending = false; pickEvent(o, true); }
+                    if (o->eventPending) { o->eventPending = false; baseEvent(o, false, false); }
                     game_->host()->anim2dFinished();
                     return;
                 }
@@ -408,7 +414,33 @@ void GameScene::tickAnim(SceneObject* o, float dtMs)   // 0x408cb0, simplified: 
 }
 
 // ---------------------------------------------------------------------------------------- picking
-SceneObject* GameScene::pick(int x, int y)      // 0x43a310, third pass
+static bool upDown(const SceneObject* o)            // 0x43a750: a TRIG whose Event says "up" or "down" (a height connector)
+{
+    return o->kind == SceneObject::Trigger && (strstr(o->event.c_str(), "up") || strstr(o->event.c_str(), "down"));
+}
+
+static bool inRect(const SceneObject* o, int x, int y)  // 0x415e00: an empty rectangle is never hit
+{
+    if (o->x2 - o->x1 == 0 || o->y2 == o->y1) return false;
+    return o->x1 <= x && o->y1 <= y && x <= o->x2 && y <= o->y2;
+}
+
+SceneObject* GameScene::pick(int x, int y)      // 0x43a310, the TRIG pass and the 2D pass (the CHAR / ITEM pass is World3D::pick)
+{
+    World3D* w = game_->world3d();
+    // pass 1: triggers whose "use Condition" flag is off or whose Condition holds, visible, not a connector of another height
+    for (size_t i = 0; i < objects_.size(); ++i) {
+        SceneObject* o = objects_[i];
+        if (o->kind != SceneObject::Trigger) continue;
+        if (o->useCond && !game_->cond(o->condition.c_str())) continue;
+        if (o->hidden3D) continue;
+        if (w && w->player() && !w->samePlane(o) && upDown(o)) continue;
+        if (inRect(o, x, y)) return o;
+    }
+    return pick2D(x, y);
+}
+
+SceneObject* GameScene::pick2D(int x, int y)    // 0x43a310, third pass
 {
     for (size_t i = 0; i < objects_.size(); ++i) {
         SceneObject* o = objects_[i];
@@ -422,90 +454,262 @@ SceneObject* GameScene::pick(int x, int y)      // 0x43a310, third pass
         } else if (o->kind == SceneObject::Spot) {
             if (o->rolloverCond && !game_->cond(o->condition.c_str())) continue;
         }
-        // 0x415e00: an empty rectangle is never hit
-        if (o->x2 - o->x1 == 0 || o->y2 == o->y1) continue;
-        if (o->x1 <= x && o->y1 <= y && x <= o->x2 && y <= o->y2) return o;
+        if (inRect(o, x, y)) return o;
     }
     return 0;
 }
 
 SceneObject* GameScene::hover(int x, int y)
 {
-    SceneObject* o = game_->world3d() ? game_->world3d()->pick(x, y) : 0;      // the 3D passes come first (0x43a310)
-    return o ? o : pick(x, y);
+    // 0x43a310 order: triggers, then the 3D characters / items, then the 2D objects
+    for (size_t i = 0; i < objects_.size(); ++i) {
+        SceneObject* o = objects_[i];
+        if (o->kind != SceneObject::Trigger || o->hidden3D) continue;
+        if (o->useCond && !game_->cond(o->condition.c_str())) continue;
+        if (inRect(o, x, y)) return o;
+    }
+    SceneObject* o = game_->world3d() ? game_->world3d()->pick(x, y) : 0;
+    return o ? o : pick2D(x, y);
 }
 
-bool GameScene::pickEvent(SceneObject* o, bool fromClick)    // 0x415a70
+SceneObject* GameScene::pickAll(int x, int y)
+{
+    SceneObject* t = 0;
+    for (size_t i = 0; i < objects_.size() && !t; ++i) {
+        SceneObject* o = objects_[i];
+        if (o->kind != SceneObject::Trigger || o->hidden3D) continue;
+        if (o->useCond && !game_->cond(o->condition.c_str())) continue;
+        World3D* w = game_->world3d();
+        if (w && w->player() && !w->samePlane(o) && upDown(o)) continue;
+        if (inRect(o, x, y)) t = o;
+    }
+    if (t) return t;
+    SceneObject* o = game_->world3d() ? game_->world3d()->pick(x, y) : 0;
+    return o ? o : pick2D(x, y);
+}
+
+bool GameScene::baseEvent(SceneObject* o, bool touching, bool fromClick)    // 0x415a70
 {
     std::string ev;
-    if (o->used && !o->haveItemEvent.empty()) ev = o->haveItemEvent;
-    else if (game_->cond(o->condition.c_str())) {
+    if (o->used && nonEmptyEvent(o->haveItemEvent)) ev = o->haveItemEvent;
+    else if (game_->cond(o->condition.c_str(), touching)) {
         ev = o->event;
-        if (fromClick) game_->host()->playObjectSound(o);       // vt+0x50
+        if (fromClick) game_->host()->playObjectSound(o);       // vt+0x50(1)
     } else {
         ev = o->altEvent;
         if (fromClick && ev.size() > 5 && toupper((unsigned char)ev[0]) == 'C' && toupper((unsigned char)ev[2]) == 'L')
             game_->host()->playObjectSound(o);
     }
-    if (!nonEmptyEvent(ev)) return false;
+    if (ev.empty() || !nonEmptyEvent(ev)) return false;
     game_->log("event '%s' (%s)\n", ev.c_str(), o->description.c_str());
     game_->switchTo(ev.c_str());
     return true;
 }
 
-bool GameScene::useItem(SceneObject* o, const char* item)    // 0x415c30
+bool GameScene::pickEvent(SceneObject* o, bool touching, bool fromClick)
 {
-    if (!game_->state().sceneId) return false;
+    World3D* w = game_->world3d();
+    Actor3D* p = w ? w->player() : 0;
+    switch (o->kind) {
+    case SceneObject::Trigger: triggerEvent(o, touching); return true;
+    case SceneObject::Char: charEvent(o, touching); return true;
+    case SceneObject::Item: itemEvent(o, touching); return true;
+    case SceneObject::Spot:                                 // 0x41a700
+    case SceneObject::Obj2D:                                // 0x402240
+        if (o->gridX != 0 && o->gridY != 0 && !game_->state().debugAll() && p) {
+            if (w->walkTo(o, o->px, o->kind == SceneObject::Spot ? o->py : o->pz)) return true;
+        }
+        return baseEvent(o, touching, true);
+    default:
+        return baseEvent(o, touching, fromClick);
+    }
+}
+
+// 0x441cb0: a trigger.  Not touching yet: walk to it.  Then turn to its heading (Require Enter), a door plays "door" and the
+// door's 2D animation, then the base event with `touching` set.
+void GameScene::triggerEvent(SceneObject* o, bool touching)
+{
+    World3D* w = game_->world3d();
+    Actor3D* p = w ? w->player() : 0;
+    if (!game_->state().debugAll() && p) {
+        if (o->event.empty() && o->altEvent.empty()) return;
+        // port: the cross-height connector walk (vt+0x17c, 0x434520) is not reconstructed; a trigger on another height is used in place
+        if (!touching && w->walkTo(o, o->px, o->pz)) return;
+        if (o->rotation != 0 && o->requireEnter != 0 && w->rotatePlayer(o->rotation)) {
+            game_->setPending(o, true, "");           // game vt+0xac (o, 1, "")
+            return;
+        }
+        if (o->isDoor) {
+            bool c = game_->cond(o->condition.c_str(), touching);
+            if (c || (o->altEvent.size() > 5 && toupper((unsigned char)o->altEvent[0]) == 'C' && toupper((unsigned char)o->altEvent[2]) == 'L')) {
+                doorTrig_ = o;                         // scene+0x1c80
+                w->playerDoor();                       // player vt+0xb4("door", 0, 1.0)
+                playDoor();                            // scene vt+0x110
+                baseEvent(o, touching, true);
+                return;
+            }
+        }
+        doorTrig_ = 0;
+    }
+    baseEvent(o, touching, true);
+}
+
+static bool isDialogueKey(const std::string& n)     // game vt+0xb4 (0x40a5f0)
+{
+    if (n == "unlock" || n == "skip" || n.empty()) return false;
+    int c0 = toupper((unsigned char)n[0]);
+    if (c0 == 'H' || c0 == 'M' || c0 == 'S') return false;
+    if (n.size() > 4 && c0 == 'C' && toupper((unsigned char)n[2]) == 'L' && toupper((unsigned char)n[4]) == 'S') return false;
+    return true;
+}
+
+// 0x433a60: a character.  A comment or a key with nothing to say goes straight to the base event; else walk to it, the
+// player turns toward it (or to its fixed heading +0x2a4), the character turns to the player (+0x2a0), then the base event.
+void GameScene::charEvent(SceneObject* o, bool touching)
+{
+    if (!game_->pendingItem.empty()) return;                    // game+0x22c: an item use is pending
+    if (game_->runner()) return;
+    if (!(o->used && nonEmptyEvent(o->haveItemEvent))) {
+        const std::string& ev = game_->cond(o->condition.c_str()) ? o->event : o->altEvent;
+        if (!ev.empty() && toupper((unsigned char)ev[0]) == 'H') { baseEvent(o, touching, true); return; }
+        if (isDialogueKey(ev) && !(dialogue_ && dialogue_->hasSomething(ev.c_str()))) { baseEvent(o, touching, true); return; }
+    }
+    World3D* w = game_->world3d();
+    Actor3D* p = w ? w->player() : 0;
+    if (!game_->state().debugAll() && p) {
+        if (!touching && w->walkTo(o, o->px, o->pz)) return;
+        bool turning = o->faceHeading == 0 ? w->rotateToward(o) : w->rotatePlayer(o->faceHeading);
+        if (turning) { game_->setPending(o, true, ""); return; }
+    }
+    if (o->facePlayer != 0 && p && w) w->turnToward(o, p);        // the character looks at the player
+    baseEvent(o, touching, true);
+}
+
+// 0x4234d0: an item.  Without Can Pickup it is a plain object.  Its Condition true: walk to it, turn, pick it up (the player's
+// vt+0x100, the rest follows the "pickup" animation); false: the Alt Event.
+void GameScene::itemEvent(SceneObject* o, bool touching)
+{
+    if (game_->hudHolding()) return;                            // +0x248 / HUD +0x130: something in hand
+    if (o->pickup == 0) { baseEvent(o, touching, false); return; }
+    if (game_->cond(o->condition.c_str(), touching)) {
+        World3D* w = game_->world3d();
+        Actor3D* p = w ? w->player() : 0;
+        if (!p) return;                                         // port: item vt+0x104 without a player does not occur in the data
+        if (!game_->state().debugAll()) {
+            if (!touching && w->walkTo(o, o->px, o->pz)) return;
+            if (w->rotateToward(o)) { game_->setPending(o, true, ""); return; }
+        }
+        game_->inputConsumed = true;
+        w->startPickup(o);
+        return;
+    }
+    if (nonEmptyEvent(o->altEvent)) game_->switchTo(o->altEvent.c_str());
+}
+
+bool GameScene::useItem(SceneObject* o, const char* item)
+{
+    if (o->kind == SceneObject::Char) return charUseItem(o, item);
+    if (o->kind == SceneObject::Trigger) return trigUseItem(o, item);
+    return baseUseItem(o, item);
+}
+
+bool GameScene::baseUseItem(SceneObject* o, const char* item)    // 0x415c30
+{
+    if (game_->pendingScene()) return false;                     // game+0x158
     if (strcasecmp(o->itemAccept.c_str(), item) == 0) {
-        if (o->kind == SceneObject::Trigger && o->used && nonEmptyEvent(o->haveItemEvent)) {
+        if (o->kind == SceneObject::Trigger && o->used && !o->haveItemEvent.empty()) {
             game_->switchTo(o->haveItemEvent.c_str());
             return false;
         }
         game_->switchTo(o->itemEvent.c_str());
         o->used = true;
+        if (o->kind == SceneObject::Char || o->kind == SceneObject::Trigger) game_->state().addChar(o->art.c_str());   // 0x416c70
         return true;
     }
-    if (nonEmptyEvent(o->wrongItemEvent) && !o->used) {
+    if (!o->wrongItemEvent.empty() && !o->used) {
         game_->switchTo(o->wrongItemEvent.c_str());
         return false;
     }
-    // no wrong-item event: one of three "can't" comments (the exe picks by rand() % 3)
-    static int n = 0;
+    if (o->kind == SceneObject::Char && dialogue_) {             // the character's own refusal lines (dialogue vt+0x64)
+        std::string k;
+        if (dialogue_->refusal(o->art.c_str(), &k)) { game_->switchTo(k.c_str()); return false; }
+    }
+    static unsigned n = 0;                                       // rand() % 3 in the exe; port: in turn (deterministic tests)
     const char* c[3] = { "H000F", "H000G", "H000N" };
     game_->switchTo(c[n++ % 3]);
     return false;
 }
 
-void GameScene::click(int x, int y)    // 0x4398f0 for 2D objects (the 3D passes and the walk are lane A's)
+// 0x433f00: an item given to a character.  The right item (or a refusal to say): walk to the character first and give it
+// when there (game vt+0xac (char, 0, item)); the character turns to the player; then the base routine.
+bool GameScene::charUseItem(SceneObject* o, const char* item)
+{
+    if (game_->pendingScene()) return false;
+    World3D* w = game_->world3d();
+    Actor3D* p = w ? w->player() : 0;
+    bool match = strcasecmp(o->itemAccept.c_str(), item) == 0;
+    if (!match || (o->used && (!p || p->obj != o))) {
+        if ((o->wrongItemEvent.empty() || o->used) && !(dialogue_ && dialogue_->refusal(o->art.c_str(), 0)))
+            return baseUseItem(o, item);
+    }
+    if (!w || !p) return baseUseItem(o, item);
+    if (!game_->pendingObj && p->obj != o && !w->touching(o) && w->walkTo(o, o->px, o->pz)) {
+        game_->setPending(o, false, item);
+    } else {
+        if (o->facePlayer != 0) w->turnToward(o, p);
+        if (p->obj == o || !w->rotateToward(o)) return baseUseItem(o, item);
+        game_->setPending(o, false, item);
+    }
+    return match && !o->used;
+}
+
+bool GameScene::trigUseItem(SceneObject* o, const char* item)    // 0x441ed0
+{
+    if (game_->pendingScene()) return false;
+    // port: an accepted item on a trigger of another height would walk the connector first (vt+0x17c, not reconstructed)
+    return baseUseItem(o, item);
+}
+
+void GameScene::click(int x, int y)    // 0x4398f0
 {
     sbscript::ScriptRunner* r = game_->runner();
-    // "if (runner != 0 && !runner->control) || shaking -> ignore"
-    if ((r && !r->keepControl()) || lock_ > 0) return;
     game_->inputConsumed = false;
-    SceneObject* o = game_->world3d() ? game_->world3d()->pick(x, y) : 0;
-    if (!o) o = pick(x, y);
-    if (!o) {
-        if (game_->world3d()) game_->world3d()->clickFloor(x,y);
+    if ((r && !r->keepControl()) || lock_ > 0) return;
+    World3D* w = game_->world3d();
+    Actor3D* p = w ? w->player() : 0;
+    SceneObject* o = pickAll(x, y);
+    if (o) {
+        if (o->is3D() && p && o == p->obj) return;
+        if (upDown(o) && p) w->clearTarget();                    // scene vt+0x148, player vt+0x180
+        game_->log("click %d,%d: %s '%s'\n", x, y, o->kind == SceneObject::Obj2D ? "2DOB" : o->kind == SceneObject::Anim2D ? "ANIM" : o->kind == SceneObject::Char ? "CHAR" : o->kind == SceneObject::Item ? "ITEM" : o->kind == SceneObject::Trigger ? "TRIG" : "SPOT", o->description.c_str());
+        bool touching = p ? w->touching(o) : false;              // player vt+0x128(o, 1)
+        if (o->kind == SceneObject::Anim2D) clickAnim(o, touching);
+        else pickEvent(o, touching, true);
+        if (o->kind == SceneObject::Spot || o->kind == SceneObject::Anim2D || o->kind == SceneObject::Obj2D) lastClicked_ = o;
+    }
+    if (!p || game_->inputConsumed || game_->pendingObj) return;
+    // nothing took the click: the player walks to the floor point (with the object as the target when it is a SPOT without a
+    // grid cell); 0x4184f0 / 0x418170 (the cell under the click is open), else the click on the other height's grid (port: not
+    // reconstructed, vt+0x178)
+    SceneObject* target = 0;
+    if (o && o->kind == SceneObject::Spot && o->gridX == 0 && o->gridY == 0) target = o;
+    w->clickFloor(x, y, target);
+}
+
+void GameScene::clickAnim(SceneObject* o, bool touching)      // 0x4093a0 (simplified: click-to-play / frame-per-click / toggle)
+{
+    if (o->allowToggle && !o->clickToPlay) { o->paused = !o->paused; }
+    if (o->framePerClick && !o->frames.empty()) {
+        o->frame = (o->frame + 1) % (int)o->frames.size();
+        o->elem->setcanvas(o->frames[o->frame]);
+    }
+    if (o->clickToPlay) {
+        startAnim(o);
+        game_->inputConsumed = true;
+        if (o->eventAtBegin) baseEvent(o, touching, false); else o->eventPending = true;
         return;
     }
-    if (o->userCtl) return;
-    if (game_->world3d() && game_->world3d()->approach(o)) return;
-    lastClicked_ = o;
-    game_->log("click %d,%d: %s '%s'\n", x, y, o->kind == SceneObject::Obj2D ? "2DOB" : o->kind == SceneObject::Anim2D ? "ANIM" : o->kind == SceneObject::Char ? "CHAR" : o->kind == SceneObject::Item ? "ITEM" : "SPOT", o->description.c_str());
-    if (o->kind == SceneObject::Anim2D) {
-        // click-to-play / frame-per-click / toggle (0x409570); the event at the begin or at the end of the run
-        if (o->allowToggle && !o->clickToPlay) { o->paused = !o->paused; }
-        if (o->framePerClick && !o->frames.empty()) {
-            o->frame = (o->frame + 1) % (int)o->frames.size();
-            o->elem->setcanvas(o->frames[o->frame]);
-        }
-        if (o->clickToPlay) {
-            startAnim(o);
-            if (o->eventAtBegin) pickEvent(o, true); else o->eventPending = true;
-            return;
-        }
-    }
-    pickEvent(o, true);
+    baseEvent(o, touching, false);
 }
 
 // ------------------------------------------------------------------------------- update / bars
@@ -603,6 +807,19 @@ void GameScene::transitionClose()   // 'transition close' (0x43f3b3): bars come 
 }
 
 void GameScene::shake() { shake_ = 1000.0f; game_->log("      3D: camera shake 1 s (scene vt+0x15c)\n"); }
-void GameScene::setDoor(const char* name) { door_ = name; }
+void GameScene::setDoor(const char* name)       // 'setdoor' (0x43fbed): scene+0x1c80 = the trigger of that name
+{
+    doorTrig_ = 0;
+    for (size_t i = 0; i < objects_.size(); ++i)
+        if (objects_[i]->kind == SceneObject::Trigger && strcasecmp(objects_[i]->doorAnim.c_str(), name) == 0) doorTrig_ = objects_[i];
+}
+
+void GameScene::playDoor()                      // 0x43adb0: the door trigger's Door Anim Name, an ANIM of the scene
+{
+    if (!doorTrig_ || doorTrig_->doorAnim.empty()) return;
+    SceneObject* a = find(doorTrig_->doorAnim.c_str(), 1 << SceneObject::Anim2D);
+    if (a) { setHidden(a, false); startAnim(a); }
+    else game_->log("door: no 2D animation '%s'\n", doorTrig_->doorAnim.c_str());
+}
 
 }  // namespace sbgame

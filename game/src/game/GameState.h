@@ -41,6 +41,7 @@ public:
     void removeItem(const char* name);
     const std::vector<std::string>& items() const { return items_; }
     void setFlag(const char* name, bool on);
+    void addChar(const char* name);                                 // 0x416c70 (the 'CHAR' save record: an item was given to it)
     // 0x416ba0 'block' / 'unblock': (scene, x, y) cells the player may not walk on
     void setBlocked(unsigned scene, int x, int y, bool blocked);
     bool isBlocked(unsigned scene, int x, int y) const;

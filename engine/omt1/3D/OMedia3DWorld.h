@@ -89,6 +89,9 @@ class OMedia3DVPModel : public OMediaVPModel
 	// port: picking (test_click 0x10035e10 is not rebuilt): the screen rectangle (target pixels) the element's visible
 	// polygons covered in the last render, and the nearest view depth among them. false: it was not drawn.
 	bool get_element_bounds(const OMedia3DShapeElement *e, float &l, float &t, float &r, float &b, float &z) const;
+	// port: a world point through the last render's view transform and projection (0x10033380 + 0x10034eb0), target pixels.
+	// false: behind the near plane or nothing rendered yet.
+	bool project_point(float x, float y, float z, float &sx, float &sy) const;
 
 	protected:
 	struct ElementBounds {float l, t, r, b, z;};

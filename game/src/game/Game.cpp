@@ -54,7 +54,7 @@ bool OmtFile::open(const std::string& file)
 
 // ------------------------------------------------------------------------------------------- Game
 Game::Game()
-    : movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
+    : movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), pendingObj(0), pendingEvent(false), walkInMs(0), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
       pendingId_(0), pendingStart_(0), runner_(0), host_(0), hoverCap_(0), commentCap_(0), commentMs_(0), mx_(320), my_(240),
       inputAttached_(false), commentBlock_(0), commentVoice_(false), hud_(0), cursor_(0)
 {
@@ -236,7 +236,10 @@ void Game::loadSceneBanks(unsigned id)
 void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without a 3D world)
 {
     if (!pendingId_) return;
+    // 0x40b720 head: the player goes through the door first ("door", then "walk", or a turn), then the bars
+    if (scene_ && w3_ && w3_->player() && scene_->doorTrigger() && w3_->doorBusy()) return;
     if (scene_ && scene_->barState() != 0) return;
+    bool hadPlayer = scene_ && w3_ && w3_->player();
     unsigned id = pendingId_;
     int start = pendingStart_;
     pendingId_ = 0;
@@ -260,7 +263,14 @@ void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without 
     comments_.load(*host_, chapter, (int)((id >> 8) & 0xf), &err);
     help_.load(*host_, chapter, &err);
     host_->sceneLoaded();
+    pendingObj = 0; pendingItem.clear();
     scene_->enter(start);
+    // 0x40b720 tail: the new scene's player walks in (game+0x258 = 500: walk-in triggers wait), unless a script or an
+    // H event starts the scene (port: the old player's turn flags +0x354..+0x358 are always clear here)
+    if (hadPlayer && w3_ && w3_->player() && id != 0x80404 && !runner_ && !scene_->hasPendingEvent()) {
+        walkInMs = 500.0f;
+        w3_->walkIn();
+    }
 }
 
 // ------------------------------------------------------------------------ the event classifier
@@ -318,6 +328,13 @@ void Game::runScript(const char* name)
     } else if (!runner_->keepControl()) {
         host_->controlLostToScript(name);       // the actor loses control (char+0x32a = 0)
     }
+}
+
+bool Game::hudHolding() { return hud_ && hud_->holding(); }
+
+void Game::hudAddFromScene(SceneObject* it)     // 0x41f4d0 (port: Hud::addItem; the flight starts at the bar's own point)
+{
+    if (hud_) hud_->addItem(it->art.c_str(), it->description.c_str());
 }
 
 void Game::forceRedraw() { if (vp_) { OMediaRect r(0, 0, 640, 480); vp_->setbounds(&r); } }
@@ -420,6 +437,7 @@ void Game::update(float dt)
     for (int i = 0; i < m->get_nchannels(); ++i) m->get_channel(i)->spend_time();
     doSwitch();
     if (!scene_) { if (cursor_) cursor_->update(mx_, my_); return; }   // port: cursor
+    if (walkInMs > 0) { walkInMs -= dt; if (walkInMs < 0) walkInMs = 0; }
     scene_->update(dt);
     if (scene_->dialogue()) scene_->dialogue()->update(dt);
     host_->update(dt);

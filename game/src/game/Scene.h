@@ -44,6 +44,13 @@ struct SceneObject {
     bool rolloverCond;                  // SPOT: Rollover uses Cond.
     bool clickable;                     // CHAR / ITEM: Clickable
     bool userCtl;                       // CHAR: User Controlled (+0x27e)
+    float radius;                       // ITEM / CHAR / TRIG +0x23c (the touch radius, 0x4313e0)
+    short rotation;                     // ITEM / CHAR / TRIG +0x240 (CHAR/ITEM) or TRIG +0x27a: heading, 0x4000 = 360
+    short pickup, addInv;               // ITEM +0x278 Can Pickup, +0x27a Add to Inventory
+    short requireEnter, isDoor, useCond;// TRIG +0x278 (0 = fires when walked into), +0x27c Is a Door, +0x27e (pick needs the Condition)
+    std::string doorAnim;               // TRIG +0x280 Door Anim Name (the 2D ANIM played by the door, 0x43adb0)
+    short faceHeading, facePlayer;      // CHAR +0x2a4 (the player turns to this heading; 0 = toward the character), +0x2a0
+    bool hidden3D;                      // TRIG: the Visible Condition hides it (full object +0x4c); CHAR / ITEM use their element
     bool is3D() const { return kind == Item || kind == Char || kind == Trigger; }   // +0x161
     OMediaCanvasElement* elem;          // the 2D element (2DOB, ANIM); null otherwise
     // ---- ANIM (properties of 0x4078a0; runtime state at 0x2a4.. of the exe object) ----
@@ -86,12 +93,18 @@ public:
     // scene vt+0xf4 object then its vt+0x9c: start an ANIM (true while it runs)
     bool animate(const char* name);
     // scene vt+0xc4 (0x43a310): what is under x,y (2D objects; the 3D passes are lane A's)
-    SceneObject* pick(int x, int y);
-    // base vt+0x40 (0x415a70): choose Event / Alt Event by Condition and send it to game vt+0xb0.  `fromClick`
-    // is the exe's second argument (it lets a "C?L?S" alt event mark the object used).  Returns true if an event ran.
-    bool pickEvent(SceneObject* o, bool fromClick);
-    // base vt+0x48 (0x415c30): use item `item` on o.  true: the item was accepted (and consumed by the UI)
+    SceneObject* pick(int x, int y);                                  // TRIG pass + 2D pass
+    SceneObject* pick2D(int x, int y);
+    SceneObject* pickAll(int x, int y);                               // all three passes (TRIG, CHAR / ITEM, 2D)
+    // vt+0x40 of the object: TRIG 0x441cb0, CHAR 0x433a60, ITEM 0x4234d0, the others the base 0x415a70 (choose Event / Alt
+    // Event by the Condition, `touching` is its extra argument, and send it to game vt+0xb0).  `touching`: the player touches
+    // the object (or has walked to it); `fromClick` plays the object sound.  Returns true if an event ran (base only).
+    bool pickEvent(SceneObject* o, bool touching, bool fromClick);
+    bool baseEvent(SceneObject* o, bool touching, bool fromClick);     // 0x415a70
+    // vt+0x48 of the object: CHAR 0x433f00, TRIG 0x441ed0, the others the base 0x415c30.  true: the item was accepted
+    // (the HUD removes it)
     bool useItem(SceneObject* o, const char* item);
+    bool baseUseItem(SceneObject* o, const char* item);               // 0x415c30
     // scene vt+0xbc (0x4398f0): a click at x,y that was not on the HUD
     void click(int x, int y);
     // game cursor object vt+0x30: hover description under x,y
@@ -110,9 +123,12 @@ public:
     float shakeMs() const { return shake_; }        // camera shake timer
     float lockMs() const { return lock_; }          // +0x1d4 (0x735): clicks are ignored for 500 ms after entering
     void shake();                                   // scene vt+0x15c
-    void setDoor(const char* name);                 // scene+0x1c80
-    const std::string& door() const { return door_; }
+    void setDoor(const char* name);                 // 'setdoor' (0x43fbed): the door trigger by name
+    SceneObject* doorTrigger() const { return doorTrig_; }   // scene+0x1c80: the door trigger the player goes through
+    void playDoor();                                // scene vt+0x110 (0x43adb0): the door trigger's 2D animation
+    void clearDoor() { doorTrig_ = 0; }
 
+    bool hasPendingEvent() const { return !pendingEvent_.empty(); }
     SceneObject* lastClicked() { return lastClicked_; }   // +0x1cd8 / +0x1cb0
     DialogueUI* dialogue() { return dialogue_; }
     OMediaCanvas* canvasNamed(const std::string& n);       // scene art database, then sb2.omt (0x407f90 order)
@@ -123,6 +139,7 @@ private:
     void place(SceneObject* o);
     void setHidden(SceneObject* o, bool hidden);
     void tickAnim(SceneObject* o, float dtMs);
+    void clickAnim(SceneObject* o, bool touching);
     void startAnim(SceneObject* o);
     void ensureBars();
     void moveBars(float topY, float botY, float z);
@@ -149,7 +166,12 @@ private:
     float topY_, botY_;
     float shake_;
     float lock_;
-    std::string door_;
+    SceneObject* doorTrig_;
+    void triggerEvent(SceneObject* o, bool touching);   // 0x441cb0
+    void charEvent(SceneObject* o, bool touching);      // 0x433a60
+    void itemEvent(SceneObject* o, bool touching);      // 0x4234d0
+    bool charUseItem(SceneObject* o, const char* item); // 0x433f00
+    bool trigUseItem(SceneObject* o, const char* item); // 0x441ed0
     SceneObject* lastClicked_;
     std::string pendingEvent_;       // scene+0x1cb4
 };

@@ -113,3 +113,11 @@ void GameState::setBlocked(unsigned scene, int x, int y, bool bl)
 bool GameState::isBlocked(unsigned scene, int x, int y) const { return blocked_.count(bkey(scene, x, y)) != 0; }
 
 }  // namespace sbgame
+
+namespace sbgame {
+void GameState::addChar(const char* name)       // 0x416c70: once per name
+{
+    for (size_t i = 0; i < chars_.size(); ++i) if (chars_[i] == name) return;
+    chars_.push_back(name);
+}
+}
