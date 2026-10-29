@@ -125,6 +125,14 @@ public class SetupActivity extends Activity {
         Button play = button(root, "Play", v -> play(false));
         final Button panel = button(root, panelLabel(), null);
         panel.setOnClickListener(v -> { setPanelOn(!panelOn()); panel.setText(panelLabel()); });
+        final String[] labels = { "Fill (pan)", "Side panels", "Stretch" };
+        int selected = getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen", 0);
+        final Button widescreen = button(root, "Widescreen: " + labels[selected % 3], null);
+        widescreen.setOnClickListener(v -> {
+            int next = (getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen", 0) + 1) % 3;
+            getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("widescreen", next).apply();
+            widescreen.setText("Widescreen: " + labels[next]);
+        });
         button(root, "Test", v -> showTest());
         button(root, "Quit", v -> finish());
         setContentView(root);

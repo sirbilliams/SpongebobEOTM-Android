@@ -30,6 +30,9 @@ public class SpongeActivity extends SDLActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         try {
+            String[] modes = { "fill", "panels", "stretch" };
+            int mode = getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen", 0);
+            Os.setenv("SB_WIDESCREEN", modes[Math.floorMod(mode, 3)], true);
             File base = getExternalFilesDir(null);
             if (base != null) Os.setenv("OMT_DATA", new File(base, "game").getPath(), true);
             if (getIntent() != null && getIntent().getBooleanExtra(EXTRA_CRASH_TEST, false))

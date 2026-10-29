@@ -140,3 +140,45 @@ ITEM record an `OMedia3DGrannyModel` (`models/people|items/<name>_model`) + `OMe
   widescreen mode is added in those two functions (and the 640x480 canvas / viewports' size), nowhere else. Bink movies scale in `StartupApp::present`.
 * Test env (desktop only): `SB_SKIP_MOVIES=1` (logos, menu movies, intro), `SB_TEST_NEWGAME=1` (New Game at menu frame 20), `SB_TEST_SCENE=<scene or
   event>` (first target instead of the intro), `SB_TEST_CLICKS` / `SB_TEST_GAME_CLICKS="frame:x:y,..."` (logical-coordinate clicks sent as window events, frame numbers of the menu / game loop), `SB_GAME_LOG=1` (the runtime's log on stdout).
+
+## Port widescreen presentation (lane C)
+
+`SB_WIDESCREEN=fill|panels|stretch|off` selects presentation; the default is `fill`.
+Android's launcher remembers **Widescreen: Fill (pan) / Side panels / Stretch** in
+its settings preferences and exports `SB_WIDESCREEN` before SDL starts. Desktop
+and Flatpak use the environment directly. `off` retains centred 4:3 black bars.
+
+The mode belongs after scene composition, in `omgl_present`, rather than in the
+scene camera: pre-drawn backgrounds, 3D characters, captions and hit rectangles
+still use the authored 640x480 coordinates. Fill uses drawable width / 640 (3x
+at 1920x1080), showing 360 logical vertical pixels. A bounded exponential pan
+tracks the user-controlled character's projected `World3D::screenBounds` and the
+mouse focus (window height mapped to the authored height) with a 12-pixel
+character margin. Moving toward a window edge requests that authored edge. When both cannot fit,
+it centres their combined span and clamps to the authored frame. Panels draws
+original procedural planks and brass/blue circular portholes behind the centred
+frame; stretch scales each axis independently. Narrow displays retain fit in
+fill mode rather than cropping horizontally.
+
+`omgl_window_to_logical` and its inverse share the last presented transform,
+including the vertical crop and window/drawable pixel ratio. Both OMT mouse
+input (including SDL's touch mouse events) and test click replay use these
+functions. `StartupApp::run_game` enables the mode with current player bounds;
+leaving it resets to fit. The menu is therefore always centred 4:3. Movie
+`StartupApp::present` keeps its separate centred 4:3 path.
+
+Validation in this sandbox: normal and ASan/UBSan builds succeed. At 1920x1080,
+`SB_TEST_NEWGAME=1 SB_SKIP_MOVIES=1 SB_TEST_SCENE=c1l2s6`
+with `SB_TEST_GAME_CLICKS=100:235:425 SB_GAME_LOG=1` reports
+`click 235,425: CHAR 'SpongeBob'` in fill, panels, stretch and off.
+Menu (fill selected) and startup movie (stretch selected) captures also retain
+centred 4:3. Screenshots live under ignored `.shots/ws-<mode>.png`; additional scene captures
+and sanitizer logs use `.shots/ws-<scene>-<mode>*`. Sanitizer runs disable leak
+checking for the graphics/audio libraries (`ASAN_OPTIONS=detect_leaks=0`).
+
+The required Xvfb/import check is still outstanding: Xvfb :83 fails to bind its
+local/UNIX sockets under this session's sandbox, and `import -display :83
+-window root` cannot connect. Captures here instead use `OMT_SCREENSHOT` at
+1920x1080 with SDL's headless fallback, then ImageMagick BMP-to-PNG conversion.
+The distrobox entry command is unavailable inside this already provisioned
+build environment. No Android device/launcher execution was available.

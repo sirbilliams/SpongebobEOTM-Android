@@ -1,6 +1,7 @@
 /*  OMT 1.x engine layer (OMT.dll, Aug 2002), rebuilt from the retail DLL's code. LGPL like OMT. */
 #include "OMediaEventManager.h"
 #include "OMediaDisplay.h"
+#include "OMediaGLBackend.h"
 
 OMediaEventManager *OMediaEventManager::event_manager = NULL;
 
@@ -21,19 +22,7 @@ OMediaEventManager::~OMediaEventManager()
 // port: window pixels -> logical screen pixels (the GL back end letterboxes the screen, omgl_present)
 void OMediaEventManager::window_to_logical(int &px, int &py)
 {
-	SDL_Window *win = SDL_GL_GetCurrentWindow();
-	OMediaScreenDevice *dev = OMediaScreenDevice::getdefaultdevice();
-	if (win && dev && dev->getwidth() > 0 && dev->getheight() > 0)
-	{
-		int ww, wh;
-		SDL_GetWindowSize(win, &ww, &wh);
-		float lw = dev->getwidth(), lh = dev->getheight();
-		float sc = (float)ww / lw;
-		if ((float)wh / lh < sc) sc = (float)wh / lh;
-		float x0 = (ww - lw * sc) * 0.5f, y0 = (wh - lh * sc) * 0.5f;
-		px = (int)((px - x0) / sc);
-		py = (int)((py - y0) / sc);
-	}
+	omgl_window_to_logical(px, py);
 }
 
 // 0x10390f70: the pointer (OMT.dll asks the input driver) and the modifier keys
