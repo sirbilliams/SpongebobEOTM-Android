@@ -12,6 +12,8 @@
 #include "../ui/MainMenu.h"
 #include "../scene/SceneData.h"
 #include "../game/Game.h"
+#include "../game/World3D.h"
+#include "OMediaGLBackend.h"
 #include "../game/SceneScriptHost.h"
 #include <stdexcept>
 #include "CrashLog.h"
@@ -210,8 +212,7 @@ class StartupApp : public MenuHost
 	void present(SDL_Window *win, GLuint texture)
 	{
 		// Scenes and the menu are drawn into the 640x480 screen canvas and scaled to the drawable by omgl_present
-		// (engine/sdl/OMediaSDLGfx.cpp, 4:3 centred); the mouse goes back through OMediaEventManager::window_to_logical.
-		// A widescreen mode is added in those two places.
+		// (engine/sdl/OMediaSDLGfx.cpp); input uses the same widescreen transform via window_to_logical.
 		// port: the movie is 640x480; scale it to the real drawable (1920x1080 on the Thor), 4:3 centred
 		// with black bars. A fixed 640x480 viewport drew it in the bottom-left corner.
 		int dw = 640, dh = 480;
@@ -279,9 +280,7 @@ class StartupApp : public MenuHost
         for(const char *p=replay;p && *p && win;) {
             unsigned at; int x,y;
             if(sscanf(p,"%u:%d:%d",&at,&x,&y)==3 && at==frame) {
-                int ww,wh; SDL_GetWindowSize(win,&ww,&wh);
-                float sc=(float)ww/640.0f<(float)wh/480.0f?(float)ww/640.0f:(float)wh/480.0f;
-                int px=(int)((ww-640*sc)*0.5f+(x+0.5f)*sc), py=(int)((wh-480*sc)*0.5f+(y+0.5f)*sc);
+                int px=x, py=y; omgl_logical_to_window(px,py);
                 SDL_WarpMouseInWindow(win,px,py);
                 SDL_Event e; SDL_zero(e); e.type=SDL_MOUSEMOTION; e.motion.x=px; e.motion.y=py; SDL_PushEvent(&e);
                 e.type=SDL_MOUSEBUTTONDOWN; e.button.button=SDL_BUTTON_LEFT; e.button.x=px; e.button.y=py; SDL_PushEvent(&e);
@@ -368,13 +367,14 @@ class StartupApp : public MenuHost
             for(;;) {
                 if(event_manager->quit_requested()) { result=false; break; }
                 SDL_Event ev; bool leave=false;
+                // port: replay against the displayed transform before this frame can pan.
+                test_clicks(frame,"SB_TEST_GAME_CLICKS");
                 while(SDL_PollEvent(&ev)) {
                     event_manager->handle_sdl_event(&ev);
                     if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); game->mouseMove(x,y); }
                     if(ev.type==SDL_KEYDOWN && (ev.key.keysym.sym==SDLK_F10 || ev.key.keysym.sym==SDLK_AC_BACK)) leave=true;   // port: back to the menu
                 }
                 if(leave) break;
-                test_clicks(frame,"SB_TEST_GAME_CLICKS");
                 if(movie_done) {
                     movie_done=false;
                     if(!movie_ok) { result=false; break; }
@@ -386,12 +386,22 @@ class StartupApp : public MenuHost
                 if(dt>66.0f) dt=66.0f;       // a slow frame must not skip a script
                 game->update(dt);
                 // port: no OMediaPeriodical::devote_time(): it updates the worlds a second time per frame (a black frame every few frames)
+                float top=-1,bottom=-1;
+                if(game->scene() && game->world3d()) {
+                    std::vector<sbgame::SceneObject*>& objects=game->scene()->objects();
+                    for(size_t i=0;i<objects.size();++i) if(objects[i]->userCtl) {
+                        int l,t,r,b;
+                        if(game->world3d()->screenBounds(objects[i],l,t,r,b)) { top=t; bottom=b; break; }
+                    }
+                }
+                omgl_widescreen_scene(true,top,bottom);
                 game->world()->update();
                 ++frame; SDL_Delay(10);
             }
         } catch(OMediaError &e) {
             SDL_Log("game: OMT error %d at %s:%d",(int)e.errorcode,e.file.c_str(),e.line);
         }
+        omgl_widescreen_scene(false);
         delete game;
         return result;
     }

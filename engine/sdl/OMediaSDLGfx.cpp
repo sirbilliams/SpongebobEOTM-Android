@@ -11,6 +11,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <vector>
+#include <math.h>
 
 extern void omf_SDLFrameHook(SDL_Window *win);		// OMediaSDLMain.cpp: frame count, OMT_SCREENSHOT
 
@@ -321,6 +322,66 @@ void omgl_read_into(OMediaGfxWorld *src, const OMediaRect &sr, OMediaGfxPixels *
 	dest->version++;
 }
 
+// port: presentation only; the authored camera and scene remain 640x480.
+static bool ws_scene = false;
+static float ws_top = -1, ws_bottom = -1, ws_pan = 60;
+static Uint32 ws_tick = 0;
+static float ws_x=0, ws_y=0, ws_w=640, ws_h=480;
+static int ws_dw=640, ws_dh=480;
+static const char *ws_mode() {
+    const char *m=getenv("SB_WIDESCREEN");
+    return ws_scene ? (m ? m : "fill") : "off";
+}
+void omgl_widescreen_scene(bool active, float top, float bottom) {
+    if(active != ws_scene) { ws_pan=60; ws_tick=0; }
+    ws_scene=active; ws_top=top; ws_bottom=bottom;
+}
+void omgl_window_to_logical(int &x, int &y) {
+    if(!omg_win) return;
+    int w,h; SDL_GetWindowSize(omg_win,&w,&h);
+    if(w<=0 || h<=0) return;
+    x=(int)floor((x*(float)ws_dw/w-ws_x)*omg_lw/ws_w);
+    y=(int)floor((y*(float)ws_dh/h-ws_y)*omg_lh/ws_h);
+}
+void omgl_logical_to_window(int &x, int &y) {
+    if(!omg_win) return;
+    int w,h; SDL_GetWindowSize(omg_win,&w,&h);
+    x=(int)((ws_x+(x+0.5f)*ws_w/omg_lw)*w/ws_dw);
+    y=(int)((ws_y+(y+0.5f)*ws_h/omg_lh)*h/ws_dh);
+}
+static void ws_disc(float x, float y, float r) {
+    glBegin(GL_TRIANGLE_FAN); glVertex2f(x,y);
+    for(int k=0;k<=48;++k) { float a=k*6.2831853f/48; glVertex2f(x+cos(a)*r,y+sin(a)*r); }
+    glEnd();
+}
+static void ws_panels(int dw, int dh) {
+    glDisable(GL_TEXTURE_2D);
+    glColor3f(0.18f,0.38f,0.40f);
+    omf_quad(0,0,dw,dh,0,0,0,0);
+    // Original procedural planks, seams, and bubble/porthole rings.
+    for(int y=0;y<dh;y+=90) {
+        glColor3f(0.63f+(y%3)*0.025f,0.43f,0.22f);
+        omf_quad(0,y+3,dw,y+87,0,0,0,0);
+        glColor3f(0.39f,0.25f,0.12f);
+        for(int x=18;x<dw;x+=71) omf_quad(x,y+20,x+35,y+22,0,0,0,0);
+    }
+    for(int side=0;side<2;++side) for(int j=0;j<5;++j) {
+        float cx=side?dw-ws_x*0.5f:ws_x*0.5f, cy=(j+0.5f)*dh/5;
+        float r=(j%2?22:42);
+        glColor3f(0.91f,0.69f,0.26f); ws_disc(cx,cy,r+7);
+        glColor3f(0.08f,0.40f,0.51f); ws_disc(cx,cy,r);
+        glColor3f(0.52f,0.83f,0.86f);
+        glBegin(GL_LINE_LOOP);
+        for(int k=0;k<48;++k) { float a=k*6.2831853f/48; glVertex2f(cx+cos(a)*r,cy+sin(a)*r); }
+        glEnd();
+        for(int k=0;k<8;++k) {
+            float a=k*6.2831853f/8;
+            glColor3f(0.36f,0.28f,0.15f); ws_disc(cx+cos(a)*(r+3.5f),cy+sin(a)*(r+3.5f),1.5f);
+        }
+    }
+    glColor4f(1,1,1,1);
+}
+
 // --------------------------------------------------------------------------- present
 
 void omgl_present(OMediaGLSurface *s)
@@ -328,6 +389,7 @@ void omgl_present(OMediaGLSurface *s)
 	if (!omg_win || !s || !s->tex) return;
 	int dw, dh;
 	SDL_GL_GetDrawableSize(omg_win, &dw, &dh);
+	if(dw<=0 || dh<=0) return;
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 	omg_bound = NULL;
 	glViewport(0, 0, dw, dh);
@@ -338,6 +400,28 @@ void omgl_present(OMediaGLSurface *s)
 	float sc = (float)dw / s->width;
 	if ((float)dh / s->height < sc) sc = (float)dh / s->height;
 	float w = s->width * sc, h = s->height * sc, x0 = (dw - w) * 0.5f, y0 = (dh - h) * 0.5f;
+    const char *mode=ws_mode();
+    if(!strcmp(mode,"stretch")) { w=dw; h=dh; x0=y0=0; }
+    if(!strcmp(mode,"fill") && (float)dw/dh > (float)s->width/s->height) {
+        sc=(float)dw/s->width; w=dw; h=s->height*sc; x0=0;
+        float visible=dh/sc, limit=s->height-visible;
+        int mx,my,ww,wh; SDL_GetMouseState(&mx,&my); SDL_GetWindowSize(omg_win,&ww,&wh);
+        // A pointer near a window edge requests that authored edge, allowing the
+        // cropped area to be explored without changing the scene camera.
+        float focus=wh>0 ? my*(float)s->height/wh : s->height*0.5f;
+        if(focus<0) focus=0; if(focus>s->height) focus=(float)s->height;
+        float low=ws_top>=0 ? ws_top-12 : focus, high=ws_bottom>=0 ? ws_bottom+12 : focus;
+        if(focus<low) low=focus; if(focus>high) high=focus;
+        float target=ws_pan;
+        if(high-low>visible) target=(low+high-visible)*0.5f;
+        else { if(high>target+visible) target=high-visible; if(low<target) target=low; }
+        if(target<0) target=0; if(target>limit) target=limit;
+        Uint32 now=SDL_GetTicks(); float dt=ws_tick?(now-ws_tick)*0.001f:1; ws_tick=now;
+        ws_pan+=(target-ws_pan)*(1-expf(-8*dt));
+        if(ws_pan<0) ws_pan=0; if(ws_pan>limit) ws_pan=limit;
+        y0=dh-h+ws_pan*sc; // GL bottom origin; input uses the top origin below.
+    }
+    ws_dw=dw; ws_dh=dh; ws_x=x0; ws_y=dh-y0-h; ws_w=w; ws_h=h;
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0, dw, 0, dh, -1, 1);
@@ -347,6 +431,7 @@ void omgl_present(OMediaGLSurface *s)
 	glDisable(GL_BLEND);
 	glDisable(GL_ALPHA_TEST);
 	glDisable(GL_LIGHTING);
+	if(!strcmp(mode,"panels")) ws_panels(dw,dh);
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, s->tex);
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
