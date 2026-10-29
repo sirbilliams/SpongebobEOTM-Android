@@ -7,7 +7,9 @@
 
 #include "OMediaSDLRetarget.h"
 #include "OMediaSound.h"
+#ifndef OMT1_NO_SOUND_ENGINE		// port: programs on the OMT 1.x layer (omt1_sound) have no OMT 2.5 engine factory
 #include "OMediaSoundEngine.h"
+#endif
 #include "OMediaSoundChannel.h"
 #include "OMediaError.h"
 #include "OMediaEndianSupport.h"
@@ -369,6 +371,7 @@ class OMediaSDLSoundChannel : public OMediaSoundChannel
 // ---------------------------------------------------------------------------
 // Engine
 
+#ifndef OMT1_NO_SOUND_ENGINE
 class OMediaSDLSoundEngine : public OMediaSoundEngine
 {
 	public:
@@ -380,6 +383,8 @@ class OMediaSDLSoundEngine : public OMediaSoundEngine
 };
 
 OMediaSoundEngine *omf_SDLCreateSoundEngine(OMediaWindow *master) { return new OMediaSDLSoundEngine(master); }
+
+#endif
 
 // port: suspend (OMediaSDLInput.cpp): the whole mix stops while the app is in the background
 void omf_SDLAudioPause(bool pause)

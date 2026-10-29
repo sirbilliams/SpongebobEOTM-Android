@@ -114,6 +114,15 @@ endif()
 target_compile_options(sb_audio PRIVATE -Wno-write-strings -Wno-multichar)
 target_link_libraries(sb_audio PUBLIC ${OMT_SDL})
 
+# The OMT 1.x sound manager (omt1/OMediaSoundManager.cpp, lane B's) and the SDL sound channels, for programs built on
+# the omt1 layer: the OMT 2.5 sound classes it is made of, compiled against the omt1 headers.
+add_library(omt1_sound STATIC OMTClasses/Sound/OMediaSound.cpp OMTClasses/Sound/OMediaSoundChannel.cpp OMTClasses/Engines/OMediaEngineImplementation.cpp
+  sdl/OMediaSDLSound.cpp omt1/OMediaSoundManager.cpp)
+target_include_directories(omt1_sound PUBLIC omt1 OMTClasses/Sound OMTClasses/Engines PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../game/bink)
+target_compile_definitions(omt1_sound PRIVATE OMT1_NO_SOUND_ENGINE)
+target_link_libraries(omt1_sound PUBLIC omt1)
+target_compile_options(omt1_sound PRIVATE -fpermissive -w -fno-strict-aliasing -fno-sanitize=vptr)   # OMediaEngine (typeinfo) is not linked
+
 # --------------------------------------------------------------------------- game importer
 # Installs the game files from the game's CD image (.iso): ISO 9660 + InstallShield cabinet
 # (unshield, MIT, fetched by fetch-deps.sh). Android: libimporter.so for the setup screen.
@@ -154,6 +163,9 @@ endif()
 # The reconstructed game (../game/src). MSVC's char is signed and the original code relies on it,
 # so -fsigned-char (arm64's default char is unsigned).
 file(GLOB_RECURSE SB_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/*.cpp)
+# game/src/game is the scene runtime on the OMT 1.x layer (library omt1, built by sb_scenetest); 'spongebob' still links
+# the OMT 2.5 'omt', so it is left out until the two engines are merged
+list(FILTER SB_SRC EXCLUDE REGEX "/game/src/game/")
 if(SB_SRC AND NOT TARGET bink)
   message(FATAL_ERROR "Startup needs Bink: fetch pinned FFmpeg or set FFMPEG_PREFIX")
 endif()
@@ -208,6 +220,15 @@ else()
   # Script interpreter + dialogue tables of the reconstructed game: parses every .sb2 of the install (sb_scripttest <game dir>)
   add_executable(sb_scripttest tests/sb_scripttest.cpp ../game/src/script/Sb2File.cpp ../game/src/script/ScriptRunner.cpp ../game/src/script/ScriptCondition.cpp ../game/src/script/ScriptHostLog.cpp ../game/src/script/Dialogue.cpp)
   target_compile_options(sb_scripttest PRIVATE -Wall -fsigned-char)
+
+  # The 2D scene runtime (game/src/game: scene, dialogue UI, ScriptHost) on the OMT 1.x layer, headless
+  file(GLOB SB_GAME_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/game/*.cpp)
+  add_executable(sb_scenetest tests/sb_scenetest.cpp ${SB_GAME_SRC}
+    ../game/src/script/Sb2File.cpp ../game/src/script/ScriptRunner.cpp ../game/src/script/ScriptCondition.cpp ../game/src/script/Dialogue.cpp
+    ../game/src/scene/SceneData.cpp ../game/src/scene/SceneReader.cpp ${OMT_MAIN})
+  target_include_directories(sb_scenetest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/game)
+  target_link_libraries(sb_scenetest omt1_sound omt1)
+  target_compile_options(sb_scenetest PRIVATE -Wall -Wno-multichar -Wno-write-strings -fsigned-char -fno-strict-aliasing)
 
   # The reconstructed game, desktop build
   if(SB_SRC)
