@@ -127,6 +127,7 @@ class StartupApp : public MenuHost
 		OMediaSoundManager *manager = OMediaSoundManager::getdefaultmanager();
 		BinkSetSoundSystem(BinkOpenDirectSound, 0); // port: shared SDL mixer, no DirectSound pointer.
 		manager->set_nchannels(15);
+		apply_settings();
 		SDL_Log("0x40c2a0: Sound Manager Channels = %ld", manager->get_nchannels());
 		BinkPortSetSurfaceType(BINKSURFACE32);
 	}
@@ -165,7 +166,22 @@ class StartupApp : public MenuHost
         return true;
     }
     virtual bool menu_load(int slot) { launch = L_LOAD; launch_slot = slot; start_game = true; return true; }   // 0x429120
+    // 0x40c3b0 (the settings apply): the sound manager's channel groups get 6*level+201 (0 for level 0): 3 = Music, 4 = Voice, the others (not 0) = Sound;
+    // the Text / Shadows values go to the game object.
+    void apply_settings() {
+        OMediaSoundManager *m = OMediaSoundManager::getdefaultmanager();
+        for (long i = 1; i < m->get_nchannels() && i < 15; ++i) {
+            int lv = i == 3 ? music : i == 4 ? voice : sound;
+            if (lv < 0) lv = 0; if (lv > 9) lv = 9;
+            m->get_channel(i)->set_volume((short)(lv == 0 ? 0 : lv * 6 + 201));
+        }
+        SDL_Log("0x40c3b0: mixer music=%d (ch3 vol %d) sound=%d (ch1,2,5.. vol %d) voice=%d (ch4 vol %d) text=%d shadows=%d",
+            music, music ? music * 6 + 201 : 0, sound, sound ? sound * 6 + 201 : 0, voice, voice ? voice * 6 + 201 : 0, text, shadows);
+        if (paused) { paused->optText = text; paused->optShadows = shadows; }
+    }
+    virtual void menu_preview(int kind) { if (paused) paused->previewSound(kind == 3); }      // 0x4256b0 (only with a game's banks open)
     virtual void menu_settings_changed() {
+        apply_settings();
         // port: persist 0x409ed0's registry settings under SDL's per-user directory.
         char *pref=SDL_GetPrefPath("THQ","SpongeBob 2");
         std::string path=getenv("OMT_CONFIG")?getenv("OMT_CONFIG"):std::string(pref?pref:"")+"settings.cfg";
@@ -342,7 +358,9 @@ class StartupApp : public MenuHost
             while(OMediaEventManager::poll(&ev)) {
                 event_manager->handle_sdl_event(&ev);
                 if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); menu.hover(x,y); }
-                if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE) { if(menu.atTop() && paused) menu_resume(); else menu.back(); }
+                // port: Escape, F10 and Android Back leave a screen (and the menu over a game); pad B too
+                if(ev.type==SDL_KEYDOWN && (ev.key.keysym.sym==SDLK_ESCAPE || ev.key.keysym.sym==SDLK_F10 || ev.key.keysym.sym==SDLK_AC_BACK)) { if(menu.atTop()) { if(paused) menu_resume(); } else menu.back(); }
+                else if(ev.type==SDL_CONTROLLERBUTTONDOWN) menu.padButton(ev.cbutton.button);
                 else if(ev.type==SDL_KEYDOWN) menu.key(ev.key.keysym.sym);
                 else if(ev.type==SDL_TEXTINPUT) menu.text(ev.text.text);
             }
@@ -407,12 +425,13 @@ class StartupApp : public MenuHost
         bool result=true, keep=false;
         try {
             if(launch==L_RESUME && paused) {            // 0x4248b0: the menu closes and the game in progress goes on
-                game=paused; paused=NULL; game->suspended=false;
+                game=paused; paused=NULL; game->suspended=false; apply_settings(); game->optText=text; game->optShadows=shadows;
                 game->forceRedraw();
             } else {
                 delete paused; paused=NULL;
                 game=new sbgame::Game;
                 if(!game->init(".",screen)) { SDL_Log("game: init failed"); delete game; return true; }
+                apply_settings(); game->optText=text; game->optShadows=shadows;
                 game->attachInput();
                 movie_ok=true; movie_done=false;
                 game->movieHook=game_movie; game->movieHookData=this;
