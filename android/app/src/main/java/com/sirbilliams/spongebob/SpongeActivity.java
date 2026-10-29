@@ -3,6 +3,7 @@ package com.sirbilliams.spongebob;
 import android.os.Bundle;
 import android.system.ErrnoException;
 import android.system.Os;
+import android.view.MotionEvent;
 import android.view.WindowManager;
 
 import org.libsdl.app.SDLActivity;
@@ -54,6 +55,13 @@ public class SpongeActivity extends SDLActivity {
         super.onResume();
         if (mPanel == null) mPanel = new CompanionPanel(this);
         mPanel.resume();                                    // the bottom-screen panel, when a second screen is there
+    }
+
+    /** port: bottom-screen touches that reach the game window are forwarded to the panel (docs/bottom-touch.md); the rest is SDL's. */
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent e) {
+        if (mPanel != null && mPanel.routeTouch(e)) return true;
+        return super.dispatchTouchEvent(e);
     }
 
     @Override

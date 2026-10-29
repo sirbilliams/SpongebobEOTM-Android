@@ -13,6 +13,7 @@ final class Companion {
     private static native String nativeSnapshot();
     private static native void nativeSetEnabled(boolean on);
     private static native void nativeCommand(String cmd);
+    private static native void nativeTouchpad(float dx, float dy, int button);
 
     /** The latest snapshot as JSON, or null when the game library is not there. */
     static String snapshot() {
@@ -43,6 +44,19 @@ final class Companion {
         if (sBroken) return;
         try {
             nativeCommand(cmd);
+        } catch (UnsatisfiedLinkError e) {
+            sBroken = true;
+        }
+    }
+
+    /**
+     * The bottom-screen touchpad: a relative move of the game's cursor (dx, dy in the game's 640x480 logical pixels) and the left
+     * button (1 down, 0 up, -1 unchanged). Applied by the game thread with the right stick's pointer (OMediaEventManager).
+     */
+    static void touchpad(float dx, float dy, int button) {
+        if (sBroken) return;
+        try {
+            nativeTouchpad(dx, dy, button);
         } catch (UnsatisfiedLinkError e) {
             sBroken = true;
         }

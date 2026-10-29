@@ -78,6 +78,8 @@ class OMediaEventManager : public OMediaPeriodical
 	omtshared static bool poll(SDL_Event *e);
 	static bool pad_button_down(void);							// port: R3 held (the polled button state cannot see a synthetic click)
 	static bool pad_cursor_enabled(void);
+	static void pad_cursor_delta(float dx, float dy);			// port: the bottom-screen touchpad: a relative pointer move in logical (640x480) units, any thread
+	static void pad_cursor_button(bool down);					// port: the touchpad's left button, any thread
 
 	static void window_to_logical(int &px, int &py);			// port: SDL window pixels -> the 640x480 screen (one place for the viewport mapping)
 

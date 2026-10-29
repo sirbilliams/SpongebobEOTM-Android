@@ -33,6 +33,7 @@ Steps:
 | hud-item | `SB_TEST_ITEMS` + clicks: the pie is used on Larry, dialogue BAA |
 | wide-fill / stretch / panels / fit | `SB_WIDESCREEN=<mode>` once each |
 | pad, touch | `SB_TEST_PAD` / `SB_TEST_TOUCH` hooks (`OMediaEventManager.cpp`) |
+| touchpad | `SB_TEST_TOUCHPAD="frame:dx,dy,btn;..."`: the bottom-screen touchpad's relative cursor path (docs/bottom-touch.md); a click on Larry (c1l5s4) starts dialogue AAA |
 | todo-baseline | no `TODO(` log line that is not in `tools/test/todo-baseline.txt` |
 
 Every game run (own Xvfb display `:85`, started if absent, `SB_SMOKE_DISPLAY` to change; `SDL_AUDIODRIVER=dummy`;

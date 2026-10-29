@@ -102,18 +102,26 @@ public class SetupActivity extends Activity {
     private boolean panelOn() {
         return CompanionPanel.wanted(getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE), true);
     }
+    private int bottomMode() {
+        return getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE | MODE_MULTI_PROCESS).getInt(CompanionPanel.KEY_MODE, CompanionView.MODE_PANEL);
+    }
+    private boolean panelFocusable() {
+        return getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE | MODE_MULTI_PROCESS).getBoolean(CompanionPanel.KEY_FOCUSABLE, false);
+    }
     private void showSettings() {
         mPage = "settings";
         int mode = Math.floorMod(getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen", 0), 4);
-        launcher.page("Captain's settings", "Make yourself at home", "Choices apply on next launch.\nTouch always controls the cursor.",
+        launcher.page("Captain's settings", "Make yourself at home", "Choices apply on next launch.\nTouchpad: bottom screen moves the cursor.\nPanel window: only if bottom touch fails.",
             "Widescreen: " + new String[]{"Fill", "Side panels", "Stretch", "Off"}[mode],
             "Bottom-screen panel: " + (panelOn() ? "On" : "Off"),
+            "Bottom screen: " + (bottomMode() == CompanionView.MODE_PAD ? "Touchpad" : "Panel"),
+            "Panel window: " + (panelFocusable() ? "Takes focus" : "Safe (default)"),
             "Right-stick cursor: " + (getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor", true) ? "On" : "Off"), "Back");
     }
     private void showTest() {
         mPage = "test";
         launcher.page("Engine room", "Tools & diagnostics", "Logs include the current\nand previous run.",
-            "Share log", "App version: " + versionText(), "Reset settings", "Crash test", "Reinstall from CD image", "Back");
+            "Share log", "Touch test", "App version: " + versionText(), "Reset settings", "Crash test", "Reinstall from CD image", "Back");
     }
     private void showAbout() {
         mPage = "about";
@@ -142,13 +150,15 @@ public class SetupActivity extends Activity {
         case "play": if(row==1)showMain(); else if(installed())play(false); else showImport(); break;
         case "import": if(row==0)pickIso(); else showMain(); break;
         case "settings":
-            if(row==3) {showMain();break;}
+            if(row==5) {showMain();break;}
             if(row==0) getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("widescreen", Math.floorMod(getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen",0)+1,4)).apply();
             if(row==1) getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE).edit().putBoolean(CompanionPanel.KEY_ON,!panelOn()).apply();
-            if(row==2) getSharedPreferences("settings", MODE_PRIVATE).edit().putBoolean("pad_cursor",!getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor",true)).apply();
+            if(row==2) getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE).edit().putInt(CompanionPanel.KEY_MODE, bottomMode() == CompanionView.MODE_PAD ? CompanionView.MODE_PANEL : CompanionView.MODE_PAD).apply();
+            if(row==3) getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE).edit().putBoolean(CompanionPanel.KEY_FOCUSABLE, !panelFocusable()).apply();
+            if(row==4) getSharedPreferences("settings", MODE_PRIVATE).edit().putBoolean("pad_cursor",!getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor",true)).apply();
             showSettings(); launcher.focusRow(row); break;
         case "test":
-            switch(row) {case 0:shareLog();break;case 1:break;case 2:resetSettings();break;case 3:if(installed())play(true);else showImport();break;case 4:showImport();break;default:showMain();} break;
+            switch(row) {case 0:shareLog();break;case 1:startActivity(new Intent(this, TouchTestActivity.class), onTopScreen());break;case 2:break;case 3:resetSettings();break;case 4:if(installed())play(true);else showImport();break;case 5:showImport();break;default:showMain();} break;
         case "about": if(row==1)showLicences(); else if(row==2)showMain(); break;
         }
     }
@@ -198,6 +208,9 @@ public class SetupActivity extends Activity {
           .append(Build.SUPPORTED_ABIS.length > 0 ? Build.SUPPORTED_ABIS[0] : "?").append('\n');
         sb.append("\n===== omt-log.txt (last run) =====\n").append(tail(new File(base, "omt-log.txt"), 120 * 1024));
         sb.append("\n\n===== omt-log.prev.txt (run before) =====\n").append(tail(new File(base, "omt-log.prev.txt"), 60 * 1024));
+        // port: the panel's display choice and the bottom-screen touch diagnosis (docs/bottom-touch.md)
+        sb.append("\n\n===== touch-log.txt (bottom-screen touch: devices, displays, first events) =====\n").append(tail(new File(base, TouchDiag.LOG_FILE), 24 * 1024));
+        sb.append("\n\n===== display-log.txt (which display is the bottom screen) =====\n").append(tail(new File(base, BottomScreen.LOG_FILE), 8 * 1024));
         Intent i = new Intent(Intent.ACTION_SEND);
         i.setType("text/plain");
         i.putExtra(Intent.EXTRA_SUBJECT, "SpongeBob EOTM log " + versionText());

@@ -12,6 +12,9 @@ public class View {
     public void setBackgroundColor(int c) {}
     public void setContentDescription(String s) {}
     public boolean onTouchEvent(MotionEvent e) { return false; }
+    /** Timers are not run by the shim: RenderPanel drives the touch code with event times instead. */
+    public boolean postDelayed(Runnable r, long ms) { return true; }
+    public boolean removeCallbacks(Runnable r) { return true; }
     public boolean performClick() { return true; }
     protected void onDetachedFromWindow() {}
     protected void onDraw(Canvas c) {}

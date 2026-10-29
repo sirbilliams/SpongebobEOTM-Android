@@ -29,6 +29,7 @@ Touch is the main control on the AYN Thor; the gamepad is a pointer. Code: `engi
 - Nothing else on the pad is mapped (B, X, Y, triggers, d-pad, L3 do nothing; movies still skip on any controller button). Esc / Android Back and F10 as before.
 
 ## Tests (desktop only)
+- `SB_TEST_TOUCHPAD="frame:dx,dy,btn;..."` the bottom-screen touchpad (relative move in logical px, button 0/1/-1; `OMediaEventManager::pad_cursor_delta/_button`, docs/bottom-touch.md).
 - `SB_TEST_PAD="frame:rx=<-1..1>,ry=<..>,r3=<0|1>,a=<0|1>;..."` fake pad (values go through the same dead zone / curve), `SB_TEST_TOUCH="frame:d|m|u:x:y,..."`
   synthetic `SDL_FINGERDOWN/MOTION/UP` at logical x,y (pushed into SDL's queue). Frames count `poll` cycles of the process (about = `OMT_SHOTS` frames).
   `OMT_PAD_LOG=1` logs the generated pointer events. With these hooks the pad tick is a fixed 1/60 s.

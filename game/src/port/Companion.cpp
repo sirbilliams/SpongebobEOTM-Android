@@ -178,6 +178,7 @@ bool CompanionPop(std::string* cmd)
 
 #ifdef __ANDROID__
 #include <jni.h>
+#include "OMediaEventManager.h"
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_sirbilliams_spongebob_Companion_nativeSnapshot(JNIEnv* env, jclass)
@@ -196,5 +197,13 @@ Java_com_sirbilliams_spongebob_Companion_nativeCommand(JNIEnv* env, jclass, jstr
 {
     const char* c = env->GetStringUTFChars(cmd, 0);
     if (c) { sbport::CompanionPush(c); env->ReleaseStringUTFChars(cmd, c); }
+}
+// port: the bottom-screen touchpad (CompanionView touchpad mode): dx, dy = a relative pointer move in logical 640x480 units,
+// button: 1 left button down, 0 up, -1 unchanged.  Applied on the game thread in OMediaEventManager::poll (same path as the right stick).
+extern "C" JNIEXPORT void JNICALL
+Java_com_sirbilliams_spongebob_Companion_nativeTouchpad(JNIEnv*, jclass, jfloat dx, jfloat dy, jint button)
+{
+    if (dx != 0 || dy != 0) OMediaEventManager::pad_cursor_delta(dx, dy);
+    if (button >= 0) OMediaEventManager::pad_cursor_button(button != 0);
 }
 #endif

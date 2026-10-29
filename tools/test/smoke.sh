@@ -90,6 +90,7 @@ game hud-item       800 "HUD: ict2 used on 'Larry The Lobster': accepted|dialogu
      "SB_TEST_ITEMS=isp1:Shovel and Pail,ict2:Urchin Chip Pie" SB_TEST_GAME_CLICKS=150:30:30,330:160:32,520:427:267
 for m in fill stretch panels fit; do game "wide-$m" 300 'scene c1l2s6 entered' $SH SB_TEST_SCENE=c1l2s6 SB_WIDESCREEN=$m; done
 game pad            300 'scene c1l2s6 entered' $SH SB_TEST_SCENE=c1l2s6 "SB_TEST_PAD=40:rx=0.8,ry=0;120:rx=0,r3=1;200:r3=0"
+game touchpad       800 'event .AAA. \(Larry The Lobster\)|dialogue AAA' $SH SB_TEST_SCENE=c1l5s4 "SB_TEST_TOUCHPAD=150:-2000,-2000,-1;160:427,267,-1;200:0,0,1;230:0,0,0"
 game touch          300 'scene c1l2s6 entered' $SH SB_TEST_SCENE=c1l2s6 "SB_TEST_TOUCH=60:d:300:300,70:m:400:300,80:u:400:300"
 
 # ---- TODO( lines vs the baseline

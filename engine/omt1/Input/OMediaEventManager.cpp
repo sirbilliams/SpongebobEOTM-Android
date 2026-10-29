@@ -3,6 +3,7 @@
 #include "OMediaDisplay.h"
 #include "OMediaGLBackend.h"
 #include <math.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -305,6 +306,19 @@ static void test_hooks(unsigned frame)
 			p = strchr(p, ';'); if (p) ++p;
 		}
 	}
+	if (const char *tv = getenv("SB_TEST_TOUCHPAD"))		// "frame:dx,dy,btn;..." the bottom touchpad: a relative move (logical units) and the button (0 up, 1 down, -1 unchanged)
+	{
+		for (const char *p = tv; p && *p;)
+		{
+			unsigned at = 0; float dx = 0, dy = 0; int b = -1, n = 0;
+			if (sscanf(p, "%u:%f,%f,%d%n", &at, &dx, &dy, &b, &n) >= 3 && at == frame)
+			{
+				if (dx != 0 || dy != 0) OMediaEventManager::pad_cursor_delta(dx, dy);
+				if (b >= 0) OMediaEventManager::pad_cursor_button(b != 0);
+			}
+			p = strchr(p, ';'); if (p) ++p;
+		}
+	}
 	if (const char *tv = getenv("SB_TEST_TOUCH"))
 	{
 		for (const char *p = tv; p && *p;)
@@ -327,6 +341,74 @@ static void test_hooks(unsigned frame)
 }
 #endif
 
+// port: the bottom-screen touchpad (android Companion.nativeTouchpad -> pad_cursor_delta / pad_cursor_button). Relative moves and
+// button edges queue up from the UI thread and are applied in order once a frame, through the same pointer state as the
+// right stick (pad_x / pad_y, warp, push_mouse), so the two never fight. Independent of SB_PAD_CURSOR (a touch surface).
+struct TpOp { int kind; float dx, dy; };		// kind 0 move (logical units), 1 button down, 2 button up
+static std::deque<TpOp> tp_ops;
+static pthread_mutex_t tp_lock = PTHREAD_MUTEX_INITIALIZER;
+void OMediaEventManager::pad_cursor_delta(float dx, float dy)
+{
+	pthread_mutex_lock(&tp_lock);
+	if (tp_ops.size() < 256) { TpOp o = {0, dx, dy}; tp_ops.push_back(o); }
+	pthread_mutex_unlock(&tp_lock);
+}
+void OMediaEventManager::pad_cursor_button(bool down)
+{
+	pthread_mutex_lock(&tp_lock);
+	if (tp_ops.size() < 256) { TpOp o = {down ? 1 : 2, 0, 0}; tp_ops.push_back(o); }
+	pthread_mutex_unlock(&tp_lock);
+}
+
+// Makes pad_x / pad_y the pointer's logical position (first use, or a mouse / finger moved it since). false: no window.
+static bool pad_sync_pos(void)
+{
+	if (!game_window()) return false;
+	int mx, my;
+	SDL_GetMouseState(&mx, &my);
+	if (!pad_pos_valid || abs(mx - warped_wx) > 2 || abs(my - warped_wy) > 2)
+	{
+		int lx = mx, ly = my;
+		omgl_window_to_logical(lx, ly);
+		pad_x = (float)lx; pad_y = (float)ly;
+		pad_pos_valid = true;
+	}
+	return true;
+}
+
+static void tp_tick(void)
+{
+	std::deque<TpOp> ops;
+	pthread_mutex_lock(&tp_lock);
+	ops.swap(tp_ops);
+	pthread_mutex_unlock(&tp_lock);
+	if (ops.empty()) return;
+	int lw = 640, lh = 480;
+	omgl_logical_size(lw, lh);
+	for (size_t i = 0; i < ops.size(); i++)
+	{
+		if (!pad_sync_pos()) return;
+		if (ops[i].kind == 0)
+		{
+			pad_x += ops[i].dx; pad_y += ops[i].dy;
+			if (pad_x < 0) pad_x = 0; else if (pad_x > lw - 1) pad_x = (float)(lw - 1);
+			if (pad_y < 0) pad_y = 0; else if (pad_y > lh - 1) pad_y = (float)(lh - 1);
+			int wx, wy;
+			logical_to_window_clamped(pad_x, pad_y, wx, wy);
+			warp(wx, wy);
+			push_mouse(SDL_MOUSEMOTION, wx, wy, r3_down);
+		}
+		else
+		{
+			bool d = ops[i].kind == 1;
+			if (!d) d = held_a || held_r3;			// the pad may still hold the button
+			int wx, wy;
+			logical_to_window_clamped(pad_x, pad_y, wx, wy);
+			if (d != r3_down || ops[i].kind == 1) { r3_down = d; push_mouse(d ? SDL_MOUSEBUTTONDOWN : SDL_MOUSEBUTTONUP, wx, wy, d); }
+		}
+	}
+}
+
 // One tick of the pad pointer: the right stick moves the pointer, about 3/4 of the logical width per second at full tilt.
 static void pad_tick(float dt)
 {
@@ -341,15 +423,7 @@ static void pad_tick(float dt)
 	if (!w) return;
 	int lw = 640, lh = 480;
 	omgl_logical_size(lw, lh);
-	int mx, my;
-	SDL_GetMouseState(&mx, &my);
-	if (!pad_pos_valid || abs(mx - warped_wx) > 2 || abs(my - warped_wy) > 2)	// first use, or a mouse / finger moved it
-	{
-		int lx = mx, ly = my;
-		omgl_window_to_logical(lx, ly);
-		pad_x = (float)lx; pad_y = (float)ly;
-		pad_pos_valid = true;
-	}
+	pad_sync_pos();
 	const float speed = 0.75f * lw;
 	pad_x += sx * speed * dt;
 	pad_y += sy * speed * dt;
@@ -370,11 +444,12 @@ static void begin_frame(void)
 	last_ticks = now;
 	if (dt > 0.05f) dt = 0.05f;
 #ifndef __ANDROID__
-	if (getenv("SB_TEST_PAD") || getenv("SB_TEST_TOUCH")) dt = 1.0f / 60;		// deterministic
+	if (getenv("SB_TEST_PAD") || getenv("SB_TEST_TOUCH") || getenv("SB_TEST_TOUCHPAD")) dt = 1.0f / 60;		// deterministic
 	test_hooks(frame_no);
 #endif
 	if (!pad_inited) { pad_inited = true; if (pad_cursor_enabled()) pad_open_all(); }
 	pad_tick(dt);
+	tp_tick();
 }
 
 // Turns one SDL event into what the game loops see; false: drop it.

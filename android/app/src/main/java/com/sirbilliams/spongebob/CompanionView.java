@@ -36,6 +36,17 @@ public class CompanionView extends View {
     /** Where a tap goes: Companion.command on the device. */
     public interface Sender { void send(String cmd); }
 
+    /** The touchpad's way into the game: a relative cursor move (the game's 640x480 logical pixels) and the left button (1 down, 0 up, -1 unchanged). */
+    public interface Pad { void move(float dx, float dy, int button); }
+
+    /** Press feedback (haptic + click): kind 1 = a tap on a target / a pad click, 2 = firm (a pad drag starts, a card is picked). */
+    public interface Feedback { void tap(int kind); }
+
+    /** The player switched Panel / Touchpad on the panel itself. */
+    public interface ModeListener { void modeChanged(int mode); }
+
+    public static final int MODE_PANEL = 0, MODE_PAD = 1;
+
     private static final float W = 1240f, H = 1080f;
 
     // Bikini Bottom palette
@@ -51,6 +62,10 @@ public class CompanionView extends View {
     private final RectF r = new RectF();
     private final Path path = new Path();
     private Sender sender;
+    private Pad pad;
+    private Feedback feedback;
+    private ModeListener modeListener;
+    private int mode = MODE_PANEL;
 
     // ---- snapshot ----
     private boolean haveGame;
@@ -81,6 +96,16 @@ public class CompanionView extends View {
     }
 
     public void setSender(Sender s) { sender = s; }
+    public void setPad(Pad p) { pad = p; }
+    public void setFeedback(Feedback f) { feedback = f; }
+    public void setModeListener(ModeListener l) { modeListener = l; }
+    public int getMode() { return mode; }
+    public void setMode(int m) {
+        int nm = m == MODE_PAD ? MODE_PAD : MODE_PANEL;
+        if (nm != mode) { padRelease(false); mode = nm; }
+        invalidate();
+    }
+    private void tap(int kind) { if (feedback != null) feedback.tap(kind); }
 
     /** Parses a snapshot (null / empty: the game is not running yet) and redraws. */
     public void setSnapshot(String json) {
@@ -148,15 +173,33 @@ public class CompanionView extends View {
 
     // ------------------------------------------------------------------ touch
 
+    // The touchpad (MODE_PAD): one finger. A drag moves the game's cursor relatively with acceleration (slow = precise, fast = across the
+    // screen); a quick tap is a left click; press and hold without moving, then drag = the left button held while moving (carry an item
+    // onto a character). All of it goes through Pad.move to the same pointer path as the right stick.
+    private static final float PAD_SLOP = 22f;           // layout px a finger may wander and still be a tap / a hold
+    private static final long TAP_MS = 320, HOLD_MS = 380, CLICK_MS = 70;
+    private final RectF padRect = new RectF();
+    private boolean padOn, padSlopLeft, padHeld;         // finger on the pad / has left the slop circle / the left button is down (drag armed)
+    private float padStartX, padStartY, padLastX, padLastY, padX, padY, padSpeed;
+    private long padStartT, padLastT;
+    private final Runnable holdTimer = new Runnable() { @Override public void run() { padArm(); } };
+
     @Override
     public boolean onTouchEvent(MotionEvent e) {
         float x = (e.getX() - offX) / scale, y = (e.getY() - offY) / scale;
+        long t = e.getEventTime();
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 down = hitAt(x, y);
+                if (down != null) tap(down.cmd.startsWith("item:") ? 2 : 1);
+                else if (mode == MODE_PAD && (x >= padRect.left && x <= padRect.right && y >= padRect.top && y <= padRect.bottom)) padStart(x, y, t);
                 invalidate();
                 return true;
+            case MotionEvent.ACTION_MOVE:
+                if (padOn) padMove(x, y, t);
+                return true;
             case MotionEvent.ACTION_UP: {
+                if (padOn) { padEnd(x, y, t); invalidate(); return true; }
                 Hit h = hitAt(x, y);
                 Hit d = down;
                 down = null;
@@ -166,11 +209,72 @@ public class CompanionView extends View {
             }
             case MotionEvent.ACTION_CANCEL:
                 down = null;
+                padRelease(true);
                 invalidate();
                 return true;
             default:
                 return true;
         }
+    }
+
+    private void padStart(float x, float y, long t) {
+        padOn = true; padSlopLeft = false; padHeld = false;
+        padStartX = padLastX = padX = x; padStartY = padLastY = padY = y;
+        padStartT = padLastT = t; padSpeed = 0;
+        removeCallbacks(holdTimer);
+        postDelayed(holdTimer, HOLD_MS);
+    }
+
+    /** Press and hold without moving: the left button goes down; the next moves drag. */
+    private void padArm() {
+        if (!padOn || padHeld || padSlopLeft) return;
+        padHeld = true;
+        tap(2);
+        if (pad != null) pad.move(0, 0, 1);
+        invalidate();
+    }
+
+    private void padMove(float x, float y, long t) {
+        padX = x; padY = y;
+        if (!padHeld && !padSlopLeft && t - padStartT >= HOLD_MS && Math.hypot(x - padStartX, y - padStartY) < PAD_SLOP) padArm();
+        if (!padSlopLeft && Math.hypot(x - padStartX, y - padStartY) >= PAD_SLOP) {
+            padSlopLeft = true;                          // not a tap / a hold any more (a held button stays down)
+            removeCallbacks(holdTimer);
+            padLastX = x; padLastY = y; padLastT = t;    // the cursor starts from here: no jump by the slop
+            return;
+        }
+        if (!padSlopLeft && !padHeld) return;
+        float dx = x - padLastX, dy = y - padLastY;
+        long dt = Math.max(1, t - padLastT);
+        padLastX = x; padLastY = y; padLastT = t;
+        if (dx == 0 && dy == 0) return;
+        float speed = (float) Math.hypot(dx, dy) / dt;   // layout px per ms
+        padSpeed = padSpeed * 0.6f + speed * 0.4f;
+        float gain = 0.45f + Math.min(1.8f, padSpeed * 0.9f);   // 0.45 crawling .. 2.25 flicking (1160 px of pad = ~520 .. 2600 game px)
+        if (pad != null) pad.move(dx * gain, dy * gain, -1);
+        invalidate();
+    }
+
+    private void padEnd(float x, float y, long t) {
+        removeCallbacks(holdTimer);
+        if (!padHeld && !padSlopLeft && t - padStartT >= HOLD_MS && Math.hypot(x - padStartX, y - padStartY) < PAD_SLOP) padArm();
+        boolean quickTap = !padHeld && !padSlopLeft && t - padStartT <= TAP_MS;
+        padOn = false;
+        if (padHeld) {                                   // end of a drag / of a long press: the button comes up here
+            padHeld = false;
+            if (pad != null) pad.move(0, 0, 0);
+        } else if (quickTap) {                           // tap = left click: down now, up a moment later (the game polls the button once a frame)
+            tap(1);
+            if (pad != null) pad.move(0, 0, 1);
+            postDelayed(new Runnable() { @Override public void run() { if (pad != null) pad.move(0, 0, 0); } }, CLICK_MS);
+        }
+    }
+
+    /** The finger is gone for good (cancel, mode change): the button must not stay down. */
+    private void padRelease(boolean cancel) {
+        removeCallbacks(holdTimer);
+        if (padHeld && pad != null) pad.move(0, 0, 0);
+        padOn = padHeld = padSlopLeft = false;
     }
 
     private Hit hitAt(float x, float y) {
@@ -182,6 +286,12 @@ public class CompanionView extends View {
     }
 
     private void fire(String cmd) {
+        if (cmd.startsWith("mode:")) {                       // panel-local: Panel / Touchpad
+            mode = cmd.endsWith("1") ? MODE_PAD : MODE_PANEL;
+            if (modeListener != null) modeListener.modeChanged(mode);
+            invalidate();
+            return;
+        }
         if (cmd.startsWith("page:")) {                       // panel-local: inventory paging
             invPage = Math.max(0, invPage + Integer.parseInt(cmd.substring(5)));
             invalidate();
@@ -208,8 +318,11 @@ public class CompanionView extends View {
         drawSea(c, t);
         drawHeader(c, t);
         float y = 196;
+        padRect.set(0, 0, 0, 0);
         if (!haveGame) {
             drawWaiting(c);
+        } else if (mode == MODE_PAD && !(dialogue && choiceMode)) {
+            drawPadLayout(c, y, t);
         } else {
             if (hint.length() > 0) y = drawHint(c, y) + 18;
             if (dialogue) y = drawDialogue(c, y) + 18;
@@ -372,6 +485,7 @@ public class CompanionView extends View {
         List<String> lines = wrap(title, 46, 880 - 56, 2, true);
         float ty = lines.size() > 1 ? 116 : 134;
         for (String s : lines) { text(c, s, 56, ty, 46, 0xFFFFFFFF, true, Paint.Align.LEFT); ty += 46; }
+        modeSwitch(c);
         // porthole buttons: menu and skip
         porthole(c, 1216 - 250, 98, 62, "MENU", "menu", true, 0);
         porthole(c, 1216 - 90, 98, 62, "SKIP", "skip", haveGame && (cutscene || (dialogue && !choiceMode)), 1);   // live in a cutscene or on a dialogue line
@@ -402,6 +516,139 @@ public class CompanionView extends View {
             c.drawPath(path, p);
         }
         text(c, label, cx, cy + 36, 20, ink, true, Paint.Align.CENTER);
+    }
+
+    /** Panel | Touchpad: a two-segment switch in the header plank. */
+    private void modeSwitch(Canvas c) {
+        float l = 548, t0 = 36, w = 170, h = 48;
+        for (int i = 0; i < 2; i++) {
+            float x = l + i * (w + 4);
+            Hit hh = new Hit(x, t0, x + w, t0 + h + 6, "mode:" + i);
+            hits.add(hh);
+            boolean on = mode == i, pr = hh == down;
+            r.set(x, t0, x + w, t0 + h);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(on ? GOLD : (pr ? WOOD_DK : 0x66000000));
+            c.drawRoundRect(r, 24, 24, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
+            c.drawRoundRect(r, 24, 24, p);
+            text(c, i == 0 ? "PANEL" : "TOUCHPAD", x + w / 2, t0 + 33, 22, on ? INK : 0xFFF3E3C0, true, Paint.Align.CENTER);
+        }
+        p.setStyle(Paint.Style.FILL);
+    }
+
+    /**
+     * Touchpad layout: [slim dialogue strip when a line is open] / the pad / the pocket as one slim row (4 cards, paging) with HINT and PUT AWAY.
+     * (A dialogue's choices need no cursor: that case uses the Panel layout, big buttons.)
+     */
+    private void drawPadLayout(Canvas c, float y, long t) {
+        if (dialogue) {                                    // a line is being said: Next (also tapping the pad advances in the game)
+            List<String> lines = wrap(line, 28, 800, 2, false);
+            plank(c, 40, y, 1200, y + 140, false);
+            text(c, speaker.length() > 0 ? speaker : "...", 68, y + 44, 26, GOLD, true, Paint.Align.LEFT);
+            float ty = y + 82;
+            for (String s : lines) { text(c, s, 68, ty, 28, 0xFFFFFFFF, false, Paint.Align.LEFT); ty += 34; }
+            bigButton(c, 900, y + 24, 1176, y + 116, "Next", "advance", GOLD, INK, 0);
+            y += 140 + 14;
+        }
+        float padBottom = 862;
+        drawPad(c, 40, y, 1200, padBottom, t);
+        drawPadInventory(c, padBottom + 14, 1066);
+    }
+
+    private void drawPad(Canvas c, float l, float t0, float rr, float b, long t) {
+        padRect.set(l, t0, rr, b);
+        boolean live = padOn;
+        r.set(l + 4, t0 + 8, rr + 4, b + 8);
+        p.setStyle(Paint.Style.FILL); p.setColor(0x44000000);
+        c.drawRoundRect(r, 34, 34, p);
+        r.set(l, t0, rr, b);
+        p.setShader(new LinearGradient(0, t0, 0, b, live ? 0xFF2FB3D6 : 0xFF1F8FB4, live ? 0xFF0F6C94 : 0xFF0B5273, Shader.TileMode.CLAMP));
+        c.drawRoundRect(r, 34, 34, p);
+        p.setShader(null);
+        // dot grid: the pad's surface; the dots drift with the finger, so a drag is felt as movement
+        c.save();
+        c.clipRect(l + 8, t0 + 8, rr - 8, b - 8);
+        float ox = live ? (padX - padStartX) * 0.25f % 58 : 0, oy = live ? (padY - padStartY) * 0.25f % 58 : 0;
+        p.setColor(live ? 0x55FFFFFF : 0x30FFFFFF);
+        for (float gy = t0 + 29 + oy - 58; gy < b; gy += 58)
+            for (float gx = l + 29 + ox - 58; gx < rr; gx += 58) c.drawCircle(gx, gy, 3.2f, p);
+        c.restore();
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(10); p.setColor(live ? GOLD : WOOD);
+        c.drawRoundRect(r, 34, 34, p);
+        p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
+        r.set(l - 5, t0 - 5, rr + 5, b + 5);
+        c.drawRoundRect(r, 38, 38, p);
+        p.setStyle(Paint.Style.FILL);
+        float cx = (l + rr) / 2, cy = (t0 + b) / 2;
+        if (!live) {
+            text(c, "TOUCHPAD", cx, cy - 18, 40, 0xCCFFFFFF, true, Paint.Align.CENTER);
+            text(c, "drag = move the cursor    tap = click", cx, cy + 28, 26, 0xAAFFFFFF, false, Paint.Align.CENTER);
+            text(c, "hold, then drag = carry", cx, cy + 62, 26, 0xAAFFFFFF, false, Paint.Align.CENTER);
+        } else {
+            // the finger: a ring (gold and filled once the button is down), and a tail back to where it started
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(4); p.setColor(0x66FFFFFF);
+            c.drawLine(padStartX, padStartY, padX, padY, p);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(padHeld ? 0x88FFD43B : 0x44FFFFFF);
+            c.drawCircle(padX, padY, padHeld ? 62 : 48, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(6); p.setColor(padHeld ? GOLD : 0xFFFFFFFF);
+            c.drawCircle(padX, padY, padHeld ? 62 : 48, p);
+            p.setStyle(Paint.Style.FILL);
+            if (padHeld) text(c, "HOLDING", cx, b - 30, 28, GOLD, true, Paint.Align.CENTER);
+        }
+    }
+
+    /** One slim row of the pocket for the touchpad layout: tap a card = take it in hand (the next pad click uses it), HINT, PUT AWAY, paging. */
+    private void drawPadInventory(Canvas c, float top, float bottom) {
+        text(c, "POCKET", 52, top + 30, 26, GOLD, true, Paint.Align.LEFT);
+        if (selected.length() > 0) text(c, "In hand: " + itemName(items.indexOf(selected), selected), 200, top + 30, 24, 0xFFFFFFFF, true, Paint.Align.LEFT);
+        chip(c, 1200 - 170, top + 2, 1200, top + 44, "HINT", "hint", true);
+        if (selected.length() > 0) chip(c, 1200 - 400, top + 2, 1200 - 182, top + 44, "PUT AWAY", "noitem", true);
+        float y0 = top + 54, ch = bottom - y0;
+        int cols = 4, perPage = cols;
+        float gap = 14, cw = (1160 - gap * (cols - 1)) / cols;
+        int pages = Math.max(1, (items.size() + perPage - 1) / perPage);
+        if (invPage >= pages) invPage = pages - 1;
+        if (items.isEmpty()) {
+            r.set(40, y0, 1200, y0 + ch);
+            p.setStyle(Paint.Style.FILL); p.setColor(0x33000000);
+            c.drawRoundRect(r, 24, 24, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(4); p.setColor(0x66FFFFFF);
+            c.drawRoundRect(r, 24, 24, p);
+            p.setStyle(Paint.Style.FILL);
+            text(c, "Nothing in your pockets yet", W / 2, r.centerY() + 10, 30, 0xCCFFFFFF, false, Paint.Align.CENTER);
+            return;
+        }
+        boolean arrows = pages > 1;
+        float aw = arrows ? 56 : 0;                       // paging arrows take the sides of the row
+        cw = (1160 - 2 * aw - gap * (cols - 1)) / cols;
+        for (int i = 0; i < perPage; i++) {
+            int idx = invPage * perPage + i;
+            if (idx >= items.size()) break;
+            float x = 40 + aw + i * (cw + gap);
+            itemCard(c, x, y0, x + cw, y0 + ch, items.get(idx), itemName(idx, items.get(idx)), true);
+        }
+        if (arrows) {
+            hits.add(new Hit(36, y0, 40 + aw, y0 + ch, "page:-1"));
+            hits.add(new Hit(1200 - aw, y0, 1204, y0 + ch, "page:1"));
+            text(c, "<", 40 + aw / 2 - 4, y0 + ch / 2 + 16, 48, invPage > 0 ? GOLD : 0x55FFFFFF, true, Paint.Align.CENTER);
+            text(c, ">", 1200 - aw / 2 + 4, y0 + ch / 2 + 16, 48, invPage < pages - 1 ? GOLD : 0x55FFFFFF, true, Paint.Align.CENTER);
+        }
+    }
+
+    /** A small rounded button. */
+    private void chip(Canvas c, float l, float t0, float rr, float b, String label, String cmd, boolean enabled) {
+        Hit h = new Hit(l - 6, t0 - 6, rr + 6, b + 6, cmd);       // a finger target bigger than the drawing
+        if (enabled) hits.add(h);
+        boolean pr = h == down;
+        r.set(l, t0, rr, b);
+        p.setStyle(Paint.Style.FILL); p.setColor(pr ? GOLD_DK : (enabled ? PAPER : 0x55FFFFFF));
+        c.drawRoundRect(r, 20, 20, p);
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
+        c.drawRoundRect(r, 20, 20, p);
+        text(c, label, (l + rr) / 2, b - 12, 22, INK, true, Paint.Align.CENTER);
+        p.setStyle(Paint.Style.FILL);
     }
 
     private void drawWaiting(Canvas c) {
