@@ -42,12 +42,14 @@ static std::string lowerStr(std::string s)
 Hud::Hud(Game* g)
     : g_(g), held_(0), dragging_(false), downX_(0), downY_(0), open_(false), shownNow_(false), fly_(0), flyT_(0), flyMs_(0),
       flyX_(0), flyY_(0), mx_(320), my_(240), hover_(None), hoverSlot_(-1), hintBlock_(0), hintMs_(0), iconFrame_(0),
-      testItemsDone_(false), built_(false), testHoldDone_(false), lastScene_(0)
+      testItemsDone_(false), built_(false), testHoldDone_(false), lastScene_(0), sparkleMs_(0), sparkleX_(0), sparkleY_(0), sparkleAcc_(0)
 {
+    for (int i = 0; i < 10; ++i) { sparkles_[i] = 0; sparkleAge_[i] = 0; }
 }
 
 Hud::~Hud()
 {
+    clearSparkles();
     delete hintBlock_;
     for (size_t i = 0; i < items_.size(); ++i) {
         HudItem* it = items_[i];
@@ -514,10 +516,60 @@ void Hud::relink()
     for (int i = 0; i < 6; ++i) { if (bubbleT_[i].e) bubbleT_[i].e->link(g_->world()); if (bubble_[i].e) bubble_[i].e->link(g_->world()); }
     for (size_t i = 0; i < sizeof order / sizeof order[0]; ++i) if (order[i]->e) order[i]->e->link(g_->world());
     for (size_t i = 0; i < items_.size(); ++i) if (items_[i]->vpe) items_[i]->vpe->link(g_->world());
+    for (int i = 0; i < 10; ++i) if (sparkles_[i]) sparkles_[i]->link(g_->world());
+}
+
+void Hud::sparkle(int x, int y)             // 0x41ebe0
+{
+    sparkleMs_ = 3000.0f;
+    sparkleX_ = (float)(short)x; sparkleY_ = (float)(short)y;
+    g_->log("HUD: sparkle at %d,%d (0x41ebe0)\n", x, y);
+}
+
+void Hud::clearSparkles()
+{
+    for (int i = 0; i < 10; ++i) { delete sparkles_[i]; sparkles_[i] = 0; sparkleAge_[i] = 0; }
+}
+
+// 0x41ec90: one sparkle canvas (sparkle1..3 of sb2.omt) at a random offset (10..41 px) in a random quadrant of the centre
+void Hud::spawnSparkle()
+{
+    int i = 0;
+    while (i < 10 && sparkles_[i]) ++i;
+    if (i == 10) return;
+    static const char* names[3] = { "sparkle1", "sparkle2", "sparkle3" };
+    OMediaDataBase* db = g_->sb2Db();
+    OMediaCanvas* c = db ? (OMediaCanvas*)db->get_object(OMediaCanvas::db_type, std::string(names[rand() % 3])) : 0;
+    if (!c) return;
+    OMediaCanvasElement* e = new OMediaCanvasElement(c);
+    int cx = (int)sparkleX_, cy = (int)sparkleY_;
+    int dx = (rand() & 31) + 10, dy = (rand() & 31) + 10;
+    switch (rand() & 3) {
+    case 0: e->place((float)(cx + dx), (float)(cy + dy), 10200.0f); break;
+    case 1: e->place((float)(cx - dx), (float)(cy - dy), 10200.0f); break;
+    case 2: e->place((float)(cx - dx), (float)(cy + dy), 10200.0f); break;
+    default: e->place((float)(cx + dx), (float)(cy - dy), 10200.0f); break;
+    }
+    e->link(g_->world());
+    sparkles_[i] = e; sparkleAge_[i] = 0;
+}
+
+// 0x41e3d0 (the effect part): every frame while the effect runs the sparkles age (gone after 250 ms), a new one is made
+// when more than 10 ms went by, and everything goes when the 3000 ms are used up.
+void Hud::updateSparkle(float dtMs)
+{
+    if (sparkleMs_ == 0 || fly_) return;
+    for (int i = 0; i < 10; ++i)
+        if (sparkles_[i] && (sparkleAge_[i] += dtMs) >= 250.0f) { delete sparkles_[i]; sparkles_[i] = 0; sparkleAge_[i] = 0; }
+    sparkleAcc_ += dtMs;
+    sparkleMs_ -= dtMs;
+    if (sparkleMs_ <= 0) { sparkleMs_ = 0; clearSparkles(); sparkleAcc_ = 0; return; }
+    if (sparkleAcc_ > 10.0f) { spawnSparkle(); sparkleAcc_ = 0; }
 }
 
 void Hud::update(float dtMs)
 {
+    updateSparkle(dtMs);
     if (!built_ && g_->scene()) { built_ = true; build(); lastScene_ = g_->scene(); }
     else if (built_ && g_->scene() != lastScene_) { lastScene_ = g_->scene(); relink(); }
     // port: tests only.  SB_TEST_ITEMS="isp1:Shovel and Pail,ikp5:Clean Plate" puts items in the inventory once a scene runs.

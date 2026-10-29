@@ -36,6 +36,8 @@ struct Actor3D {
     bool idling; float idleLeft;
     bool waited;                      // the script waits for this actor's walk / rotate / animation
     bool scheduled;                   // the idle animation switch is due next frame
+    bool shadowOn;                    // char +0x30c shown (`shadow on/off`); the blob shadow itself is not drawn
+    bool climbing; float climbTarget, climbPrev;   // char +0x3f8 / +0x3f4 / +0x3fc: `climb` arms a straight walk that blends y
 };
 
 class World3D {
@@ -59,6 +61,8 @@ public:
     void talkAll(bool on);
     bool walk(SceneObject* o, float x, float z, bool run);                      // vt+0x144
     bool walkGrid(SceneObject* o, int gx, int gy);
+    void setShadow(SceneObject* o, bool on);                                    // 0x434410 / 0x434430
+    void climb(SceneObject* o, float h);                                        // vt+0x154 (0x4342a0)
     void moveGrid(SceneObject* o, int gx, int gy);
     void blockCell(int x, int z, bool blocked);
     bool clickFloor(int x, int y);

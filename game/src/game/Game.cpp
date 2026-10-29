@@ -54,7 +54,7 @@ bool OmtFile::open(const std::string& file)
 
 // ------------------------------------------------------------------------------------------- Game
 Game::Game()
-    : optText(1), optShadows(1), movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
+    : blending(true), optText(1), optShadows(1), movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
       pendingId_(0), pendingStart_(0), runner_(0), host_(0), hoverCap_(0), commentCap_(0), commentMs_(0), mx_(320), my_(240),
       inputAttached_(false), commentBlock_(0), commentVoice_(false), hud_(0), cursor_(0)
 {

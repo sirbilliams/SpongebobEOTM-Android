@@ -179,7 +179,7 @@ void SceneScriptHost::actorMove(ScriptActor* a, float x, float y)
 }
 void SceneScriptHost::actorMoveY(ScriptActor* a, float y) { Actor3D* actor = a && g_->world3d() ? g_->world3d()->actorFor(a->obj) : 0; if (actor) { actor->y = y; g_->world3d()->place(actor); } else if (a) a->obj->py = y; }
 void SceneScriptHost::actorMoveGrid(ScriptActor* a, int gx, int gy) { if (a && g_->world3d()) g_->world3d()->moveGrid(a->obj,gx,gy); }
-void SceneScriptHost::actorClimb(ScriptActor* a, float h) { stub("%s climb %g (vt+0x154)", an(a), h); }
+void SceneScriptHost::actorClimb(ScriptActor* a, float h) { if (a && a->obj && g_->world3d()) g_->world3d()->climb(a->obj, h); }    // vt+0x154
 bool SceneScriptHost::actorRotate(ScriptActor* a, int angle, int time)
 {
     if (!a || !g_->world3d() || !g_->world3d()->hasModel(a->obj)) return false;
@@ -208,7 +208,7 @@ void SceneScriptHost::actorKick(ScriptActor* a) { stub("%s kick (vt+0x16c)", an(
 bool SceneScriptHost::actorGoal(ScriptActor* a) { stub("%s goal? (vt+0x174)", an(a)); return false; }
 bool SceneScriptHost::actorGoalMissed(ScriptActor* a) { stub("%s goal missed? (vt+0x188)", an(a)); return false; }
 void SceneScriptHost::actorStopWalk(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->stopWalk(a->obj); }
-void SceneScriptHost::actorShadow(ScriptActor* a, bool on) { (void)a; (void)on; }      // port: no blob shadows yet
+void SceneScriptHost::actorShadow(ScriptActor* a, bool on) { if (a && g_->world3d()) g_->world3d()->setShadow(a->obj, on); }      // port: the flag is kept, no blob shadows drawn yet
 void SceneScriptHost::actorSetTexture(ScriptActor* a, const char* t) { stub("%s texture %s (vt+0xf0)", an(a), t); }
 void SceneScriptHost::swapPlayerHelmet() { stub("swapchar: sb <-> sbhelm"); }
 void SceneScriptHost::shockEffect() { stub("shock: 2D object \"elec\" at the player's screen position"); }
@@ -253,12 +253,12 @@ void SceneScriptHost::sceneSpeak(const char* key)
     }
 }
 void SceneScriptHost::sceneBlock(int x, int y, bool b) { g_->state().setBlocked(sceneId(), x, y, b); if (g_->world3d()) g_->world3d()->blockCell(x,y,b); }
-void SceneScriptHost::sceneSparkle(int x, int y) { stub("sparkle at %d,%d (HUD object 0x457334, 0x41ebe0)", x, y); }
+void SceneScriptHost::sceneSparkle(int x, int y) { if (g_->hud()) g_->hud()->sparkle(x, y); }      // HUD object 0x457334, 0x41ebe0
 
 // ------------------------------------------------------------------------------------------ game
 void SceneScriptHost::gameSwitch(const char* t) { g_->switchTo(t); }
 void SceneScriptHost::gameSkip() { stub("skip: scene vt+0x10c cutscene skip"); }
-void SceneScriptHost::gameSetBlending(bool on) { stub("blending %d (game+0x251)", on ? 1 : 0); }
+void SceneScriptHost::gameSetBlending(bool on) { g_->blending = on; }      // game+0x251
 void SceneScriptHost::gameComment(const char* id) { g_->showComment(id); }
 void SceneScriptHost::setChainedTarget(const char* n) { g_->chained = n; }
 void SceneScriptHost::progressSave(ScriptActor* a) { stub("save: %s position + scene id into the progress object", an(a)); }
