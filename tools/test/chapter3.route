@@ -82,4 +82,39 @@ shot 15-c3l5s3
 grab igl1
 idle
 have igl1
+save 1
+map
+scene c3l1s1
+idle
+click "Go to Home Lane"
+scene c3l4s1
+idle
+click "Enter Squidward's House"
+scene c3l4s2
+idle
+click "Walk Up Stairs"
+scene c3l4s3
+idle
+shot 16-c3l4s3-bed
+use igl1 squidon
+scene c3l4s4
+idle
+shot 17-c3l4s4-dream
+click "Walk Up Road"
+scene c3l4s5
+idle
+shot 18-c3l4s5
+click "Walk Up Stairs"
+scene c3l4s6
+idle
+shot 19-c3l4s6
+click "Walk Down Aisle"
+scene c3l4s7
+idle
+shot 20-c3l4s7
+talk squidplay
+scene c3l4s3
+idle
+shot 21-c3l4s3-awake
+have icl1
 end
