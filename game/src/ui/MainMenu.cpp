@@ -16,16 +16,16 @@ static bool SaveGame_exists(int s) { return sbgame::SaveGame::exists(s); }
 // selects its bank at draw time so normal and highlighted strings can share the font.
 class MenuCaption : public OMediaCCaption {
 public:
-    GameFont *gamefont; bool highlighted;
-    MenuCaption(GameFont *f) : gamefont(f), highlighted(false) { set_font(f); }
+    GameFont *gamefont; bool highlighted, forced;      // forced: port: the Options row / value in use is shown in the bright bank
+    MenuCaption(GameFont *f) : gamefont(f), highlighted(false), forced(false) { set_font(f); }
     virtual void draw(OMediaRect *src,long x,long y,OMediaCanvas *dest,OMediaRefreshList *rl) {
-        gamefont->set_bank(highlighted?1:0);
+        gamefont->set_bank(highlighted||forced?1:0);
         OMediaCCaption::draw(src,x,y,dest,rl);
         gamefont->set_bank(0);
     }
 };
 MainMenu::MainMenu(OMedia2DWorld *w,OMediaDataBase *a,GameFont *f,const RetailData &d,MenuHost *h)
- : quit(false),world(w),art(a),font(f),data(d),host(h),page(-1),confirm(-1),selected(0),help_page(1),slot(-1) {
+ : quit(false),world(w),art(a),font(f),data(d),host(h),page(-1),confirm(-1),selected(0),help_page(1),focus(0),slot(-1) {
     SDL_Log("0x41bbb0 -> 0x41f6a0 -> 0x41c1c0 -> 0x4242b0: sb2.omt menu dialog");
     // 0x41f6a0 creates these toolbar elements for the controller before the dialog.
     // The modal dialog draws its own bamboo4 panel instead of this toolbar.
@@ -57,15 +57,16 @@ OMediaCanvasElement *MainMenu::image(const char *name,int x,int y,int z) {
     elements.push_back(e); c->db_unlock();
     return e;
 }
-void MainMenu::caption(const string &s,int x,int y,int id) {
+MenuCaption *MainMenu::caption(const string &s,int x,int y,int id) {
     MenuCaption *c=new MenuCaption(font); c->set_string(s);
     c->link(world); c->place((float)x,(float)y,10300);
     // port: rectangular text hit regions match 0x426e00, including blank spaces.
     c->set_clickable(id>=0);
     elements.push_back(c);
     if(id>=0) { Button b; b.id=id; b.x=x; b.y=y; b.w=font->get_text_length(s); b.h=18; b.caption=c; buttons.push_back(b); }
+    return c;
 }
-void MainMenu::center(const string &s,int y,int id) { caption(s,(640-font->get_text_length(s))/2,y,id); }
+MenuCaption *MainMenu::center(const string &s,int y,int id) { return caption(s,(640-font->get_text_length(s))/2,y,id); }
 void MainMenu::arrow(bool left,int y,int id) {
     OMedia2DAnim *anim=new OMedia2DAnim;
     for(int i=1;i<=8;++i) {
@@ -102,7 +103,7 @@ void MainMenu::rebuild() {
         if(help_page>1) arrow(true,364,91);
         if(help_page<5) arrow(false,364,92);
     } else if(page==1) {
-        for(int i=0;i<5;++i) center(data.text(data.word(0x455750+4*i)),100+55*i,-1);
+        for(int i=0;i<5;++i) center(data.text(data.word(0x455750+4*i)),100+55*i,-1)->forced=(focus==i);   // port: the keyboard row is bright
         int values[3]={host->music,host->sound,host->voice};
         for(int i=0;i<3;++i) {
             image("line",195,128+55*i,10301);
@@ -112,10 +113,11 @@ void MainMenu::rebuild() {
         }
         string on=data.text(0x455910),off=data.text(0x455914);
         for(int i=0;i<2;++i) {
-            caption(on,225+(95-font->get_text_length(on))/2,288+55*i,240+i*2);
-            caption(off,320+(95-font->get_text_length(off))/2,288+55*i,241+i*2);
+            int cur=i==0?host->text:host->shadows;       // port: the value in use is bright
+            caption(on,225+(95-font->get_text_length(on))/2,288+55*i,240+i*2)->forced=cur!=0;
+            caption(off,320+(95-font->get_text_length(off))/2,288+55*i,241+i*2)->forced=cur==0;
         }
-        center(data.text(0x455904),380,90);
+        center(data.text(0x455904),380,90)->forced=(focus==5);
     } else if(page==2 || page==3) {
         // 0x427ef0 (Save Game) / 0x428bb0 (Load Game): the slot's 320x240 picture in a 322x242 box, the slot's name, arrows to browse.
         OMediaBoxElement *box=new OMediaBoxElement;
@@ -149,11 +151,11 @@ void MainMenu::rebuild() {
         caption(data.text(0x455904),225+(95-font->get_text_length(data.text(0x455904)))/2,380,93);
         caption("Cancel",320+(95-font->get_text_length("Cancel"))/2,380,90);
     } else if(page==4) {
-        // 0x424d60: movie availability is driven by VM unlock variables.
-        // Initial game permits THQ, SpongeBob and Intro; later unlocks await the VM.
-        for(int i=0;i<3;++i) center(data.text(data.word(0x455720+4*i)),91+23*i,300+i);
-        for(int i=3;i<11;++i) image("locked",-1,91+23*i,10301);
-        center(data.text(data.word(0x455720+4*11)),91+23*11,311);
+        // 0x4246a0: the 12 movies; a locked one (0x424d60) shows the 'locked' picture instead of its name and cannot be clicked
+        for(int i=0;i<12;++i) {
+            if(movieUnlocked(i)) center(data.text(data.word(0x455720+4*i)),91+23*i,300+i);
+            else image("locked",-1,91+23*i,10301);
+        }
         center(data.text(0x455904),380,90);
     }
     for(size_t i=0;i<buttons.size();++i)
@@ -183,6 +185,12 @@ void MainMenu::listen_to_message(omt_Message msg,void *param) {
         if(hit(buttons[i],ci->click_x,ci->click_y)) { int id=buttons[i].id; activate(id); return; }
     // 0x425aa0: a click on the picture of the Save / Load Game screen does what Ok does
     if((page==2 || page==3) && confirm<0 && ci->click_x>=0xa1 && ci->click_x<=0x1df && ci->click_y>=0x60 && ci->click_y<=0x14e) activate(93);
+}
+bool MainMenu::movieUnlocked(int i) {       // 0x424d60: 0..2 and 11 always; 3..10 once the script was seen
+    static const char *const scripts[8]={"schap1end","schap2end","schap3end","schap4end","svideo1","splankton","svideo3","svideo4"};
+    if(i<=2 || i==11) return true;
+    if(i>10) return false;
+    return host->menu_script_seen(scripts[i-3]);
 }
 void MainMenu::back() { confirm=-1;page=-1;selected=-1;rebuild(); }
 
@@ -219,7 +227,39 @@ void MainMenu::loadAction() {                          // 0x429120
     SDL_Log("0x429120: load slot %d",slot);
     if(host->menu_load(slot)) { confirm=-1; page=-1; selected=-1; }
 }
+void MainMenu::adjust(int dir) {              // 0x425aa0 case 7 / 6: the focused Options row, one step
+    int *v[3]={&host->music,&host->sound,&host->voice};
+    if(focus<3) {
+        int n=*v[focus]+dir;
+        if(n<0 || n>9) return;
+        activate(200+10*focus+n);
+    } else if(focus==3) activate(dir>0?240:241);
+    else if(focus==4) activate(dir>0?242:243);
+}
 void MainMenu::key(int sym) {
+    if(confirm>=0 && page!=2 && page!=3) {      // port: Yes / No for the New Game and Quit prompts
+        if(sym==SDLK_y) activate(100); else if(sym==SDLK_n) activate(101);
+        return;
+    }
+    if(page==0) {                                // Help: the arrows page, Cancel leaves
+        if(sym==SDLK_LEFT && help_page>1) activate(91);
+        else if(sym==SDLK_RIGHT && help_page<5) activate(92);
+        else if(sym==SDLK_RETURN || sym==SDLK_KP_ENTER || sym==SDLK_SPACE) activate(90);
+        return;
+    }
+    if(page==1) {                                // Options: rows M S V D 3 O as in 0x425aa0, arrows move / change
+        int f=-1;
+        switch(sym) {
+        case SDLK_m: f=0; break; case SDLK_s: f=1; break; case SDLK_v: f=2; break;
+        case SDLK_d: f=3; break; case SDLK_3: f=4; break; case SDLK_o: activate(90); return;
+        case SDLK_UP: f=(focus+5)%6; break; case SDLK_DOWN: f=(focus+1)%6; break;
+        case SDLK_LEFT: adjust(-1); return; case SDLK_RIGHT: adjust(1); return;
+        case SDLK_RETURN: case SDLK_KP_ENTER: case SDLK_SPACE:
+            if(focus==5) activate(90); else if(focus>=3) adjust(1); return;
+        }
+        if(f>=0 && f!=focus) { focus=f; rebuild(); }
+        return;
+    }
     if(page!=2 && page!=3) return;
     if(confirm>=0) { if(sym==SDLK_RETURN || sym==SDLK_y) activate(100); else if(sym==SDLK_n) activate(101); return; }
     if(sym==SDLK_LEFT) stepSlot(-1);
@@ -227,6 +267,15 @@ void MainMenu::key(int sym) {
     else if(sym==SDLK_RETURN || sym==SDLK_KP_ENTER) { if(page==2) saveAction(); else loadAction(); }
     else if(page==2 && sym==SDLK_BACKSPACE) { if(!slotName.empty()) { slotName.erase(slotName.size()-1); rebuild(); } }
     else if(page==3 && sym==SDLK_DELETE && slot>=0) { confirm=3; rebuild(); }       // "Delete Saved Game?"
+}
+void MainMenu::padButton(int b) {       // port: pad d-pad / A / B drive the same keys (R3 / A as the mouse button are the input layer's)
+    switch(b) {
+    case SDL_CONTROLLER_BUTTON_DPAD_LEFT: key(SDLK_LEFT); break;
+    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: key(SDLK_RIGHT); break;
+    case SDL_CONTROLLER_BUTTON_DPAD_UP: key(SDLK_UP); break;
+    case SDL_CONTROLLER_BUTTON_DPAD_DOWN: key(SDLK_DOWN); break;
+    case SDL_CONTROLLER_BUTTON_B: if(!atTop()) back(); break;
+    }
 }
 void MainMenu::text(const char *utf8) {
     if(page!=2 || confirm>=0 || !utf8) return;
@@ -261,7 +310,7 @@ void MainMenu::activate(int id) {
     if(id>=200 && id<230) {
         int v=(id-200)%10, i=(id-200)/10;
         if(i==0) host->music=v; else if(i==1) host->sound=v; else host->voice=v;
-        SDL_Log("0x4256b0: volume %d=%d",i,v); host->menu_settings_changed(); rebuild(); return;
+        SDL_Log("0x4256b0: volume %d=%d",i,v); focus=i; host->menu_settings_changed(); if(i>0) host->menu_preview(i+1); rebuild(); return;
     }
     if(id>=240 && id<=243) {
         if(id<242) host->text=id==240; else host->shadows=id==242;
@@ -270,13 +319,14 @@ void MainMenu::activate(int id) {
     if(id>=300) {
         const char *names[]={"mthq","mspongebob","mintro","mchapter2","mchapter3","mchapter4",
             "mend","mmaking1","mmaking2","mmaking3","mmaking4","mcredits"};
+        if(!movieUnlocked(id-300)) return;                 // 0x424bb0 checks 0x424d60 again
         SDL_Log("0x424bb0: movie %s",names[id-300]);
         if(!host->menu_movie(names[id-300])) quit=true;
         rebuild(); return;
     }
     switch(id) {
-    case 0: SDL_Log("0x427640: Help");page=0; break;
-    case 1: SDL_Log("0x427870: Options");page=1; break;
+    case 0: SDL_Log("0x427640: Help");page=0; help_page=1; break;
+    case 1: SDL_Log("0x427870: Options");page=1; focus=0; break;
     case 2: SDL_Log("0x427ef0: Save Game");
         if(!host->menu_game_active()) { SDL_Log("0x427ef0: no game to save"); return; }      // port: the startup menu has no scene to save
         page=2; { int f=sbgame::SaveGame::firstFreeSlot(); selectSlot(f<sbgame::SaveGame::kSlots?f:0); } break;   // the first free slot, else slot 0 (overwrite)
@@ -284,7 +334,7 @@ void MainMenu::activate(int id) {
         { int s=-1; if(host->save>=0 && sbgame::SaveGame::exists(host->save)) s=host->save;
           for(int i=0;s<0 && i<sbgame::SaveGame::kSlots;++i) if(sbgame::SaveGame::exists(i)) s=i;
           selectSlot(s); } break;
-    case 4: SDL_Log("0x4246a0: View Movies; TODO(0x424d60): VM unlock variables");page=4; break;
+    case 4: SDL_Log("0x4246a0: View Movies");page=4; break;
     case 5: SDL_Log("0x425605: New Game confirmation");confirm=5; break;
     case 6: SDL_Log("0x4248b0: Resume Game");
         if(host->menu_can_resume()) host->menu_resume();

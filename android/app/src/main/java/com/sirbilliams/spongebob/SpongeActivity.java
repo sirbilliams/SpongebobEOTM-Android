@@ -34,6 +34,7 @@ public class SpongeActivity extends SDLActivity {
             int mode = getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen", 0);
             Os.setenv("SB_WIDESCREEN", modes[Math.floorMod(mode, 3)], true);
             File base = getExternalFilesDir(null);
+            Os.setenv("SB_PAD_CURSOR", getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor", true) ? "1" : "0", true);
             if (base != null) Os.setenv("OMT_DATA", new File(base, "game").getPath(), true);
             if (getIntent() != null && getIntent().getBooleanExtra(EXTRA_CRASH_TEST, false))
                 Os.setenv("OMT_CRASHTEST", "1", true);

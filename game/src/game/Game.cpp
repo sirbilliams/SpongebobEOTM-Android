@@ -54,7 +54,7 @@ bool OmtFile::open(const std::string& file)
 
 // ------------------------------------------------------------------------------------------- Game
 Game::Game()
-    : movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), pendingObj(0), pendingEvent(false), walkInMs(0), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
+    : optText(1), optShadows(1), movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), pendingObj(0), pendingEvent(false), walkInMs(0), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
       pendingId_(0), pendingStart_(0), runner_(0), host_(0), hoverCap_(0), commentCap_(0), commentMs_(0), mx_(320), my_(240),
       inputAttached_(false), commentBlock_(0), commentVoice_(false), hud_(0), cursor_(0)
 {
@@ -415,6 +415,14 @@ bool Game::playOnChannel(int ch, OMediaSound* s, int pan)
     bool ok = m->play(ch, s, false, false);
     log("      sound: channel %d play '%s' %.2fs -> %d busy=%d\n", ch, "", s->get_sound_secs(), ok ? 1 : 0, channelBusy(ch) ? 1 : 0);
     return ok;
+}
+
+// 0x4256b0: the Options screen plays "ibt1" (Sound) / "H000L" (Voice) from the open banks, if the game has them
+void Game::previewSound(bool voice)
+{
+    bool shared = false;
+    OMediaSound* s = voice ? soundCI(commentBank_.db, "H000L") : findSound("ibt1", &shared);
+    if (s) playOnChannel(voice ? 4 : 1, s, 0);
 }
 
 bool Game::channelBusy(int ch)

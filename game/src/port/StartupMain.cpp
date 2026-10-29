@@ -128,6 +128,7 @@ class StartupApp : public MenuHost
 		OMediaSoundManager *manager = OMediaSoundManager::getdefaultmanager();
 		BinkSetSoundSystem(BinkOpenDirectSound, 0); // port: shared SDL mixer, no DirectSound pointer.
 		manager->set_nchannels(15);
+		apply_settings();
 		SDL_Log("0x40c2a0: Sound Manager Channels = %ld", manager->get_nchannels());
 		BinkPortSetSurfaceType(BINKSURFACE32);
 	}
@@ -156,6 +157,20 @@ class StartupApp : public MenuHost
         else return;
         start_game = true;
     }
+    // 0x416690 for View Movies (0x424d60): the game's progress, else the last used slot's (port: the exe keeps one progress object; here it lives in the paused game or the save)
+    virtual bool menu_script_seen(const char *name) {
+        std::string n(name); for (size_t i = 0; i < n.size(); ++i) n[i] = (char)tolower((unsigned char)n[i]);
+        if (const char *t = getenv("SB_TEST_VM_SEEN")) {     // port: tests only, comma list of scripts seen
+            std::string l(",");  l += t; l += ",";
+            if (l.find("," + n + ",") != std::string::npos) return true;
+        }
+        if (paused) return paused->state().scriptSeen(name);
+        sbgame::SaveFile f;
+        if (save >= 0 && sbgame::SaveGame::exists(save) && sbgame::SaveGame::read(sbgame::SaveGame::slotPath(save), f)) {
+            for (size_t i = 0; i < f.scrp.size(); ++i) { std::string s = f.scrp[i]; for (size_t k = 0; k < s.size(); ++k) s[k] = (char)tolower((unsigned char)s[k]); if (s == n) return true; }
+        }
+        return false;
+    }
     virtual bool menu_save(int slot, const char *name) {     // 0x428740 -> 0x41db50
         if (!paused) return false;
         sbgame::SaveFile f;
@@ -166,7 +181,22 @@ class StartupApp : public MenuHost
         return true;
     }
     virtual bool menu_load(int slot) { launch = L_LOAD; launch_slot = slot; start_game = true; return true; }   // 0x429120
+    // 0x40c3b0 (the settings apply): the sound manager's channel groups get 6*level+201 (0 for level 0): 3 = Music, 4 = Voice, the others (not 0) = Sound;
+    // the Text / Shadows values go to the game object.
+    void apply_settings() {
+        OMediaSoundManager *m = OMediaSoundManager::getdefaultmanager();
+        for (long i = 1; i < m->get_nchannels() && i < 15; ++i) {
+            int lv = i == 3 ? music : i == 4 ? voice : sound;
+            if (lv < 0) lv = 0; if (lv > 9) lv = 9;
+            m->get_channel(i)->set_volume((short)(lv == 0 ? 0 : lv * 6 + 201));
+        }
+        SDL_Log("0x40c3b0: mixer music=%d (ch3 vol %d) sound=%d (ch1,2,5.. vol %d) voice=%d (ch4 vol %d) text=%d shadows=%d",
+            music, music ? music * 6 + 201 : 0, sound, sound ? sound * 6 + 201 : 0, voice, voice ? voice * 6 + 201 : 0, text, shadows);
+        if (paused) { paused->optText = text; paused->optShadows = shadows; }
+    }
+    virtual void menu_preview(int kind) { if (paused) paused->previewSound(kind == 3); }      // 0x4256b0 (only with a game's banks open)
     virtual void menu_settings_changed() {
+        apply_settings();
         // port: persist 0x409ed0's registry settings under SDL's per-user directory.
         char *pref=SDL_GetPrefPath("THQ","SpongeBob 2");
         std::string path=getenv("OMT_CONFIG")?getenv("OMT_CONFIG"):std::string(pref?pref:"")+"settings.cfg";
@@ -340,10 +370,12 @@ class StartupApp : public MenuHost
         while(!menu.quit && !start_game) {
             if(event_manager->quit_requested()) { quit_app=true; break; }
             SDL_Event ev;
-            while(SDL_PollEvent(&ev)) {
+            while(OMediaEventManager::poll(&ev)) {
                 event_manager->handle_sdl_event(&ev);
                 if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); menu.hover(x,y); }
-                if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE) { if(menu.atTop() && paused) menu_resume(); else menu.back(); }
+                // port: Escape, F10 and Android Back leave a screen (and the menu over a game); pad B too
+                if(ev.type==SDL_KEYDOWN && (ev.key.keysym.sym==SDLK_ESCAPE || ev.key.keysym.sym==SDLK_F10 || ev.key.keysym.sym==SDLK_AC_BACK)) { if(menu.atTop()) { if(paused) menu_resume(); } else menu.back(); }
+                else if(ev.type==SDL_CONTROLLERBUTTONDOWN) menu.padButton(ev.cbutton.button);
                 else if(ev.type==SDL_KEYDOWN) menu.key(ev.key.keysym.sym);
                 else if(ev.type==SDL_TEXTINPUT) menu.text(ev.text.text);
             }
@@ -428,12 +460,13 @@ class StartupApp : public MenuHost
         bool result=true, keep=false;
         try {
             if(launch==L_RESUME && paused) {            // 0x4248b0: the menu closes and the game in progress goes on
-                game=paused; paused=NULL; game->suspended=false;
+                game=paused; paused=NULL; game->suspended=false; apply_settings(); game->optText=text; game->optShadows=shadows;
                 game->forceRedraw();
             } else {
                 delete paused; paused=NULL;
                 game=new sbgame::Game;
                 if(!game->init(".",screen)) { SDL_Log("game: init failed"); delete game; return true; }
+                apply_settings(); game->optText=text; game->optShadows=shadows;
                 game->attachInput();
                 movie_ok=true; movie_done=false;
                 game->movieHook=game_movie; game->movieHookData=this;
@@ -474,7 +507,11 @@ class StartupApp : public MenuHost
                 }
                 // port: replay against the displayed transform before this frame can pan.
                 test_clicks(frame,"SB_TEST_GAME_CLICKS");
-                while(SDL_PollEvent(&ev)) {
+                if(const char *ts=getenv("SB_TEST_SCRIPT")) {    // port: tests only, "frame:name": game->switchTo(name) (a script, comment or scene) at that game frame
+                    unsigned at=0; int n=0;
+                    if(sscanf(ts,"%u:%n",&at,&n)==1 && at==frame) game->switchTo(ts+n);
+                }
+                while(OMediaEventManager::poll(&ev)) {
                     event_manager->handle_sdl_event(&ev);
                     if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); game->mouseMove(x,y); }
                     if(ev.type==SDL_KEYDOWN && (ev.key.keysym.sym==SDLK_F10 || ev.key.keysym.sym==SDLK_AC_BACK)) leave=true;   // port: back to the menu

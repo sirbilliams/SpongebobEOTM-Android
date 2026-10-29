@@ -107,6 +107,17 @@ save UI does not deserialize existing player saves. Menu audio effects and the
 inventory/map toolbar beyond its acquired menu art are not reconstructed here.
 Returning to the menu after a scene TODO is a port fallback, not playable gameplay.
 
+## Help / Options (lane c)
+
+Options (0x425aa0 key handler, 0x4256b0, 0x40c3b0): rows Music / Sound / Voice (0..9), Dialogue Text, 3D Shadows, Ok;
+keys M S V D 3 O select a row, Up/Down move, Left/Right change, Enter on Ok leaves; pad d-pad = arrows, B = back.
+Every change applies live (0x40c3b0): channel 3 = Music, 4 = Voice, others (not 0) = Sound, volume 6*level+201 (0 for
+level 0), logged as `0x40c3b0: mixer ...`; it is saved to settings.cfg (the registry's Music/Sound/Voice/Save/Text/
+Shadows) and read back at start. Sound/Voice changes play a sample (ibt1 / H000L) when a game's banks are open
+(0x4256b0). Text Off hides the caption of a voiced dialogue line (0x410a60/0x4128d0); Shadows is kept on the game
+(`optShadows`) until the 3D scene draws blob shadows. Help: Left/Right page, Enter leaves. Escape, F10 and Android
+Back leave a screen. The menu stays a 4:3 640x480 canvas in fill/panels/stretch (checked at 1920x1080).
+
 ## Validation (2026-10-28)
 
 - C++98 RelWithDebInfo and ASan/UBSan builds of spongebob pass.

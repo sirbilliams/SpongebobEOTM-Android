@@ -117,3 +117,7 @@ jobs:
         run: |
           cmake -S engine -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo
           cmake --build build -j"$(nproc)"
+      # Game-file-free checks only (the game's files are never in the repo): pure-logic unit tests.
+      # The full smoke test (tools/test/smoke.sh, docs/testing.md) needs the installed game and runs locally.
+      - name: Unit tests (no game files)
+        run: build/sb_unittest

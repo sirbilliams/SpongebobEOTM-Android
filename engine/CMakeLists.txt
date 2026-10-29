@@ -204,6 +204,9 @@ else()
   # Script interpreter + dialogue tables of the reconstructed game: parses every .sb2 of the install (sb_scripttest <game dir>)
   add_executable(sb_scripttest tests/sb_scripttest.cpp ../game/src/script/Sb2File.cpp ../game/src/script/ScriptRunner.cpp ../game/src/script/ScriptCondition.cpp ../game/src/script/ScriptHostLog.cpp ../game/src/script/Dialogue.cpp)
   target_compile_options(sb_scripttest PRIVATE -Wall -fsigned-char)
+  # Pure-logic unit tests, no game files needed (tools/test/smoke.sh and CI run it)
+  add_executable(sb_unittest tests/sb_unittest.cpp ../game/src/script/Sb2File.cpp ../game/src/script/ScriptRunner.cpp ../game/src/script/ScriptCondition.cpp ../game/src/script/ScriptHostLog.cpp ../game/src/script/Dialogue.cpp)
+  target_compile_options(sb_unittest PRIVATE -Wall -fsigned-char)
 
   # The 2D scene runtime (game/src/game: scene, dialogue UI, ScriptHost) on the OMT 1.x layer, headless
   file(GLOB SB_GAME_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/game/*.cpp)

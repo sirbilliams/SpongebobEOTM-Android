@@ -32,6 +32,7 @@ void omgl_pump_events(void);					// keep the window alive between presents
 void omgl_widescreen_scene(bool active, float playerTop = -1, float playerBottom = -1);
 void omgl_window_to_logical(int &x, int &y);
 void omgl_logical_to_window(int &x, int &y);
+void omgl_logical_size(int &w, int &h);
 
 // Surfaces
 void omgl_surface_create(OMediaGLSurface *s, int width, int height, bool primary);
