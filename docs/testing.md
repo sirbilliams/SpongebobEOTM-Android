@@ -43,3 +43,9 @@ touch hooks log nothing, so those two only prove the run survives them (look at 
 When a `TODO(` line disappears or a new one is intended, run once with `--update-baseline` and commit the file.
 `--asan` runs the same steps with `<repo>/build-asan` (ASan + UBSan, built on first use); `runtime error:` and
 `AddressSanitizer` lines fail the step.
+
+The dialogue and HUD click replays use `SB_TEST_READY_FRAMES=1`: both the capture counter and click
+schedule start after a scene has entered, its transition bars are open, and its first frame has been
+drawn. Startup/loading buffer flips cannot exhaust the screenshot budget before the clicks run.
+The dialogue step also requires the `test: scene c1l5s4 ready` marker, in addition to the original
+Larry event, dialogue AAA and line AZA assertions. The external per-run timeout still bounds startup.

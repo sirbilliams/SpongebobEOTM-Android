@@ -33,6 +33,7 @@
 #include "../../granny/granny_compat.h"
 
 extern void omf_SDLFrameHook(SDL_Window *win);		// OMediaSDLMain.cpp: frame count, OMT_SCREENSHOT
+extern void omf_SDLTestReady(void);
 
 class StartupApp : public MenuHost
 {
@@ -481,12 +482,14 @@ class StartupApp : public MenuHost
                 game->switchTo(scene.c_str());           // 0x40a230: movie, then the scene (game+0x186)
             }
             SDL_ShowCursor(SDL_ENABLE);
-            unsigned frame=0, last=0;
+            unsigned frame=0, last=0, readyFrame=0;
+            bool testReady=false;
             for(;;) {
                 if(event_manager->quit_requested()) { result=false; break; }
                 SDL_Event ev; bool leave=false;
                 // port: replay against the displayed transform before this frame can pan.
-                test_clicks(frame,"SB_TEST_GAME_CLICKS");
+                if(!getenv("SB_TEST_READY_FRAMES") || testReady)
+                    test_clicks(getenv("SB_TEST_READY_FRAMES") ? readyFrame++ : frame,"SB_TEST_GAME_CLICKS");
                 if(const char *ts=getenv("SB_TEST_SCRIPT")) {    // port: tests only, "frame:name": game->switchTo(name) (a script, comment or scene) at that game frame
                     // "frame:name[@actor][,frame:name...]"
                     for(const char *q=ts; q && *q; ) {
@@ -541,6 +544,10 @@ class StartupApp : public MenuHost
                 }
                 omgl_widescreen_scene(true,top,bottom);
                 game->world()->update();
+                if(!testReady && game->scene() && game->scene()->barState()==0) {
+                    testReady=true; omf_SDLTestReady();
+                    if(getenv("SB_TEST_READY_FRAMES")) SDL_Log("test: scene %s ready", game->scene()->name().c_str());
+                }
                 ++frame; SDL_Delay(10);
             }
         } catch(OMediaError &e) {
