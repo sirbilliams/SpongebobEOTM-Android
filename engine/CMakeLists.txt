@@ -186,6 +186,10 @@ else()
     set_target_properties(omt1_bink_mixer_test PROPERTIES BUILD_RPATH "${FFMPEG_PREFIX}/lib")
   endif()
 
+  # Script interpreter + dialogue tables of the reconstructed game: parses every .sb2 of the install (sb_scripttest <game dir>)
+  add_executable(sb_scripttest tests/sb_scripttest.cpp ../game/src/script/Sb2File.cpp ../game/src/script/ScriptRunner.cpp ../game/src/script/ScriptCondition.cpp ../game/src/script/ScriptHostLog.cpp ../game/src/script/Dialogue.cpp)
+  target_compile_options(sb_scripttest PRIVATE -Wall -fsigned-char)
+
   # The reconstructed game, desktop build
   if(SB_SRC)
     add_executable(spongebob ${SB_SRC} ${OMT_MAIN})
