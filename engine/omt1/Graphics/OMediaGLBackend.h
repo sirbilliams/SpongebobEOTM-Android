@@ -30,6 +30,8 @@ void omgl_present(OMediaGLSurface *s);			// draw the surface into the window, fr
 void omgl_pump_events(void);					// keep the window alive between presents
 
 // port: one presentation transform shared by rendering, input and click replay.
+void omgl_view_window(bool on, float sx, float sy, float sw, float sh, float top, float bottom);	// port: Asset Viewer scene explorer (see OMediaSDLGfx.cpp)
+void omgl_view_pointer(bool on, float lx, float ly);		// port: Asset Viewer pointer overlay (see OMediaSDLGfx.cpp)
 void omgl_widescreen_scene(bool active, float playerTop = -1, float playerBottom = -1);
 void omgl_window_to_logical(int &x, int &y);
 void omgl_logical_to_window(int &x, int &y);

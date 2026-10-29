@@ -20,6 +20,7 @@
 #include "../game/Reveal.h"
 #include "Playthrough.h"
 #include "Companion.h"
+#include "AssetView.h"
 #include <stdexcept>
 #include "CrashLog.h"
 #include <stdio.h>
@@ -624,6 +625,9 @@ class StartupApp : public MenuHost
 	{
 		SDL_Window *win = SDL_GL_GetCurrentWindow();
 		if (!win) return;
+
+		if (const char *av = getenv("SB_ASSET_VIEW"))		// port: the Asset Viewer (docs/asset-viewer.md): no movies, no menu, no saves; leaving ends the app
+			if (*av) { sbport::AssetViewRun(av, screen, event_manager, font); return; }
 
 		const char *chain[] = {"mlegal", "mthq", "mawe", "mnick", "mspongebob"};
 		for (unsigned i = 0; i < sizeof chain / sizeof chain[0] && !skip_movies; ++i)
