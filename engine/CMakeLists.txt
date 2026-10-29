@@ -153,6 +153,9 @@ if(ANDROID)
     target_compile_options(spongebob PRIVATE ${SB_FLAGS})
   endif()
 else()
+  add_executable(sb_scntest ../tools/scene/sb_scntest.cpp
+    ../game/src/scene/SceneData.cpp ../game/src/scene/SceneReader.cpp)
+
   add_executable(omt_viewer viewer/OMTViewer.cpp ${OMT_MAIN})
   target_link_libraries(omt_viewer omt)
   target_compile_options(omt_viewer PRIVATE -w -fpermissive)
