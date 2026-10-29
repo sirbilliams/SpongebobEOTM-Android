@@ -54,6 +54,8 @@ public:
     // the item bar 0x421c40, the puzzle object); they are kept and written back unchanged.
     struct PosiRec { char name[32]; unsigned a, b, c, d; short e; };
     struct BarRec { char name[32]; char tex[32]; short slot; };
+    // lane e: 0x416880 (the 'save' script command): a character's scene id, x, y, z and heading appended to the POSI list
+    void addPosition(const char* name, unsigned scene, float x, float y, float z, short facing);
     bool hasPlayer;            // scene+0x248 exists: the controlled character (writer 0x416ed0)
     float playerX, playerY, playerZ; short playerFacing;   // character +0x310/+0x314/+0x318/+0x320; filled by the walking code
     bool resumePos;            // progress+0x64: a save restored a non-zero position; playerX.. hold it for the scene to place

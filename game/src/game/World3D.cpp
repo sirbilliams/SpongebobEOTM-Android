@@ -750,6 +750,40 @@ void World3D::update(float dtMs)
     if (wake_) { wake_ = false; game_->host()->actorDone(); }
 }
 
+// lane e: char vt+0xec (used by 'shock' 0x43ffda): the renderer's world -> view -> screen transform (OMedia3DVPModel::add_element) for one point
+bool World3D::project(float x, float y, float z, int& sx, int& sy)
+{
+    const sb::scene::Camera& c = scene_->data().camera.data.camera;
+    if (c.o0188 <= 0) return false;
+    OMedia3DVector v(x - c.o0174, y - c.o0178, z - c.o017c);
+    v.inv_rotate(-(short)(c.o0180*16384/360), -(short)(c.o0182*16384/360), -(short)(c.o0184*16384/360));   // as OMedia3DVPModel::add_element
+    if (v.z <= 0.00001f) return false;
+    sx = (int)(320 + v.x * c.o0188 / v.z);
+    sy = (int)(240 - v.y * c.o0188 / v.z);
+    return true;
+}
+
+Actor3D* World3D::controlled()
+{
+    for (size_t i = 0; i < actors_.size(); ++i) if (actors_[i]->obj->userCtl) return actors_[i];
+    return 0;
+}
+
+// 0x43fced 'swapchar': the old character loses control (vt+0x10c(0)), the new one takes its x, y, z and heading, is placed (vt+0x15c / 0x160)
+// and becomes scene+0x248.  port: the controlled character is the one whose CHAR record says User Controlled, so the flag moves too.
+bool World3D::swapControl(Actor3D* from, Actor3D* to)
+{
+    if (!from || !to) return false;
+    from->control = false;
+    from->obj->userCtl = false;
+    to->x = from->x; to->y = from->y; to->z = from->z; to->heading = from->heading;
+    to->obj->userCtl = true;
+    to->control = true;
+    place(to);
+    updateShadow(to);
+    return true;
+}
+
 bool World3D::screenBounds(SceneObject* o, int& x1, int& y1, int& x2, int& y2)
 {
     Actor3D* a = actorFor(o);
