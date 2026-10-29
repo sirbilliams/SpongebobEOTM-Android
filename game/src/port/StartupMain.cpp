@@ -443,6 +443,12 @@ class StartupApp : public MenuHost
         e.type=SDL_MOUSEBUTTONDOWN; e.button.button=SDL_BUTTON_LEFT; e.button.x=px; e.button.y=py; SDL_PushEvent(&e);
         e.type=SDL_MOUSEBUTTONUP; SDL_PushEvent(&e);
     }
+    static void pt_move(int x, int y) {
+        SDL_Window *win=SDL_GL_GetCurrentWindow();
+        if(!win) return;
+        int px=x, py=y; omgl_logical_to_window(px,py);
+        SDL_Event e; SDL_zero(e); e.type=SDL_MOUSEMOTION; e.motion.x=px; e.motion.y=py; SDL_PushEvent(&e);
+    }
     static StartupApp *pt_app;
     static void pt_save(sbgame::Game *game, int slot) {
         std::vector<unsigned char> thumb;
@@ -503,7 +509,7 @@ class StartupApp : public MenuHost
                 SDL_Event ev; bool leave=false;
                 if(pt) {
                     bool failed=false;
-                    if(!pt->tick(game,pt_click,pt_save,&failed)) { SDL_Log("playthrough %s", failed?"FAILED":"done"); delete pt; pt=NULL; result=false; break; }
+                    if(!pt->tick(game,pt_click,pt_move,pt_save,&failed)) { SDL_Log("playthrough %s", failed?"FAILED":"done"); delete pt; pt=NULL; result=false; break; }
                 }
                 // port: replay against the displayed transform before this frame can pan.
                 test_clicks(frame,"SB_TEST_GAME_CLICKS");

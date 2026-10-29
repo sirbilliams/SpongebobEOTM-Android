@@ -107,6 +107,7 @@ public:
     bool baseUseItem(SceneObject* o, const char* item);               // 0x415c30
     // scene vt+0xbc (0x4398f0): a click at x,y that was not on the HUD
     void click(int x, int y);
+    void carWash(int x, int y);                                       // scene vt+0x160 (0x43d270)
     // game cursor object vt+0x30: hover description under x,y
     SceneObject* hover(int x, int y);
     // per-frame update (scene vt+0x118 0x43ae70 timers, ANIM ticks 0x408cb0, bars 0x43b760)

@@ -166,6 +166,8 @@ void Game::mouseMove(int x, int y)
     mx_ = x; my_ = y;
     if (hud_) hud_->onMove(x, y);                               // port: hud
     if (scene_ && scene_->dialogue() && scene_->dialogue()->busy()) scene_->dialogue()->onMove(x, y);
+    // the cursor object's hover test (0x43a020): in the car wash (0x70401) the pointer over nothing scrubs (scene vt+0x160)
+    if (scene_ && scene_->sceneId() == 0x70401 && !scene_->hover(x, y)) scene_->carWash(x, y);
 }
 
 // ------------------------------------------------------------------------- scene requests (0x40ab60)

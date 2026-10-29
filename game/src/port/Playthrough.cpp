@@ -136,7 +136,7 @@ bool Playthrough::locate(Game* g, const std::string& target, int* x, int* y)
     return false;
 }
 
-bool Playthrough::tick(Game* g, void (*click)(int, int), void (*save)(Game*, int), bool* failed)
+bool Playthrough::tick(Game* g, void (*click)(int, int), void (*move)(int, int), void (*save)(Game*, int), bool* failed)
 {
     *failed = failed_;
     if (failed_ || cur_ >= steps_.size()) return false;
@@ -185,6 +185,14 @@ bool Playthrough::tick(Game* g, void (*click)(int, int), void (*save)(Game*, int
         answers_.assign(st.args.begin() + 2, st.args.end());
         click(x, y);
         done = true;
+    } else if (c == "scrub") {                      // the pointer sweeps the whole screen (row by row, 16 moves a frame)
+        for (int k = 0; k < 16; ++k) {
+            int x = (phase_ % 34) * 19 + 5, y = (phase_ / 34) * 29 + 10;
+            if (y > 479 + 20) { done = true; break; }
+            move(x < 639 ? x : 639, y < 479 ? y : 479);
+            ++phase_;
+        }
+        if (!done) return true;
     } else if (c == "map") {
         click(608, 32);
         done = true;

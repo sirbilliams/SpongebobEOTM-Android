@@ -406,7 +406,9 @@ bool World3D::turnToward(SceneObject* o, Actor3D* to)
 {
     Actor3D* a = actorFor(o);
     if (!a || !to || a->obj->kind != SceneObject::Char) return false;
-    return rotate(o, headingOf(to->x - a->x, to->z - a->z), 500);
+    bool r = rotate(o, headingOf(to->x - a->x, to->z - a->z), 500);
+    if (r) a->waited = false;
+    return r;
 }
 
 bool World3D::clickFloor(int x, int y, SceneObject* target)
@@ -472,14 +474,18 @@ bool World3D::walkTo(SceneObject* target, float x, float z)
 bool World3D::rotatePlayer(int heading)
 {
     Actor3D* a = player();
-    return a && rotate(a->obj, heading, 500);
+    bool r = a && rotate(a->obj, heading, 500);
+    if (r) a->waited = false;              // the object code's turn: no script waits for it
+    return r;
 }
 
 bool World3D::rotateToward(SceneObject* t)
 {
     Actor3D* a = player();
     if (!a) return false;
-    return rotate(a->obj, headingOf(t->px - a->x, t->pz - a->z), 500);
+    bool r = rotate(a->obj, headingOf(t->px - a->x, t->pz - a->z), 500);
+    if (r) a->waited = false;
+    return r;
 }
 
 bool World3D::project(float x, float y, float z, int& sx, int& sy)

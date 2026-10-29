@@ -92,4 +92,96 @@ click chap103
 scene c1l5s1
 idle
 shot 11-c1l5s1-goolagoon
+click "Walk to Castle Entrance"
+scene c1l5s2
+idle
+shot 12-c1l5s2-castle
+click "Walk toward Mussel Beach"
+scene c1l5s3
+idle
+click "Walk to Mussel Beach"
+scene c1l5s4
+idle
+shot 13-c1l5s4-larry
+talk larry AAA ABA ACA ACA AXA
+idle
+expect 154ACA
+click "Walk toward Sand Castle"
+scene c1l5s3
+idle
+click "Walk to Castle Entrance"
+scene c1l5s2
+idle
+click "Enter Ray's Tanning Salon"
+scene c1l5s5
+idle
+shot 14-c1l5s5-dame
+talk dame AAA AAA AAA AAA AXA
+idle
+expect 155AAA
+click "Walk to Other Side"
+scene c1l5s6
+idle
+shot 15-c1l5s6-beach
+click "Walk to Ray"
+scene c1l5s7
+idle
+shot 16-c1l5s7-ray
+talk ray AAA AAA AAA ABA AXA
+idle
+expect 157ABA
+map
+scene c1l1s1
+idle
+shot 17-c1l1s1-map2
+click chap104
+scene c1l3s1
+idle
+shot 18-c1l3s1-grandmas
+click "Enter Grandma's House"
+scene c1l3s6
+shot 19-c1l3s6-meanwhile
+scene c1l3s4
+idle
+shot 20-c1l3s4-livingroom
+click "Walk to Kitchen"
+scene c1l3s5
+idle
+shot 21-c1l3s5-kitchen
+talk gran AAA ABA ABA ACA AXA
+idle
+expect 135ABA
+map
+scene c1l1s1
+idle
+click chap105
+scene c1l4s1
+idle
+shot 22-c1l4s1-parking
+click "Walk to The Barg-N-Mart"
+scene c1l4s2
+idle
+shot 23-c1l4s2-storefront
+click "Enter Barg-N-Mart"
+scene c1l4s3
+idle
+shot 24-c1l4s3-registers
+talk eugene AAA AAA AAA AAA
+idle
+expect 143AAA
+click "Exit The Barg-N-Mart"
+scene c1l4s2
+idle
+click "Walk to The Parking Lot"
+scene c1l4s1
+idle
+click boat1
+scene c1l4s7
+idle
+shot 25-c1l4s7-carwash
+scrub
+scene c1l4s1
+idle
+expect swash
+shot 26-c1l4s1-cleancar
 end

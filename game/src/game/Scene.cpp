@@ -687,6 +687,11 @@ void GameScene::click(int x, int y)    // 0x4398f0
         else pickEvent(o, touching, true);
         if (o->kind == SceneObject::Spot || o->kind == SceneObject::Anim2D || o->kind == SceneObject::Obj2D) lastClicked_ = o;
     }
+    if (!game_->inputConsumed && sceneId_ == 0x70401) {   // 0x4398f0 tail: the car wash squeezes the sponge (mini game 0x4367a0)
+        game_->stopChannel(7);
+        OMediaSound* snd = game_->soundCI(game_->sceneSoundDb(), "squeeze");
+        if (snd) game_->playOnChannel(7, snd, 0);
+    }
     if (!p || game_->inputConsumed || game_->pendingObj) return;
     // nothing took the click: the player walks to the floor point (with the object as the target when it is a SPOT without a
     // grid cell); 0x4184f0 / 0x418170 (the cell under the click is open), else the click on the other height's grid (port: not
@@ -695,6 +700,43 @@ void GameScene::click(int x, int y)    // 0x4398f0
     if (!o) w->clickFloor(x, y, 0);
     else if (o->kind == SceneObject::Spot && o->gridX == 0 && o->gridY == 0) w->clickFloor(x, y, o);
     else if (o->kind == SceneObject::Trigger && o->event.empty() && o->altEvent.empty()) w->clickFloor(x, y, 0);
+}
+
+// scene vt+0x160 (0x43d270): the car wash (scene 0x70401).  The pointer over nothing rubs the "cardirty" overlay clean: every pixel
+// of the box col x-11..x+9, row y-21..y+9 takes the overlay's first pixel (its transparent colour); the "wash" sound plays while
+// something changes; at more than 99% of 640x480 transparent the event "swash" runs.
+void GameScene::carWash(int x, int y)
+{
+    SceneObject* o = find("cardirty", (1 << SceneObject::Obj2D));
+    OMediaCanvas* c = o && o->elem ? canvasNamed(o->art) : 0;
+    OMediaGfxWorld* gw = c ? c->getgfxworld() : 0;
+    OMediaGfxPixels* px = gw ? gw->port_pixels() : 0;
+    if (!px || !px->pix) return;
+    gw->pixlock();
+    int w = px->width, h = px->height;
+    unsigned key = px->pix[0];
+    bool changed = false;
+    double clean = 0;
+    for (int row = 0; row < h; ++row) {
+        int er = h - 1 - row;
+        for (int col = 0; col < w; ++col) {
+            unsigned& p = px->pix[row * w + col];
+            int ec = w - 1 - col;
+            if (er >= (480 - y) - 10 && er <= (480 - y) + 20 && ec >= (640 - x) - 10 && ec <= (640 - x) + 10 && p != key) { p = key; changed = true; }
+            if (p == key) clean += 1.0;
+        }
+    }
+    if (changed) px->version++;
+    gw->pixunlock();
+    if (clean * (1.0f / 307200.0f) * 100.0f > 99.0f) {
+        game_->switchTo("swash");
+        game_->stopChannel(7);
+        return;
+    }
+    if (changed && !game_->channelBusy(7)) {              // mini game object 0x4367a0("wash"): channel 7, the scene bank
+        OMediaSound* snd = game_->soundCI(game_->sceneSoundDb(), "wash");
+        if (snd) game_->playOnChannel(7, snd, 0);
+    }
 }
 
 void GameScene::clickAnim(SceneObject* o, bool touching)      // 0x4093a0 (simplified: click-to-play / frame-per-click / toggle)

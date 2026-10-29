@@ -11,6 +11,7 @@
       use <item> <target>    open the bar, pick the item up from its slot, click the target with it
       combine <a> <b>        open the bar, pick up a, click b's slot
       map                    click the bar's map button
+      scrub                  the pointer sweeps the screen (the car wash)
       expect <condition>     a condition expression (docs/script.md) must hold
       have <item>            the item must be in the bar
       shot <name>            save the screen as <SB_TEST_SHOTDIR>/<name>.bmp
@@ -32,7 +33,7 @@ public:
     bool ok() const { return !steps_.empty(); }
     // once per game-loop frame, before the events are read.  `click` sends a logical click, `key` a key to the dialogue,
     // `save` writes slot n.  Returns false when the run is over (end or failure); *failed tells which.
-    bool tick(sbgame::Game* g, void (*click)(int x, int y), void (*save)(sbgame::Game* g, int slot), bool* failed);
+    bool tick(sbgame::Game* g, void (*click)(int x, int y), void (*move)(int x, int y), void (*save)(sbgame::Game* g, int slot), bool* failed);
 private:
     struct Step { int line; std::string cmd; std::vector<std::string> args; };
     std::vector<Step> steps_;
