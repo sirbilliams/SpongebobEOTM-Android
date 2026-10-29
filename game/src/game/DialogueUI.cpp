@@ -1,4 +1,5 @@
 #include "DialogueUI.h"
+#include <strings.h>
 #include "Game.h"
 #include "SceneScriptHost.h"
 #include "OMediaEventManager.h"
@@ -119,7 +120,7 @@ DialogueGroup* DialogueUI::groupByKey(const std::string& key)
 }
 
 // 0x411920
-bool DialogueUI::speak(const char* key)
+bool DialogueUI::speak(const char* key)         // 0x411920
 {
     if (groups_.empty()) return false;
     size_t len = strlen(key);
@@ -141,22 +142,28 @@ bool DialogueUI::speak(const char* key)
     exiting_ = false;
     cur_ = first;
     dirty_ = true;
+    // the first group of its branch, at its first line, with a decision point ahead: spoken at once (the opening)
     DialogueGroup& g0 = groups_[first];
-    // a node with a single line that is the only one of the branch speaks at once
-    if (cnt == 1) { confirm(); return true; }
-    // a "Z" node of the branch is the opening statement, spoken before the list is offered
+    bool firstOfBranch = first == 0 || groups_[first - 1].key.empty() || groups_[first - 1].key[0] != g0.key[0];
+    if (firstOfBranch && g0.current <= 0 && hasDecision(g0)) { confirm(); return true; }
+    // else the branch's "Z" group (welcome back) is spoken first (+0x2c), the list follows
     for (size_t i = 0; i < groups_.size(); ++i) {
         const DialogueGroup& g = groups_[i];
-        if (g.key.size() > 1 && toupper((unsigned char)g.key[0]) == toupper((unsigned char)branch_) &&
-            toupper((unsigned char)g.key[1]) == 'Z' && g.stateB == 0) {
+        if (g.key.size() > 1 && g.key[0] == branch_ && toupper((unsigned char)g.key[1]) == 'Z') {
             cur_ = (int)i;
-            zOpen_ = true;              // +0x2c: speak it once, then back to the list
+            zOpen_ = true;
             confirm();
-            return true;
+            break;
         }
     }
-    (void)g0;
+    if (!zOpen_ && cnt == 1) { zOpen_ = true; exiting_ = true; confirm(); }     // +0x2c, +0x2d: a single group
     return true;
+}
+
+bool DialogueUI::hasDecision(const DialogueGroup& g)      // vt+0x48 (0x4117f0): a line with n1 before the last one
+{
+    for (int i = g.current < 0 ? 0 : g.current; i + 1 < (int)g.lines.size(); ++i) if (g.lines[i].flag1 != 0) return true;
+    return false;
 }
 
 // 0x412bb0
@@ -238,35 +245,39 @@ void DialogueUI::advance()
     bool last = g.current + 1 >= (int)g.lines.size();
     // port: group.lines is the vector the exe chains through +0x158 / +0x15c
     if (last) {
-        // run the node's action: a command line, not an "ANIM" marker and not the "0" placeholder
-        bool finished = false;
+        // the node's action (a command line, not an "ANIM" marker), the first time only (0x416e50: no entry, or its first short is 0)
         if (!isAnim(l.action) && l.action.size() > 3) {
-            std::string a = l.action;
-            game_->switchTo(a.c_str());
+            std::string ck; short a = 0, b = 0;
+            if (!game_->state().lookup(sceneId_, g.key, &ck, &a, &b) || a == 0) {
+                std::string act = l.action;
+                game_->switchTo(act.c_str());
+            }
         }
+        int n3 = l.flag3;
         g.stateA = 1;
-        int n2 = l.flag2;
-        if (n2 == 1 || zOpen_) { g.current = 0; zOpen_ = false; }           // restarts from the first line
-        else if (n2 == 2) {                                                 // back to the last "n1" line
+        bool finished = false;
+        if (l.flag2 == 1 || zOpen_) { g.current = 0; zOpen_ = false; }      // restarts from the first line
+        else if (l.flag2 == 2) {                                            // back to the last "n1" line
             do { g.current--; } while (g.current > 0 && g.lines[g.current].flag1 == 0);
             if (g.current < 0) g.current = 0;
         } else finished = true;
         if (!zOpen_) g.stateB = 1;
-        bool wasExit = exiting_;
-        if (!exiting_ && !zOpen_) storeProgress(g);
-        if (finished) g.current = -1;
-        if (l.flag3 == 0 && !wasExit) {
+        if (n3 == 0 && !exiting_) {
             choice_ = true;                                                 // back to the choice list
-            exiting_ = false;
             dirty_ = true;
-            // 0x4117a0: exactly one choice left: take it
+        } else stop();
+        if (!exiting_ && !zOpen_) {                                         // 0x416d30: (current line, stateA, finished)
+            std::string ck = g.current >= 0 && g.current < (int)g.lines.size() ? g.lines[g.current].key : std::string();
+            game_->state().storeDialogue(sceneId_, g.key, ck, g.stateA, finished ? 1 : 0);
+        }
+        if (finished) g.current = -1;
+        if (choice_) {
+            // 0x4117a0: exactly one choice left: take it; the selection moves off a group that is no longer eligible
             int cnt = 0, only = -1;
             for (size_t i = 0; i < groups_.size(); ++i) if (eligible(groups_[i], false)) { ++cnt; only = (int)i; }
             if (cnt == 1) { cur_ = only; confirm(); }
-            else if (cnt == 0) stop();
-            else if (!eligible(groups_[cur_], false)) selectNext(1);
-        } else {
-            stop();
+            else if (cnt == 0) stop();                                      // port: an empty list would never close
+            else if (choice_ && !eligible(groups_[cur_], false)) selectNext(1);
         }
     } else {
         g.current++;
@@ -402,6 +413,46 @@ std::vector<std::string> DialogueUI::choiceTexts()
         if (!eligible(groups_[i], false)) continue;
         out.push_back(groups_[i].lines[groups_[i].current >= 0 ? groups_[i].current : 0].text);
     }
+    return out;
+}
+
+bool DialogueUI::hasSomething(const char* key)      // 0x411820
+{
+    if (groups_.empty()) return false;
+    const char* k = strlen(key) == 8 ? key + 3 : key;
+    char saved = branch_;
+    branch_ = k[0];
+    int cnt = 0, first = -1;
+    for (size_t i = 0; i < groups_.size(); ++i) {
+        DialogueGroup& g = groups_[i];
+        if (g.stateB != 0 && g.current >= 0) g.stateB = 0;
+        if (eligible(g, false)) { ++cnt; if (first < 0) first = (int)i; }
+    }
+    if (!active_) cur_ = -1;
+    if (active_) branch_ = saved;
+    if (first < 0) return false;
+    return !(cnt == 1 && toupper((unsigned char)groups_[first].key[1]) == 'X');
+}
+
+bool DialogueUI::refusal(const char* speaker, std::string* key)    // 0x414030
+{
+    std::vector<std::string> found;
+    for (size_t i = 0; i < groups_.size(); ++i) {
+        const DialogueGroup& g = groups_[i];
+        if (g.lines.empty() || g.key.empty()) continue;
+        if (strcasecmp(g.lines[0].speaker.c_str(), speaker) == 0 && g.key[0] > 'P') found.push_back(g.key);
+    }
+    if (found.empty()) return false;
+    static unsigned n = 0;              // rand() % count in the exe; port: in turn (deterministic tests)
+    if (key) *key = found[n++ % found.size()];
+    return true;
+}
+
+std::vector<std::string> DialogueUI::choiceKeys()
+{
+    std::vector<std::string> out;
+    if (!active_ || !choice_) return out;
+    for (size_t i = 0; i < groups_.size(); ++i) if (eligible(groups_[i], false)) out.push_back(groups_[i].key);
     return out;
 }
 

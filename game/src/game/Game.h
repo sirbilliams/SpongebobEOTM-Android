@@ -99,6 +99,13 @@ public:
     bool suspended;                                 // port (saves): the game sits behind the menu; mouse and key messages are ignored
     bool inputConsumed;                             // game+0x24e
     bool letterboxIn;                               // game+0x25c
+    // game vt+0xac (0x40de30): the interaction left for when the player has walked / turned there: +0x228 object, +0x24c
+    // (true: its event, false: use the item +0x22c on it)
+    SceneObject* pendingObj; bool pendingEvent; std::string pendingItem;
+    void setPending(SceneObject* o, bool event, const char* item) { pendingObj = o; pendingEvent = event; pendingItem = item ? item : ""; }
+    float walkInMs;                                 // game+0x258: after a scene switch the walk-in triggers wait (500 ms)
+    bool hudHolding();                              // HUD +0x130: an item is on the pointer
+    void hudAddFromScene(SceneObject* item);        // 0x41f4d0: a picked-up item flies from its screen point into the bar
     // Show a comment / hover caption line (game+0xc4 vt+0x14 draws a comment: bottom-line caption)
     void showComment(const char* id);
     bool commentActive() const { return commentMs_ > 0; }
@@ -140,7 +147,7 @@ private:
     OMediaViewPort* vp_;
     OmtFile skies_;                         // game+0x64: sceneart/c%dskies.omt
     OMediaCanvas* skyCache_[10];            // game+0x70 + index*4
-    OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_, helpBank_;
+    OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_, helpBank_, globalCommentBank_;
     RetailData* retail_;
     GameFont* font_;
     World3D* w3_;

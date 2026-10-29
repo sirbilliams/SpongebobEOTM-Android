@@ -39,6 +39,14 @@ struct Actor3D {
     bool idling; float idleLeft;
     bool waited;                      // the script waits for this actor's walk / rotate / animation
     bool scheduled;                   // the idle animation switch is due next frame
+    float arrive;                     // +0x3f0: the walk ends this close to the destination
+    std::vector<SceneObject*> touches;// +0x368: what the character touches (0x4313e0 / 0x431610)
+    SceneObject* pickupItem;          // +0x398: the item being picked up (0x433910)
+    bool doorWalk;                    // +0x356: walking straight ahead (through a door, into a scene)
+    float dirX, dirZ;                 // port: the straight-ahead direction of doorWalk
+    // the attached object (+0xad8, 0x433780): an item model hanging from a bone of this character
+    OMedia3DGrannyModel* attachModel; OMedia3DShapeElement* attachElem;
+    std::string attachName, attachBone, attachParentBone, attachCond;   // +0xa56, +0xa76, +0xa96, +0xab6 (CHAR record +0x976..)
     bool shadowOn;                    // char +0x30c shown (`shadow on/off`)
     bool climbing; float climbTarget, climbPrev;   // char +0x3f8 / +0x3f4 / +0x3fc: `climb` arms a straight walk that blends y
     // ---- lane f: character idle scripts (0x42f1a0) and the shadow model (0x422070) ----
@@ -81,7 +89,8 @@ public:
     void climb(SceneObject* o, float h);                                        // vt+0x154 (0x4342a0)
     void moveGrid(SceneObject* o, int gx, int gy);
     void blockCell(int x, int z, bool blocked);
-    bool clickFloor(int x, int y);
+    bool clickFloor(int x, int y, SceneObject* target = 0);      // 0x4398f0 tail: walk to the floor point under x,y
+    bool turnToward(SceneObject* o, Actor3D* to);                // o's vt+0x13c toward `to` (500)
     bool approach(SceneObject* target);
     void setRunning(SceneObject* o);
     void stopWalk(SceneObject* o);                                              // vt+0x184
@@ -89,6 +98,10 @@ public:
     bool rotate(SceneObject* o, int angle, int tolerance);                             // vt+0x13c
     bool idle(SceneObject* o, float seconds);                                   // vt+0x168
     void setHidden(SceneObject* o, bool hide);
+    // character vt+0x12c / +0x130 and the attached object's vt+0x30 (script attach / detach / hideattach / showattach)
+    bool attach(SceneObject* o, const char* name, const char* bone, const char* parentBone);
+    void detach(SceneObject* o);
+    void hideAttach(SceneObject* o, bool hide);
     void refreshVisibility();                                                   // scene vt+0x100, CHAR / ITEM part
     SceneObject* pick(int x, int y);                                            // scene vt+0xc4, the 3D passes
     bool screenBounds(SceneObject* o, int& x1, int& y1, int& x2, int& y2);      // where the character is drawn
@@ -98,12 +111,26 @@ public:
     bool swapControl(Actor3D* from, Actor3D* to);
     OMedia3DWorld* world3d() { return w3_; }
 
+    // ---- the player (scene+0x248) as the object code uses it (character vtable 0x44e358) ----
+    Actor3D* player();
+    bool walkTo(SceneObject* target, float x, float z);      // vt+0x144 (x, z, target, -1, -1): true = walking there
+    bool rotateToward(SceneObject* target);                  // vt+0x13c (heading toward target, 500): true = turning
+    bool rotatePlayer(int heading);                          // vt+0x13c (heading, 500)
+    bool touching(SceneObject* o);                           // vt+0x128 (0x4318c0)
+    void startPickup(SceneObject* item);                     // vt+0x100 (0x433910)
+    void playerDoor();                                       // vt+0xb4 ("door", 0, 1.0)
+    void walkIn();                                           // DoSwitch tail (0x40b720): the player walks into the scene
+    bool doorBusy();                                         // DoSwitch head: the door / walk animation or a turn is running
+    bool playerBusy();                                       // port (tests): walking, turning or a one-shot animation
+    void clearTarget();                                      // vt+0x180 (0x4343d0)
+    bool samePlane(SceneObject* o);                          // player y == o y
+
 private:
     friend class SceneScriptHost;
     friend class Kick; // lane d: isolated beachball character reconstruction
     const sb::scene::Grid* grid(float y) const;
     bool cell(const sb::scene::Grid& g, int x, int z) const;
-    bool gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run);
+    bool gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, bool neighbour = false);
     void setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m);
     void place(Actor3D* a);
     void updateIdle(Actor3D* a, float dtMs);                                    // lane f: the idle part of 0x42f1a0
@@ -113,6 +140,10 @@ private:
     void updateShadow(Actor3D* a);                                              // lane f: char +0x30c
     void finished(Actor3D* a);
     void finishInteraction(Actor3D* a);
+    void animEnded(Actor3D* a);                              // 0x405620 tail: what follows a one-shot animation
+    void updateTouches(Actor3D* a);                          // vt+0x11c (0x4313e0)
+    void addTouch(Actor3D* a, SceneObject* o);               // vt+0x120 (0x431610)
+    void runPending();                                       // port: the interaction left by game vt+0xac
     std::string animPath(Actor3D* a, const char* name);
     static OMedia3DAbstractRasterizer* rasterizer();
 

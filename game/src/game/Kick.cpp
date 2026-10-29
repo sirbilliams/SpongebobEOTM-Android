@@ -40,7 +40,7 @@ bool Kick::goal(World3D& w, Actor3D* a) // 0x4313e0 contact list + 0x431870 acce
 
 bool Kick::clear(World3D& w, Actor3D* a, float x, float z) // 0x431940 / 0x418170
 {
-    if (!w.scene_->door().empty() || (w.game_->runner() && !w.game_->runner()->terrain())) return true;
+    if (w.scene_->doorTrigger() || (w.game_->runner() && !w.game_->runner()->terrain())) return true;
     const sb::scene::Grid* g=w.grid(a->y);
     if (!g) return false;
     // 0x4183d0 gives a boundary to the lower cell, unlike floor().

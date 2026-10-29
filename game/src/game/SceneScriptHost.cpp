@@ -193,15 +193,15 @@ bool SceneScriptHost::actorRotate(ScriptActor* a, int angle, int time)
     if (wait) wait3d_ = true;
     return wait;
 }
+void SceneScriptHost::actorAttach(ScriptActor* a, const char* o, const char* b1, const char* b2) { if (a && g_->world3d()) g_->world3d()->attach(a->obj, o, b1, b2); }   // vt+0x12c
+void SceneScriptHost::actorDetach(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->detach(a->obj); }       // vt+0x130
+void SceneScriptHost::actorHideAttach(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->hideAttach(a->obj, true); }
+void SceneScriptHost::actorShowAttach(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->hideAttach(a->obj, false); }
 void SceneScriptHost::actorIdle(ScriptActor* a, float seconds)      // vt+0x168 (0x42f170): the actor plays idle1 and idles for `seconds`
 {
     if (a && g_->world3d()) g_->world3d()->loopAnim(a->obj, "idle1");     // lane f
     arm3d(seconds * 1000.0f);
 }
-void SceneScriptHost::actorAttach(ScriptActor* a, const char* o, const char* b1, const char* b2) { stub("%s attach %s %s %s (vt+0x12c)", an(a), o, b1, b2); }
-void SceneScriptHost::actorDetach(ScriptActor* a) { stub("%s detach (vt+0x130)", an(a)); }
-void SceneScriptHost::actorHideAttach(ScriptActor* a) { stub("%s hide attached object", an(a)); }
-void SceneScriptHost::actorShowAttach(ScriptActor* a) { stub("%s show attached object", an(a)); }
 bool SceneScriptHost::actorPlayAnim(ScriptActor* a, const char* name, bool wait, double speed)
 {
     World3D* w = g_->world3d();

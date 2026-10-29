@@ -16,6 +16,8 @@
 #include "OMediaGLBackend.h"
 #include "../game/SceneScriptHost.h"
 #include "../game/SaveGame.h"
+#include "../game/Hud.h"
+#include "Playthrough.h"
 #include "Companion.h"
 #include <stdexcept>
 #include "CrashLog.h"
@@ -177,6 +179,7 @@ class StartupApp : public MenuHost
     virtual bool menu_save(int slot, const char *name) {     // 0x428740 -> 0x41db50
         if (!paused) return false;
         sbgame::SaveFile f;
+        if (paused->hud()) paused->hud()->toBar(paused->state());     // 0x421c40: the item bar goes into the file
         sbgame::SaveGame::capture(paused->state(), paused->state().sceneId, name, paused_thumb, f);
         if (!sbgame::SaveGame::write(sbgame::SaveGame::slotPath(slot), f)) return false;
         save = slot; menu_settings_changed();                // game+0x26c: the slot Load Game and Resume start from
@@ -399,6 +402,7 @@ class StartupApp : public MenuHost
             static bool autoStarted=false;      // port: tests only, once per run
             if(getenv("SB_TEST_NEWGAME") && frame==20 && !autoStarted) { autoStarted=true; launch=L_NEW; start_game=true; }
             if(getenv("SB_TEST_RESUME") && frame==20 && !autoStarted) { autoStarted=true; menu_resume(); }
+            if(getenv("SB_TEST_LOADSLOT") && frame==20 && !autoStarted) { autoStarted=true; menu_load(atoi(getenv("SB_TEST_LOADSLOT"))); }   // port: tests only
             if(const char *k=getenv("SB_TEST_MENUKEYS")) {      // port: tests only, "frame:key,...": a key pressed in the menu (SDL key name; a single character is typed)
                 for(const char *p=k;p && *p;) {
                     unsigned at=(unsigned)atoi(p); const char *c=strchr(p,':'); const char *e=strchr(p,','); std::string n=c?std::string(c+1,e?e:p+strlen(p)):std::string();
@@ -437,9 +441,37 @@ class StartupApp : public MenuHost
         const char *path=getenv(var);
         if(!path || !game) return;
         sbgame::SaveFile f; std::vector<unsigned char> none;
+        if(game->hud()) game->hud()->toBar(game->state());
         sbgame::SaveGame::capture(game->state(),game->state().sceneId,"dump",none,f);
         bool ok=sbgame::SaveGame::write(path,f);
         SDL_Log("test dump %s: scene %08x %s",var,f.sceneId,ok?"written":"FAILED");
+    }
+
+    // port: tests only (SB_TEST_PLAYTHROUGH, game/src/port/Playthrough.h): a logical click through the SDL event path, a save
+    static void pt_click(int x, int y) {
+        SDL_Window *win=SDL_GL_GetCurrentWindow();
+        if(!win) return;
+        int px=x, py=y; omgl_logical_to_window(px,py);
+        SDL_WarpMouseInWindow(win,px,py);
+        SDL_Event e; SDL_zero(e); e.type=SDL_MOUSEMOTION; e.motion.x=px; e.motion.y=py; SDL_PushEvent(&e);
+        e.type=SDL_MOUSEBUTTONDOWN; e.button.button=SDL_BUTTON_LEFT; e.button.x=px; e.button.y=py; SDL_PushEvent(&e);
+        e.type=SDL_MOUSEBUTTONUP; SDL_PushEvent(&e);
+    }
+    static void pt_move(int x, int y) {
+        SDL_Window *win=SDL_GL_GetCurrentWindow();
+        if(!win) return;
+        int px=x, py=y; omgl_logical_to_window(px,py);
+        SDL_Event e; SDL_zero(e); e.type=SDL_MOUSEMOTION; e.motion.x=px; e.motion.y=py; SDL_PushEvent(&e);
+    }
+    static StartupApp *pt_app;
+    static void pt_save(sbgame::Game *game, int slot) {
+        std::vector<unsigned char> thumb;
+        sbgame::SaveGame::grabThumb(pt_app->screen->getdefaultdrawgfxworld(),thumb);
+        sbgame::SaveFile f;
+        if(game->hud()) game->hud()->toBar(game->state());
+        sbgame::SaveGame::capture(game->state(),game->state().sceneId,"Playthrough",thumb,f);
+        bool ok=sbgame::SaveGame::write(sbgame::SaveGame::slotPath(slot),f);
+        SDL_Log("playthrough: saved slot %d scene %08x %s",slot,f.sceneId,ok?"written":"FAILED");
     }
 
     // false: quit the application; true: back to the menu
@@ -461,6 +493,7 @@ class StartupApp : public MenuHost
                 movie_ok=true; movie_done=false;
                 game->movieHook=game_movie; game->movieHookData=this;
                 game->logFile=getenv("SB_GAME_LOG")?stdout:NULL;
+                if(game->logFile) setvbuf(stdout,NULL,_IOLBF,0);      // port: tests read the log of a run that is cut off
                 SDL_ShowCursor(SDL_ENABLE);
                 const char *first=getenv("SB_TEST_SCENE");
                 std::string scene;
@@ -470,6 +503,7 @@ class StartupApp : public MenuHost
                         SDL_Log("0x417460: slot %d cannot be loaded",launch_slot); delete game; return true;
                     }
                     scene=sbgame::SaveGame::apply(f,game->state());
+                    if(game->hud()) game->hud()->fromBar(game->state());      // the item bar as it was saved
                     save=launch_slot; menu_settings_changed();
                     SDL_Log("0x417460: loaded slot %d \"%s\" -> %s",launch_slot,f.name,scene.c_str());
                 } else scene=first?first:"mintro c1l0s1";
@@ -484,9 +518,17 @@ class StartupApp : public MenuHost
             SDL_ShowCursor(SDL_ENABLE);
             unsigned frame=0, last=0, readyFrame=0;
             bool testReady=false;
+            sbport::Playthrough *pt=NULL;
+#ifndef __ANDROID__
+            if(getenv("SB_TEST_PLAYTHROUGH")) { pt=new sbport::Playthrough(getenv("SB_TEST_PLAYTHROUGH")); pt_app=this; }
+#endif
             for(;;) {
                 if(event_manager->quit_requested()) { result=false; break; }
                 SDL_Event ev; bool leave=false;
+                if(pt) {
+                    bool failed=false;
+                    if(!pt->tick(game,pt_click,pt_move,pt_save,&failed)) { SDL_Log("playthrough %s", failed?"FAILED":"done"); delete pt; pt=NULL; result=false; break; }
+                }
                 // port: replay against the displayed transform before this frame can pan.
                 if(!getenv("SB_TEST_READY_FRAMES") || testReady)
                     test_clicks(getenv("SB_TEST_READY_FRAMES") ? readyFrame++ : frame,"SB_TEST_GAME_CLICKS");
@@ -570,6 +612,7 @@ class StartupApp : public MenuHost
 	}
 
 };
+StartupApp *StartupApp::pt_app = NULL;
 
 void omt_main(void)
 {

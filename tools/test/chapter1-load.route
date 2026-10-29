@@ -1,0 +1,25 @@
+# Chapter 1 from the save the main route writes after the Dame (slot 5): SB_TEST_LOADSLOT=5 SB_TEST_PLAYTHROUGH=<this>
+scene c1l5s5
+idle
+shot 40-load-c1l5s5
+expect sdame stoken slarryjog swash schips 164CBA 154ACA 135ABA 121CAA
+have iub1
+have ibt1
+map
+scene c1l1s1
+idle
+click chap102
+scene c1l6s1
+idle
+click "Walk to The Bus Stop"
+scene c1l6s4
+idle
+use ibt1 patalt
+idle
+expect spattoken
+talk marty AAA AAA ABA AXC
+idle
+use iub1 marty
+scene c2l0s1
+shot 41-load-c2-start
+end

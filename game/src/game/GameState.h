@@ -41,6 +41,8 @@ public:
     void removeItem(const char* name);
     const std::vector<std::string>& items() const { return items_; }
     void setFlag(const char* name, bool on);
+    void addChar(const char* name);
+    void markScene(unsigned id) { scen_.insert(id); }               // 0x416a60: the scene was entered (a 'C' condition term)                                 // 0x416c70 (the 'CHAR' save record: an item was given to it)
     // 0x416ba0 'block' / 'unblock': (scene, x, y) cells the player may not walk on
     void setBlocked(unsigned scene, int x, int y, bool blocked);
     bool isBlocked(unsigned scene, int x, int y) const;
@@ -56,6 +58,8 @@ public:
     struct BarRec { char name[32]; char tex[32]; short slot; };
     // lane e: 0x416880 (the 'save' script command): a character's scene id, x, y, z and heading appended to the POSI list
     void addPosition(const char* name, unsigned scene, float x, float y, float z, short facing);
+    std::vector<BarRec>& bar() { return bar_; }                     // the item bar's save record (Hud::toBar / fromBar)
+    const std::vector<BarRec>& bar() const { return bar_; }
     bool hasPlayer;            // scene+0x248 exists: the controlled character (writer 0x416ed0)
     float playerX, playerY, playerZ; short playerFacing;   // character +0x310/+0x314/+0x318/+0x320; filled by the walking code
     bool resumePos;            // progress+0x64: a save restored a non-zero position; playerX.. hold it for the scene to place
@@ -71,7 +75,7 @@ private:
     std::set<std::string> seen_, flags_;
     std::vector<std::string> items_;
     std::set<unsigned long long> blocked_;
-    struct DEntry { std::string key; short a, b; };
+    struct DEntry { std::string key; short a, b; std::string group; };   // group: the key as stored (the map key is lower case: 0x416e50 uses _stricmp)
     std::map<std::string, DEntry> dialogue_;
     std::map<std::string, std::string> textures_;
     std::set<unsigned> scen_;                       // progress+0x14 list: 24-bit flag ids (0x416ad0 decodes a 'C' term)

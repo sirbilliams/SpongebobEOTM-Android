@@ -55,7 +55,7 @@ bool OmtFile::open(const std::string& file)
 
 // ------------------------------------------------------------------------------------------- Game
 Game::Game()
-    : blending(true), optText(1), optShadows(1), movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
+    : blending(true), optText(1), optShadows(1), movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), pendingObj(0), pendingEvent(false), walkInMs(0), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
       pendingId_(0), pendingStart_(0), runner_(0), host_(0), hoverCap_(0), commentCap_(0), commentMs_(0), mx_(320), my_(240),
       inputAttached_(false), commentBlock_(0), commentVoice_(false), hud_(0), mini_(0), cursor_(0)
 {
@@ -170,6 +170,8 @@ void Game::mouseMove(int x, int y)
     mx_ = x; my_ = y;
     if (hud_) hud_->onMove(x, y);                               // port: hud
     if (scene_ && scene_->dialogue() && scene_->dialogue()->busy()) scene_->dialogue()->onMove(x, y);
+    // the cursor object's hover test (0x43a020): in the car wash (0x70401) the pointer over nothing scrubs (scene vt+0x160)
+    if (scene_ && scene_->sceneId() == 0x70401 && !scene_->hover(x, y)) scene_->carWash(x, y);
 }
 
 // ------------------------------------------------------------------------- scene requests (0x40ab60)
@@ -241,7 +243,10 @@ void Game::loadSceneBanks(unsigned id)
 void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without a 3D world)
 {
     if (!pendingId_) return;
+    // 0x40b720 head: the player goes through the door first ("door", then "walk", or a turn), then the bars
+    if (scene_ && w3_ && w3_->player() && scene_->doorTrigger() && w3_->doorBusy()) return;
     if (scene_ && scene_->barState() != 0) return;
+    bool hadPlayer = scene_ && w3_ && w3_->player();
     unsigned id = pendingId_;
     int start = pendingStart_;
     pendingId_ = 0;
@@ -263,9 +268,20 @@ void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without 
     loadSceneBanks(id);
     std::string err;
     comments_.load(*host_, chapter, (int)((id >> 8) & 0xf), &err);
+    if (comments_.globals().empty()) {                      // 0x410450, once: the H000.. comments and sounds/comments.omt
+        comments_.loadGlobal(*host_, &err);
+        globalCommentBank_.open(root_ + "/sounds/comments.omt");
+    }
     help_.load(*host_, chapter, &err);
     host_->sceneLoaded();
+    pendingObj = 0; pendingItem.clear();
     scene_->enter(start);
+    // 0x40b720 tail: the new scene's player walks in (game+0x258 = 500: walk-in triggers wait), unless a script or an
+    // H event starts the scene (port: the old player's turn flags +0x354..+0x358 are always clear here)
+    if (hadPlayer && w3_ && w3_->player() && id != 0x80404 && !runner_ && !scene_->hasPendingEvent()) {
+        walkInMs = 500.0f;
+        w3_->walkIn();
+    }
     // 0x437cf0: maze scene setup uses the persistent slot clue.
     if (scene_->name() == "c2l5s4") createMiniGame();
     if (mini_) mini_->sceneEntered();
@@ -328,6 +344,13 @@ void Game::runScript(const char* name)
     }
 }
 
+bool Game::hudHolding() { return hud_ && hud_->holding(); }
+
+void Game::hudAddFromScene(SceneObject* it)     // 0x41f4d0 (port: Hud::addItem; the flight starts at the bar's own point)
+{
+    if (hud_) hud_->addItem(it->art.c_str(), it->description.c_str());
+}
+
 void Game::forceRedraw() { if (vp_) { OMediaRect r(0, 0, 640, 480); vp_->setbounds(&r); } }
 
 void Game::wake()       // scene vt+0xe0 (0x43aa80)
@@ -345,8 +368,10 @@ void Game::wake()       // scene vt+0xe0 (0x43aa80)
 void Game::showComment(const char* id)      // game+0xc4 vt+0x14
 {
     const sbscript::CommentEntry* e = 0;     // 0x410a60 compares case-insensitively ('h126b' finds H126B)
-    for (size_t i = 0; i < comments_.entries().size() && !e; ++i)
-        if (strcasecmp(comments_.entries()[i].id.c_str(), id) == 0) e = &comments_.entries()[i];
+    bool global = id[0] && id[1] == '0';                    // 0x410a60: id[1] == '0' -> the global list (+0x14), bank +8
+    const std::vector<sbscript::CommentEntry>& list = global ? comments_.globals() : comments_.entries();
+    for (size_t i = 0; i < list.size() && !e; ++i)
+        if (strcasecmp(list[i].id.c_str(), id) == 0) e = &list[i];
     delete commentBlock_;
     commentBlock_ = 0;
     commentMs_ = 0;
@@ -355,7 +380,7 @@ void Game::showComment(const char* id)      // game+0xc4 vt+0x14
     commentBlock_ = new TextBlock;
     commentBlock_->show(this, 5, 440, 10100, false, e->text, 630);
     OMediaSound* s = 0;
-    s = soundCI(commentBank_.db, sbscript::CommentTable::voiceName(id));
+    s = soundCI(global ? globalCommentBank_.db : commentBank_.db, sbscript::CommentTable::voiceName(id));
     if (s && playOnChannel(8, s, 0)) { commentVoice_ = true; commentMs_ = 100; }
     else { commentVoice_ = false; commentMs_ = 1500.0f + 50.0f * (float)e->text.size(); }
 }
@@ -421,7 +446,7 @@ bool Game::playOnChannel(int ch, OMediaSound* s, int pan)
 void Game::previewSound(bool voice)
 {
     bool shared = false;
-    OMediaSound* s = voice ? soundCI(commentBank_.db, "H000L") : findSound("ibt1", &shared);
+    OMediaSound* s = voice ? soundCI(globalCommentBank_.db, "H000L") : findSound("ibt1", &shared);
     if (s) playOnChannel(voice ? 4 : 1, s, 0);
 }
 
@@ -445,6 +470,7 @@ void Game::update(float dt)
     for (int i = 0; i < m->get_nchannels(); ++i) m->get_channel(i)->spend_time();
     doSwitch();
     if (!scene_) { if (cursor_) cursor_->update(mx_, my_); return; }   // port: cursor
+    if (walkInMs > 0) { walkInMs -= dt; if (walkInMs < 0) walkInMs = 0; }
     scene_->update(dt);
     if (scene_->dialogue()) scene_->dialogue()->update(dt);
     host_->update(dt);

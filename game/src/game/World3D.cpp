@@ -28,6 +28,7 @@ Actor3D::Actor3D()
       shadowModel(0), shadowElem(0)
 {
     waypoint = 0; interaction = 0; radius = 50; control = true; useGrid = false;
+    arrive = 25; pickupItem = 0; doorWalk = false; dirX = 0; dirZ = 1; attachModel = 0; attachElem = 0;
 }
 
 static std::string lower(std::string s)
@@ -80,7 +81,8 @@ World3D::World3D(Game* game, GameScene* scene)
     OMediaRect b3(0, 0, 640, 480);
     vp_->setbounds(&b3);
     vp_->place(cam.o0174, cam.o0178, cam.o017c);
-    vp_->set_angle((short)((cam.o0180 * 0x4000) / 360), (short)((cam.o0182 * 0x4000) / 360), (short)((cam.o0184 * 0x4000) / 360));
+    // 0x4033f0: the angles are signed degrees (movsx of scene+0x3e8..+0x3ec; c1l2s1 tilts -25)
+    vp_->set_angle((short)(((short)cam.o0180 * 0x4000) / 360), (short)(((short)cam.o0182 * 0x4000) / 360), (short)(((short)cam.o0184 * 0x4000) / 360));
     vpe_ = new OMediaVPElement;
     vpe_->set_viewport(vp_);
     vpe_->link(scene->world());
@@ -116,6 +118,11 @@ World3D::World3D(Game* game, GameScene* scene)
         }
         a->heading = (rec && rec->tag == sb::scene::CharacterTag) ? (rec->data.character.o0240 & 0x3fff) : 0;
         if (rec && rec->tag == sb::scene::CharacterTag) { a->radius = rec->data.character.o023c; a->useGrid = rec->data.character.o0280 != 0; }
+        if (rec && rec->tag == sb::scene::ItemTag) a->radius = rec->data.item.o023c;
+        if (rec && rec->tag == sb::scene::CharacterTag) {
+            a->attachName = rec->data.character.o0976.text(); a->attachBone = rec->data.character.o0996.text();
+            a->attachParentBone = rec->data.character.o09b6.text(); a->attachCond = rec->data.character.o09d6.text();
+        }
         a->model = new OMedia3DGrannyModel;
         std::string sub = o->kind == SceneObject::Char ? "/models/people/" : "/models/items/";
         if (!a->model->load(dir_ + sub + a->name + "_model")) {
@@ -123,6 +130,8 @@ World3D::World3D(Game* game, GameScene* scene)
             delete a->model; delete a;
             continue;
         }
+        float sc = rec && rec->tag == sb::scene::CharacterTag ? rec->data.character.o0224 : rec && rec->tag == sb::scene::ItemTag ? rec->data.item.o0224 : 1.0f;
+        if (sc > 0) a->model->set_scale(sc);                  // +0x224 Scale
         a->elem = new OMedia3DShapeElement;
         a->elem->setshape(a->model->get_shape());
         a->elem->link(w3_);
@@ -151,6 +160,7 @@ World3D::World3D(Game* game, GameScene* scene)
 
 World3D::~World3D()
 {
+    for (size_t i = 0; i < actors_.size(); i++) detach(actors_[i]->obj);
     for (size_t i = 0; i < actors_.size(); i++) {      // lane f: the idle runners first (they stop their sound channel), then their hosts
         delete actors_[i]->idleRunner; actors_[i]->idleRunner = 0;
         delete actors_[i]->idleHost; actors_[i]->idleHost = 0;
@@ -341,7 +351,7 @@ bool World3D::cell(const sb::scene::Grid& g, int x, int z) const
         !g.cells[x][z] && !game_->state().isBlocked(scene_->sceneId(), x, z);
 }
 
-bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run)
+bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, bool neighbour)
 {
     const sb::scene::Grid* g = grid(a->y);
     std::vector< std::pair<float,float> > route;
@@ -352,7 +362,22 @@ bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run)
         }
         int sx = gridIndex(a->x, g->o000c, g->o0008, g->halfSize);
         int sz = gridIndex(a->z, g->o0010, g->o0008, g->halfSize);
-        if (!cell(*g, gx, gz) || sx < 0 || sz < 0 || sx >= 30 || sz >= 30) return false;
+        if (neighbour && !cell(*g, gx, gz)) {
+            // 0x417f10: the target's cell is blocked: the open neighbour (of eight) nearest to the walker's cell
+            static const int nx[8] = {-1,-1,-1,0,1,1,1,0}, nz[8] = {1,0,-1,-1,-1,0,1,1};
+            int bx = -1, bz = -1; double bd = 1e30;
+            for (int k = 0; k < 8; ++k) {
+                int cx = gx + nx[k], cz = gz + nz[k];
+                if (cx < 0 || cz < 0 || cx >= (int)(g->halfSize * 2) || cz >= (int)(g->halfSize * 2) || !cell(*g, cx, cz)) continue;
+                double d = sqrt((double)((cx - sx) * (cx - sx) + (cz - sz) * (cz - sz)));
+                if (d < bd) { bd = d; bx = cx; bz = cz; }
+            }
+            if (bx >= 0) { gx = bx; gz = bz; }
+        }
+        if (!cell(*g, gx, gz) || sx < 0 || sz < 0 || sx >= 30 || sz >= 30) {
+            game_->log("walk %s: no route from cell %d,%d to %d,%d (target cell closed or outside)\n", a->name.c_str(), sx, sz, gx, gz);
+            return false;
+        }
         // 0x42af50: eight neighbours, cardinal cost 64, diagonal 90.
         // port: bounded A* storage replaces the exe's pointer-linked open list.
         const int dx[8] = {0,1,0,-1,1,1,-1,-1};
@@ -393,7 +418,7 @@ bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run)
                 if (c < cost[next]) { cost[next] = c; parent[next] = best; if (order[next] == INT_MAX) order[next] = serial++; }
             }
         }
-        if (cost[target] == INT_MAX) return false;
+        if (cost[target] == INT_MAX) { game_->log("walk %s: no route from cell %d,%d to %d,%d\n", a->name.c_str(), sx, sz, gx, gz); return false; }
         for (int i = target; i != source; i = parent[i]) {
             float px, pz; gridPoint(*g, i / 30 + 0.5f, i % 30 + 0.5f, px, pz);
             route.push_back(std::make_pair(px, pz));
@@ -407,6 +432,7 @@ bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run)
         route.push_back(std::make_pair(x,z));
     }
     a->route = route; a->waypoint = 0; a->interaction = 0;
+    a->arrive = a->radius * 0.5f; if (a->arrive < 25) a->arrive = 25;     // 0x434650: no target (0x44dcb8 = 0.5), at least 25
     a->walking = true; a->tx = route[0].first; a->tz = route[0].second;
     a->speed = run ? kRunSpeed : kWalkSpeed;
     a->rotating = false;
@@ -473,7 +499,16 @@ void World3D::setRunning(SceneObject* o)
     if (!a->rotating && exists(a,"run")) setAnim(a,"run",9999,1,Actor3D::Loop);
 }
 
-bool World3D::clickFloor(int x, int y)
+bool World3D::turnToward(SceneObject* o, Actor3D* to)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || !to || a->obj->kind != SceneObject::Char) return false;
+    bool r = rotate(o, headingOf(to->x - a->x, to->z - a->z), 500);
+    if (r) a->waited = false;
+    return r;
+}
+
+bool World3D::clickFloor(int x, int y, SceneObject* target)
 {
     Actor3D* a = 0;
     for (size_t i = 0; i < actors_.size(); ++i)
@@ -485,41 +520,262 @@ bool World3D::clickFloor(int x, int y)
     if (c.o0188 <= 0) return false;
     OMedia3DVector ray((float)x - 320, 240 - (float)y, c.o0188);
     // Inverse of the renderer's world -> view transform; input already mapped to logical pixels.
-    ray.rotate((short)(c.o0180*16384/360), (short)(c.o0182*16384/360), (short)(c.o0184*16384/360));
+    ray.rotate((short)((short)c.o0180*16384/360), (short)((short)c.o0182*16384/360), (short)((short)c.o0184*16384/360));
     if (fabs(ray.y) < 0.00001) return false;
     float t = (g->o0014 - c.o0178) / ray.y;
     if (t <= 0) return false;
     bool result = walk(a->obj, c.o0174 + t*ray.x, c.o017c + t*ray.z, false);
-    if (result) a->waited = false;
+    if (result) { a->waited = false; a->interaction = target; }
     return result;
 }
 
-bool World3D::approach(SceneObject* target)
+// ------------------------------------------------------------------- the player as the object code uses it
+Actor3D* World3D::player()          // scene+0x248: the controlled character
 {
-    if (target->gridX == -1 && target->gridY == -1) return false;
-    for (size_t i = 0; i < actors_.size(); ++i) {
-        Actor3D* a = actors_[i];
-        if (!a->obj->userCtl || !a->control || a->obj == target) continue;
-        bool started = false;
-        if (target->gridX > 0 && target->gridY > 0)
-            started = walkGrid(a->obj, target->gridX-1, target->gridY-1);
-        else if (target->kind == SceneObject::Char || target->kind == SceneObject::Item)
-            started = walk(a->obj, target->px, target->pz, false);
-        if (started) { a->interaction = target; a->waited = false; suspendIdle(target); return true; }   // lane f: 0x433bca
+    for (size_t i = 0; i < actors_.size(); ++i)
+        if (actors_[i]->obj->kind == SceneObject::Char && actors_[i]->obj->userCtl) return actors_[i];
+    return 0;
+}
+
+bool World3D::samePlane(SceneObject* o) { Actor3D* p = player(); return !p || p->y == o->py; }
+
+// vt+0x144 (0x434650) with a target: the arrival distance by the target's kind, the target's grid cell (minus one) when it has
+// one (-1,-1: no walk at all), else its position; the walk ends at the target (0x42f1a0 tail: target vt+0x40(1, 1)).
+bool World3D::walkTo(SceneObject* target, float x, float z)
+{
+    Actor3D* a = player();
+    if (!a || !a->control) return false;
+    bool started;
+    if (target && target->gridX == -1 && target->gridY == -1) return false;
+    float r = a->radius * 0.5f;
+    if (target && !(target->is3D() && target->gridX > 0 && target->gridY > 0)) {
+        if (target->kind == SceneObject::Char || target->kind == SceneObject::Item) r = a->radius + target->radius;
+        else if (target->kind == SceneObject::Trigger) r = target->radius;
     }
+    if (r < 25) r = 25;
+    {   // port: already within the arrival distance (+0x3f0) of the destination: a walk would end where it starts
+        const sb::scene::Grid* g = grid(a->y);
+        float dx = x, dz = z;
+        if (target && target->gridX > 0 && target->gridY > 0 && g) gridPoint(*g, target->gridX - 1 + 0.5f, target->gridY - 1 + 0.5f, dx, dz);
+        if ((dx - a->x) * (dx - a->x) + (dz - a->z) * (dz - a->z) <= r * r) return false;
+    }
+    if (target && target->gridX > 0 && target->gridY > 0) started = gridWalk(a, 0, 0, target->gridX - 1, target->gridY - 1, false, true);
+    else started = gridWalk(a, x, z, -1, -1, false, target != 0);
+    if (!started) return false;
+    a->waited = false;
+    a->interaction = target;
+    a->arrive = r;
+    return true;
+}
+
+bool World3D::rotatePlayer(int heading)
+{
+    Actor3D* a = player();
+    bool r = a && rotate(a->obj, heading, 500);
+    if (r) a->waited = false;              // the object code's turn: no script waits for it
+    return r;
+}
+
+bool World3D::rotateToward(SceneObject* t)
+{
+    Actor3D* a = player();
+    if (!a) return false;
+    bool r = rotate(a->obj, headingOf(t->px - a->x, t->pz - a->z), 500);
+    if (r) a->waited = false;
+    return r;
+}
+
+bool World3D::project(float x, float y, float z, int& sx, int& sy)
+{
+    OMedia3DVPModel* m = vp_ ? dynamic_cast<OMedia3DVPModel*>(vp_->get_vpmodel()) : 0;
+    float fx, fy;
+    if (!m || !m->project_point(x, y, z, fx, fy)) return false;
+    sx = (int)fx; sy = (int)fy;
+    return true;
+}
+
+// vt+0x128 (0x4318c0): the object is in the touch list, or it is a SPOT whose rectangle holds the player's screen point (vt+0xe8)
+bool World3D::touching(SceneObject* o)
+{
+    Actor3D* a = player();
+    if (!a) return false;
+    for (size_t i = 0; i < a->touches.size(); ++i) if (a->touches[i] == o) return true;
+    int sx, sy;
+    if (o->kind == SceneObject::Spot && project(a->x, a->y, a->z, sx, sy))
+        return !(o->x2 - o->x1 == 0 || o->y2 == o->y1) && o->x1 <= sx && o->y1 <= sy && sx <= o->x2 && sy <= o->y2;
     return false;
 }
 
+void World3D::clearTarget()         // vt+0x180 (0x4343d0)
+{
+    Actor3D* a = player();
+    if (a) a->interaction = 0;
+}
+
+// vt+0x100 (0x433910): the player stops taking input and bends down for the item ("pickup" on the same height, else "pickup2")
+void World3D::startPickup(SceneObject* item)
+{
+    Actor3D* a = player();
+    if (!a) return;
+    a->control = false;
+    a->pickupItem = item;
+    setAnim(a, a->y == item->py ? "pickup" : "pickup2", 1, 1.0f, Actor3D::OneShot);
+}
+
+void World3D::playerDoor()
+{
+    Actor3D* a = player();
+    if (a && exists(a, "door")) setAnim(a, "door", 1, 1.0f, Actor3D::OneShot);
+}
+
+// port: the straight-ahead direction for a heading (the inverse of headingOf)
+static void headingDir(int heading, float& dx, float& dz)
+{
+    int best = 1 << 30;
+    for (int d = 0; d < 360; ++d) {
+        float x = cosf(d * 3.14159265f / 180.0f), z = sinf(d * 3.14159265f / 180.0f);
+        int diff = abs((((headingOf(x, z) - heading) & 0x3fff) + 0x2000) % 0x4000 - 0x2000);
+        if (diff < best) { best = diff; dx = x; dz = z; }
+    }
+}
+
+// DoSwitch tail (0x40b720): game+0x258 = 500 (walk-in triggers wait), the new scene's player walks ahead playing "walk" once
+void World3D::walkIn()
+{
+    Actor3D* a = player();
+    if (!a || !exists(a, "walk")) return;
+    a->doorWalk = true;
+    headingDir(a->heading, a->dirX, a->dirZ);
+    setAnim(a, "walk", 1, 1.0f, Actor3D::OneShot);
+}
+
+bool World3D::doorBusy()            // DoSwitch head: the player's animation is "door" or "walk", or it is turning (+0x37c)
+{
+    Actor3D* a = player();
+    if (!a) return false;
+    if (a->mode == Actor3D::OneShot && (a->anim == "door" || a->anim == "walk")) return true;
+    return a->rotating;
+}
+
+bool World3D::playerBusy()
+{
+    Actor3D* a = player();
+    return a && (a->walking || a->rotating || a->mode == Actor3D::OneShot || a->pickupItem);
+}
+
+// vt+0x11c (0x4313e0): every visible CHAR / ITEM / TRIG (CHAR and TRIG on the same height) closer than the two radii is touched
+// (0x431610 adds it); a touched one that is hidden or no longer that close is let go.
+void World3D::updateTouches(Actor3D* a)
+{
+    std::vector<SceneObject*>& objs = scene_->objects();
+    for (size_t i = 0; i < objs.size(); ++i) {
+        SceneObject* o = objs[i];
+        if (o == a->obj || !o->is3D()) continue;
+        if ((o->kind == SceneObject::Char || o->kind == SceneObject::Trigger) && o->py != a->y) continue;
+        Actor3D* oa = actorFor(o);
+        bool hidden = o->kind == SceneObject::Trigger ? o->hidden3D : (oa ? oa->elem->get_hide_count() != 0 : true);
+        if (hidden) continue;
+        if (std::find(a->touches.begin(), a->touches.end(), o) != a->touches.end()) continue;
+        float dz = a->z - o->pz, dx = a->x - o->px, r = o->radius + a->radius;
+        if (dz * dz + dx * dx < r * r) { addTouch(a, o); if (!scene_ || game_->world3d() != this) return; }
+    }
+    for (size_t i = 0; i < a->touches.size();) {
+        SceneObject* o = a->touches[i];
+        Actor3D* oa = actorFor(o);
+        bool hidden = o->kind == SceneObject::Trigger ? o->hidden3D : (oa ? oa->elem->get_hide_count() != 0 : true);
+        float dz = a->z - o->pz, dx = a->x - o->px, r = o->radius + a->radius;
+        if (r * r <= dz * dz + dx * dx || hidden) a->touches.erase(a->touches.begin() + i);
+        else ++i;
+    }
+}
+
+// vt+0x120 (0x431610): a TRIG without "Require Enter" fires when the player walks into it (no script, game+0x258 run out)
+void World3D::addTouch(Actor3D* a, SceneObject* o)
+{
+    a->touches.push_back(o);
+    if (o->kind == SceneObject::Trigger && a->obj->userCtl && o->requireEnter == 0 && game_->walkInMs <= 0 && !game_->runner()) {
+        game_->log("touch trigger '%s'\n", o->description.c_str());
+        a->rotating = false;
+        if (a->walking) { a->walking = false; a->route.clear(); a->interaction = 0; }
+        setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
+        scene_->pickEvent(o, true, true);
+    }
+}
+
+// the end of a walk (0x42f1a0, route done): the target's vt+0x40(1, 1), unless an interaction is pending (game+0x228) or a
+// script without "control on" runs
 void World3D::finishInteraction(Actor3D* a)
 {
     SceneObject* target = a->interaction;
-    if (!target) return;
-    if (target->kind == SceneObject::Char || target->kind == SceneObject::Item) {
-        int heading = headingOf(target->px-a->x,target->pz-a->z);
-        if (rotate(a->obj,heading,500)) { a->interaction = target; a->waited = false; return; }
-    }
     a->interaction = 0;
-    scene_->pickEvent(target,true);
+    if (!target) return;
+    sbscript::ScriptRunner* r = game_->runner();
+    if (game_->pendingObj || (r && !r->keepControl())) return;
+    scene_->pickEvent(target, true, true);
+}
+
+// port: the interaction game vt+0xac (0x40de30) left for later runs when the player has stopped walking and turning
+void World3D::runPending()
+{
+    Actor3D* a = player();
+    if (!game_->pendingObj || (a && (a->walking || a->rotating))) return;
+    SceneObject* o = game_->pendingObj;
+    bool ev = game_->pendingEvent;
+    std::string item = game_->pendingItem;
+    game_->pendingObj = 0; game_->pendingItem.clear();
+    game_->log("pending %s on '%s'\n", ev ? "event" : item.c_str(), o->description.c_str());
+    if (ev) scene_->pickEvent(o, true, true);
+    else scene_->useItem(o, item.c_str());
+}
+
+// 0x405620 tail: a one-shot animation ran out (+0x284 control expired)
+void World3D::animEnded(Actor3D* a)
+{
+    std::string n = lower(a->anim);
+    if (n == "pickup2" || n == "pickup") {                    // vt+0x104 (0x433980): the item is taken, then the rise
+        SceneObject* it = a->pickupItem;
+        if (it) {                                             // item vt+0x104 (0x423710)
+            if (it->pickup) {
+                if (it->addInv) {
+                    game_->state().giveItem(it->art.c_str());              // 0x4169a0
+                    game_->hudAddFromScene(it);                            // 0x41f4d0: flies from the item's screen point
+                }
+                for (size_t i = 0; i < a->touches.size(); ++i) if (a->touches[i] == it) { a->touches.erase(a->touches.begin() + i); break; }
+                setHidden(it, true);                                       // vt+0x30(1)
+                game_->host()->playObjectSound(it);                        // base vt+0x50(1)
+            }
+        }
+        if (n == "pickup2" && exists(a, "pickup2b")) setAnim(a, "pickup2b", 1, 1.0f, Actor3D::OneShot);
+        else if (n == "pickup" && exists(a, "pickupb")) setAnim(a, "pickupb", 1, 1.0f, Actor3D::OneShot);
+        else { a->anim = n + "b"; animEnded(a); }
+        return;
+    }
+    if (n == "pickup2b" || n == "pickupb") {                  // vt+0x108 (0x433a00): control back, the item's Event
+        a->control = true;
+        setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
+        SceneObject* it = a->pickupItem;
+        a->pickupItem = 0;
+        if (it && !it->event.empty()) game_->switchTo(it->event.c_str());
+    } else if (n == "door") {
+        SceneObject* d = scene_->doorTrigger();
+        if (d && !d->doorAnim.empty()) {                      // +0x356 = 1: walk ahead through the door
+            a->doorWalk = true;
+            headingDir(a->heading, a->dirX, a->dirZ);
+            setAnim(a, "walk", 1, 1.0f, Actor3D::OneShot);
+        } else {
+            setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
+            scene_->clearDoor();
+        }
+    } else if (n == "walk") {
+        a->doorWalk = false;
+        setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
+    } else if (n == "srun") {
+        setAnim(a, "run", 9999, 1.0f, Actor3D::Loop);
+    } else if (n == "preclimb") {
+    } else if (n == "kickdrop" || n == "idlet2" || n == "idlet3") {
+        setAnim(a, exists(a, "idlet1") ? "idlet1" : "idle1", 9999, 1.0f, Actor3D::Idle);
+    } else setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
+    finished(a);                                              // +0x329: the script waits for this animation
 }
 
 void World3D::stopWalk(SceneObject* o)
@@ -563,8 +819,60 @@ void World3D::setHidden(SceneObject* o, bool hide)
     else while (a->elem->get_hide_count() > 0) a->elem->hide(false);
 }
 
+// vt+0x12c (0x433780): a new item model ("models\\items\\%s_model"), not clickable, hung by its bone `bone` from the
+// character's `parentBone`; a failed attachment is taken off again (vt+0x130)
+bool World3D::attach(SceneObject* o, const char* name, const char* bone, const char* parentBone)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || a->attachModel) return false;
+    a->attachBone = bone; a->attachParentBone = parentBone;
+    OMedia3DGrannyModel* m = new OMedia3DGrannyModel;
+    if (!m->load(dir_ + "/models/items/" + lower(name) + "_model")) {
+        game_->log("3D: attach %s: %s\n", name, m->get_error().c_str());
+        delete m;
+        return false;
+    }
+    a->attachModel = m;
+    a->attachElem = new OMedia3DShapeElement;
+    a->attachElem->setshape(m->get_shape());
+    a->attachElem->link(w3_);
+    a->attachElem->place(a->x, a->y, a->z);
+    a->attachElem->set_angle(0, (short)(a->heading & 0x3fff), 0);
+    if (!m->attach_to(a->model, bone, parentBone)) {
+        game_->log("3D: attach %s to %s: bone %s / %s not found\n", name, a->name.c_str(), bone, parentBone);
+        detach(o);
+        return false;
+    }
+    game_->log("3D: %s holds %s (%s on %s)\n", a->name.c_str(), name, bone, parentBone);
+    return true;
+}
+
+void World3D::detach(SceneObject* o)            // vt+0x130 (0x433730)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || !a->attachModel) return;
+    a->attachModel->detach();
+    delete a->attachElem; a->attachElem = 0;
+    delete a->attachModel; a->attachModel = 0;
+}
+
+void World3D::hideAttach(SceneObject* o, bool hide)     // the attached object's vt+0x30 ('showattach' only when it is hidden)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || !a->attachElem) return;
+    if (hide) { if (a->attachElem->get_hide_count() == 0) a->attachElem->hide(true); }
+    else while (a->attachElem->get_hide_count() > 0) a->attachElem->hide(false);
+}
+
 void World3D::refreshVisibility()
 {
+    for (size_t i = 0; i < actors_.size(); i++) {         // 0x438ad0: a character's own attachment (+0xa56) by its condition (+0xab6)
+        Actor3D* a = actors_[i];
+        if (a->obj->kind != SceneObject::Char || a->attachName.empty()) continue;
+        bool c = game_->cond(a->attachCond.c_str());
+        if (a->attachModel && !c) detach(a->obj);
+        else if (!a->attachModel && c) attach(a->obj, a->attachName.c_str(), a->attachBone.c_str(), a->attachParentBone.c_str());
+    }
     for (size_t i = 0; i < actors_.size(); i++) {
         SceneObject* o = actors_[i]->obj;
         if (o->visibleCond.empty()) continue;
@@ -710,7 +1018,7 @@ void World3D::update(float dtMs)
         bool moved = false;
         if (a->walking && !a->rotating) {
             float dx = a->tx - a->x, dz = a->tz - a->z, d = sqrtf(dx * dx + dz * dz), step = a->speed * dt;
-            float tolerance = a->radius * 0.5f; if (tolerance < 25) tolerance = 25;
+            float tolerance = a->arrive;                     // +0x3f0 (set by the walk, 0x434650)
             if (a->climbing && a->climbPrev > 0) {          // 0x42f1a0: y follows the horizontal progress towards the target
                 a->y += (a->climbTarget - a->y) * (1.0f - d / a->climbPrev);
                 a->climbPrev = d;
@@ -744,32 +1052,35 @@ void World3D::update(float dtMs)
             } else a->heading = (a->heading + (diff < 0 ? -step : step)) & 0x3fff;
             moved = true;
         }
-        if (moved) place(a);
-        if (!a->kicking && a->mode == Actor3D::OneShot && a->model->animation_expired()) { // lane d: bounce expiry cannot complete a kick walk
-            setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
-            finished(a);
+        if (a->doorWalk && !a->walking && !a->rotating) {      // +0x356: straight ahead at the walking speed
+            float step = kWalkSpeed * dt, nx = a->x + a->dirX * step, nz = a->z + a->dirZ * step;
+            const sb::scene::Grid* g = grid(a->y);
+            // vt+0x114: the next position must be on an open cell of the height's grid
+            bool open = !g || cell(*g, gridIndex(nx, g->o000c, g->o0008, g->halfSize), gridIndex(nz, g->o0010, g->o0008, g->halfSize));
+            if (open) { a->x = nx; a->z = nz; moved = true; }
         }
+        if (moved) place(a);
+        if (!a->kicking && a->mode == Actor3D::OneShot && a->model->animation_expired()) animEnded(a);   // lane d: a bounce cannot complete a kick walk
         updateIdle(a, dtMs);        // lane f
         updateShadow(a);            // lane f
         a->model->update_pose();
         if (a->shadowModel) a->shadowModel->update_pose();
+        if (a->attachElem) {                                  // port: the attached model's pose is in the character's space
+            a->attachElem->place(a->x, a->y, a->z);
+            a->attachElem->set_angle(0, (short)(a->heading & 0x3fff), 0);
+            a->attachModel->set_scale(a->model->get_scale());
+            a->attachModel->update_pose();
+        }
+        if (game_->world3d() != this) return;                 // an event switched the scene (port: the world is gone)
+        if (a->obj->userCtl && a->obj->kind == SceneObject::Char) updateTouches(a);
+        if (game_->world3d() != this) return;
     }
+    runPending();
     w3_->update();
     if (wake_) { wake_ = false; game_->host()->actorDone(); }
 }
 
 // lane e: char vt+0xec (used by 'shock' 0x43ffda): the renderer's world -> view -> screen transform (OMedia3DVPModel::add_element) for one point
-bool World3D::project(float x, float y, float z, int& sx, int& sy)
-{
-    const sb::scene::Camera& c = scene_->data().camera.data.camera;
-    if (c.o0188 <= 0) return false;
-    OMedia3DVector v(x - c.o0174, y - c.o0178, z - c.o017c);
-    v.inv_rotate(-(short)(c.o0180*16384/360), -(short)(c.o0182*16384/360), -(short)(c.o0184*16384/360));   // as OMedia3DVPModel::add_element
-    if (v.z <= 0.00001f) return false;
-    sx = (int)(320 + v.x * c.o0188 / v.z);
-    sy = (int)(240 - v.y * c.o0188 / v.z);
-    return true;
-}
 
 Actor3D* World3D::controlled()
 {

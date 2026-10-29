@@ -296,3 +296,19 @@ bool OMedia3DGrannyModel::set_texture(const std::string &name)
     build_shape();
     return true;
 }
+
+// sb2.exe 0x433780: the attach bone of this (item) model, the bone of the character's, then the attachment
+bool OMedia3DGrannyModel::attach_to(OMedia3DGrannyModel *parent, const char *bone, const char *parent_bone)
+{
+	if (!loaded || !parent || !parent->loaded) return false;
+	granny_uint32 b = 0, pb = 0;
+	if (GrannyGetBoneIndexFromName(sequence[0], sequence[1], bone, &b) != GrannyOK) return false;
+	if (GrannyGetBoneIndexFromName(parent->sequence[0], parent->sequence[1], parent_bone, &pb) != GrannyOK) return false;
+	return GrannyAttachSequence(sequence[0], sequence[1], b, parent->sequence[0], parent->sequence[1], pb, 0x1ff, 0x1ff) == GrannyOK;
+}
+
+// sb2.exe 0x433730
+void OMedia3DGrannyModel::detach(void)
+{
+	if (loaded) GrannyDetachSequence(sequence[0], sequence[1]);
+}
