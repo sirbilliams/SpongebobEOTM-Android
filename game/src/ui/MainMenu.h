@@ -22,6 +22,7 @@ public:
     virtual bool menu_game_active() { return false; }               // a game is paused behind the menu: Save Game works, Resume returns to it
     virtual bool menu_can_resume() { return false; }                // 0x4248b0: Resume Game is enabled (game in progress, or a last-used slot)
     virtual void menu_resume() {}                                   // 0x4248b0 / 0x41c1c0: leave the menu, back to the game
+    virtual bool menu_script_seen(const char *name) { (void)name; return false; }               // 0x416690: a script of the game's progress was seen (View Movies unlocks)
     virtual bool menu_save(int slot, const char *name) { (void)slot; (void)name; return false; }   // 0x428740 -> 0x41db50
     virtual bool menu_load(int slot) { (void)slot; return false; }                                 // 0x429120 (game vt+0xd8)
 };
@@ -59,6 +60,7 @@ private:
     void saveAction();                         // 0x428740
     void loadAction();                         // 0x429120
     void stepSlot(int dir);                    // 0x4291b0 / 0x4293c0
+    bool movieUnlocked(int i);                 // 0x424d60
     void rebuild();
     void clear();
     OMediaCanvasElement *image(const char *name,int x,int y,int z);
