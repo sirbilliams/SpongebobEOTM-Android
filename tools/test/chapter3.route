@@ -1,0 +1,63 @@
+# Chapter 3 route (docs/chapter3.md), for SB_TEST_PLAYTHROUGH
+scene c3l2s1
+idle
+shot 00-c3l2s1-start
+click "Walk to The Diner"
+scene c3l2s2
+idle
+click "Enter The Diner"
+scene c3l2s4
+idle
+shot 01-c3l2s4-diner
+talk patalteat AAA
+idle
+talk stella BAA
+idle
+grab ilb1
+idle
+have ilb1
+shot 02-c3l2s4-lunch
+map
+scene c3l1s1
+idle
+shot 03-c3l1s1-map
+click "Go to Jellyfish Fields"
+scene c3l3s1
+idle
+shot 04-c3l3s1
+click "Walk to Other Side"
+scene c3l3s2
+idle
+shot 05-c3l3s2
+click @612,280
+scene c3l3s4
+idle
+shot 06-c3l3s4
+talk sanjelly AAA
+idle
+use ilb1 sanjelly
+idle
+shot 07-c3l3s4-lunch
+map
+scene c3l1s1
+idle
+shot 08-c3l1s1-map2
+click "Go to Home Lane"
+scene c3l4s1
+idle
+shot 09-c3l4s1
+click "Enter Squidward's House"
+scene c3l4s2
+idle
+shot 10-c3l4s2
+click "Walk to TV"
+scene c3l4s0
+idle
+shot 11-c3l4s0-tv
+say
+idle
+scene c3l4s2
+idle
+shot 12-c3l4s2-after-tv
+expect 340DAA
+end

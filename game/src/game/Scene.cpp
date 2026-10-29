@@ -293,6 +293,8 @@ void GameScene::enter(int startPoint)
                        o->altEvent.c_str(), o->itemAccept.c_str(), o->itemEvent.c_str(), o->wrongItemEvent.c_str(), o->haveItemEvent.c_str(), o->visibleCond.c_str(), o->clickable, o->pickup, o->addInv, o->radius, o->px, o->py, o->pz);
         }
     }
+    // "here 8".."9" (0x43xxxx scene init): the TV scene c3l4s0 (0x403) starts its script (lane a, chapter 3 route)
+    if (sceneId_ == 0x403) game_->switchTo("snelson");
     // "here 10a": the scene's own enter event, or the event left by the last movie / script (game+0x186)
     if (game_->chained.empty()) {
         if (!enterEvent_.empty()) {
