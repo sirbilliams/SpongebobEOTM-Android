@@ -64,6 +64,17 @@ tokens), Grandma's after `154aca` (Larry's pies), the Barg-N-Mart after `135aba`
 | 0x433780 / 0x433730 / 0x438ad0 | attach / detach (item model by bone), hide/show attach, record attachments by condition (hat `ikk1`, the Dame's parasol `iub2`) | `World3D::attach/detach/hideAttach`, `OMedia3DGrannyModel::attach_to` |
 | 0x4033f0 | camera angles are signed degrees (c1l2s1 tilts -25: everything drew 16 degrees off) | `World3D` ctor, `clickFloor` |
 | CHAR/ITEM +0x224 | the record's Scale | `World3D` ctor |
+| 0x421c40 / 0x417460 | the item bar in the save file (name, the ITEM's Description, slot) and back after a load | `Hud::toBar/fromBar` |
+| 0x437cf0 "here 11/12" | after `letterbox in` (game+0x25c) every scene opens with the transition; the map (level 1, vt+0xd0) hides "loading" | `GameScene::enter` |
+
+## Verification (2026-10-29)
+* `tools/test/chapter1.route`: `PLAYTHROUGH DONE (333 steps)`, New Game to the chapter 2 movie and `c2l0s1` (`sload2` -> `c2l2s7`), no
+  `3D:` stub line and no TODO on the way (the start-up `TODO(0x40ceb0)` line comes before the game).
+* `tools/test/chapter1-load.route` with `SB_TEST_LOADSLOT=5` (the save the main route writes at the Dame, step 20): the player is
+  back at his spot, the conditions and the bar (`iub1`, `ibt1`) are there, the rest of the chapter plays to the movie.
+* Both routes under ASan/UBSan (`build-asan`, `detect_leaks=0`): no report.
+* Screenshots of every scene of the route: `.shots/ch1/01..35-*.png`, contact sheet `.shots/ch1/contact.png`.
+* Test hooks added: `SB_TEST_PLAYTHROUGH`, `SB_TEST_SHOTDIR`, `SB_TEST_STEPFRAMES`, `SB_TEST_LOADSLOT`.
 
 ## Port notes / still not reconstructed
 * The cross-height connector walk (`checkgrid`, vt+0x17c 0x434520, vt+0x178 0x434450) and the path post-processing (0x42c450):
