@@ -39,12 +39,15 @@ OMediaEngine::OMediaEngine(omt_EngineID id, OMediaWindow *awindow)
 	engine_id = id;
         master_window = awindow;
         
+        // port: OMT1 SDL sound managers have no OMT 2.5 window association.
+#ifndef OMT1_AUDIO_ONLY
         if (master_window)
         {
             awindow->get_supervised_engines()->push_back(this);
             win_elist_iterator = master_window->get_supervised_engines()->end();
             win_elist_iterator--;
         }
+#endif
 }
 
 OMediaEngine::~OMediaEngine()
@@ -53,7 +56,9 @@ OMediaEngine::~OMediaEngine()
 
 	delete_all_implementations();
         
+#ifndef OMT1_AUDIO_ONLY
         if (master_window) master_window->get_supervised_engines()->erase(win_elist_iterator);
+#endif
 }
 	
 void OMediaEngine::delete_all_implementations(void)

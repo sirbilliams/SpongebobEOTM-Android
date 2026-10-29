@@ -31,6 +31,7 @@
 
 #include "OMediaRLEPacker.h"
 #include "OMediaEndianSupport.h"
+#include <string.h>
 
 #define omc_DUMP	0
 #define omc_RUN		1
@@ -78,7 +79,10 @@ class OMediaRLEPackTemplate
 
 	inline T UGetUnit(void)
 	{
-		T c = (*source++);
+		T c;
+		// port: packed RLE units may be unaligned (UBSan / ARM).
+		memcpy(&c, source, sizeof c);
+		source = (T*)((char*)source + sizeof c);
 	
 		#ifdef omd_BIG_ENDIAN
 

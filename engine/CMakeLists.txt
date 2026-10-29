@@ -100,6 +100,17 @@ if(OMT_GL4ES)
   target_compile_definitions(omt1 PUBLIC OMT_USE_GL4ES)
 endif()
 
+# port: reuse lane B's SDL audio without linking the incompatible OMT 2.5 worlds.
+add_library(sb_audio STATIC omt1/OMediaSoundManager.cpp sdl/OMediaSDLSound.cpp
+  OMTClasses/Sound/OMediaSound.cpp OMTClasses/Sound/OMediaSoundChannel.cpp
+  OMTClasses/Engines/OMediaSoundEngine.cpp OMTClasses/Engines/OMediaEngine.cpp OMTClasses/Engines/OMediaEngineImplementation.cpp)
+target_include_directories(sb_audio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/omt1
+  ${CMAKE_CURRENT_SOURCE_DIR}/OMTClasses/Sound ${CMAKE_CURRENT_SOURCE_DIR}/OMTClasses/Engines PRIVATE ${OMT_INC} sdl
+  ${CMAKE_CURRENT_SOURCE_DIR}/../game/bink ${SDL2_INCLUDE_DIRS})
+target_compile_definitions(sb_audio PRIVATE OMT1_AUDIO_ONLY)
+target_compile_options(sb_audio PRIVATE -Wno-write-strings -Wno-multichar)
+target_link_libraries(sb_audio PUBLIC ${OMT_SDL})
+
 # --------------------------------------------------------------------------- game importer
 # Installs the game files from the game's CD image (.iso): ISO 9660 + InstallShield cabinet
 # (unshield, MIT, fetched by fetch-deps.sh). Android: libimporter.so for the setup screen.
@@ -149,7 +160,7 @@ if(ANDROID)
   # SDLActivity loads libspongebob.so (the game) and calls SDL_main (OMediaSDLMain.cpp's main).
   if(SB_SRC)
     add_library(spongebob SHARED ${SB_SRC} ${OMT_MAIN})
-    target_link_libraries(spongebob omt granny_compat bink)
+    target_link_libraries(spongebob omt1 sb_audio granny_compat bink)
     target_compile_options(spongebob PRIVATE ${SB_FLAGS})
   endif()
 else()
@@ -189,9 +200,13 @@ else()
   # The reconstructed game, desktop build
   if(SB_SRC)
     add_executable(spongebob ${SB_SRC} ${OMT_MAIN})
-    target_link_libraries(spongebob omt granny_compat bink)
+    target_link_libraries(spongebob omt1 sb_audio granny_compat bink)
     target_compile_options(spongebob PRIVATE ${SB_FLAGS})
   endif()
+
+  add_executable(sb_font_test tests/sb_font_test.cpp ../game/src/ui/GameFont.cpp
+    ../game/src/ui/RetailData.cpp ${OMT_MAIN})
+  target_link_libraries(sb_font_test omt1)
 
   # Script runner for comparing granny_compat with the real granny.dll (tools/granny/verify.sh)
   add_executable(grntest_compat ${CMAKE_CURRENT_SOURCE_DIR}/../tools/granny/grntest.c)
