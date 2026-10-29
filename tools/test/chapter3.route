@@ -60,4 +60,26 @@ scene c3l4s2
 idle
 shot 12-c3l4s2-after-tv
 expect 340DAA
+save 0
+map
+scene c3l1s1
+idle
+click "Go to Sardine's"
+scene c3l5s1
+idle
+shot 13-c3l5s1
+click "Enter Sardine's"
+scene c3l5s2
+idle
+shot 14-c3l5s2
+talk nelson AAA ABA AXA
+idle
+expect 352ABA
+click "Walk to Other Side"
+scene c3l5s3
+idle
+shot 15-c3l5s3
+grab igl1
+idle
+have igl1
 end
