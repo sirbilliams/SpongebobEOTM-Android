@@ -20,6 +20,8 @@ public class SpongeActivity extends SDLActivity {
 
     /** Intent extra: run the crash-backtrace test (OMT_CRASHTEST: the game raises SIGSEGV at startup). */
     static final String EXTRA_CRASH_TEST = "crash_test";
+    /** Intent extra (String): start the Asset Viewer instead of the game (SB_ASSET_VIEW): "models" or "scene:<name>". docs/asset-viewer.md. */
+    static final String EXTRA_ASSET_VIEW = "asset_view";
 
     private CompanionPanel mPanel;
 
@@ -44,6 +46,11 @@ public class SpongeActivity extends SDLActivity {
                 Os.setenv("OMT_CRASHTEST", "1", true);
             else
                 Os.unsetenv("OMT_CRASHTEST");              // (the process can outlive a run)
+            String av = getIntent() != null ? getIntent().getStringExtra(EXTRA_ASSET_VIEW) : null;
+            if (av != null && !av.isEmpty())
+                Os.setenv("SB_ASSET_VIEW", av, true);
+            else
+                Os.unsetenv("SB_ASSET_VIEW");              // (the process can outlive a run)
         } catch (ErrnoException e) {
             // the engine then looks in files/ itself
         }

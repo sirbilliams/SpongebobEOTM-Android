@@ -23,6 +23,7 @@ public:
     short print_wrapped(OMediaWorld *world, int x, int y, int z, bool centered,
                         short variant, const char *format, ...); // 0x414b50
     void set_bank(short value) { bank=value; }
+    void drop_pool() { pool.clear(); next=0; }   // port: the world that owns the pooled glyph elements is about to be destroyed (asset viewer)
 private:
     OMediaCanvas *glyph(unsigned char c, short variant);
     OMediaDataBase *db;

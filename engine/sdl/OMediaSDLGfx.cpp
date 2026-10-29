@@ -371,6 +371,17 @@ static const char *ws_mode() {
     const char *m=getenv("SB_WIDESCREEN");
     return ws_scene ? (m ? m : "fill") : "off";
 }
+// port: the Asset Viewer's scene explorer. The picture between the top and bottom bar (logical rows top .. 480-bottom) shows only the
+// source rectangle sx,sy,sw,sh (logical pixels); the bars are drawn as they are. Off: the whole picture (every other mode).
+static bool vw_on = false;
+static float vw_sx = 0, vw_sy = 0, vw_sw = 640, vw_sh = 480, vw_top = 0, vw_bot = 0;
+void omgl_view_window(bool on, float sx, float sy, float sw, float sh, float top, float bottom) {
+    vw_on=on; vw_sx=sx; vw_sy=sy; vw_sw=sw; vw_sh=sh; vw_top=top; vw_bot=bottom;
+}
+// port: the viewer's pointer (a small gold cross), drawn over the finished picture at the logical point lx,ly so a zoomed view does not scale it.
+static bool vpt_on = false;
+static float vpt_x = 0, vpt_y = 0;
+void omgl_view_pointer(bool on, float lx, float ly) { vpt_on=on; vpt_x=lx; vpt_y=ly; }
 void omgl_widescreen_scene(bool active, float top, float bottom) {
     if(active != ws_scene) { ws_pan=60; ws_tick=0; }
     ws_scene=active; ws_top=top; ws_bottom=bottom;
@@ -475,8 +486,25 @@ void omgl_present(OMediaGLSurface *s)
 	glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, s->tex);
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
+	if (vw_on)
+	{
+		// GL rows run bottom-up and so does the texture: logical row r from the top is v = 1 - r / height
+		float H = (float)s->height, W = (float)s->width, k = h / H;
+		float yb = y0 + vw_bot * k, yt = y0 + h - vw_top * k;
+		omf_quad(x0, yb, x0 + w, yt, vw_sx / W, 1 - (vw_sy + vw_sh) / H, (vw_sx + vw_sw) / W, 1 - vw_sy / H);
+		if (vw_bot > 0) omf_quad(x0, y0, x0 + w, yb, 0, 0, 1, vw_bot / H);
+		if (vw_top > 0) omf_quad(x0, yt, x0 + w, y0 + h, 0, 1 - vw_top / H, 1, 1);
+	}
+	else
 	omf_quad(x0, y0, x0 + w, y0 + h, 0, 0, 1, 1);
 	glDisable(GL_TEXTURE_2D);
+	if (vpt_on)
+	{
+		float k = h / (float)s->height, px = x0 + vpt_x * k, py = y0 + h - vpt_y * k, u = k < 1 ? 1 : k;
+		glColor3f(0.06f, 0.03f, 0); omf_quad(px - 6.5f*u, py - 2.5f*u, px + 6.5f*u, py + 2.5f*u, 0, 0, 0, 0); omf_quad(px - 2.5f*u, py - 6.5f*u, px + 2.5f*u, py + 6.5f*u, 0, 0, 0, 0);
+		glColor3f(0.94f, 0.78f, 0.25f); omf_quad(px - 5.5f*u, py - 1.5f*u, px + 5.5f*u, py + 1.5f*u, 0, 0, 0, 0); omf_quad(px - 1.5f*u, py - 5.5f*u, px + 1.5f*u, py + 5.5f*u, 0, 0, 0, 0);
+		glColor3f(1, 1, 1);
+	}
 	omf_SDLFrameHook(omg_win);
 	SDL_GL_SwapWindow(omg_win);
 }
