@@ -56,4 +56,5 @@ read from the visible `symbol0N` pictures of `c2l5s3`, reel x = 143 / 289 / 430,
 
 ## Known limits
 * `attach` / `detach` come from lane b (merged: `0c44361`); a stub hit would show as a `3D:` line in the log.
+* smoke.sh `click-dialogue` expected `line AZA` (the "back again" opening) on the first meeting with Larry; lane b's case-insensitive progress keys correctly start at `AAA`, the expectation is now `line AAA`.
 * The route plays one winning slot spin chosen by the game's own `rand()`; it needs 1 to 4 pulls.
