@@ -133,10 +133,21 @@ public class SetupActivity extends Activity {
             getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("widescreen", next).apply();
             widescreen.setText("Widescreen: " + labels[next]);
         });
+        // Right stick moves the game cursor, its click (R3) is the left mouse button. Touch always works.
+        final Button padCursor = button(root, padCursorLabel(), null);
+        padCursor.setOnClickListener(v -> {
+            boolean on = !getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor", true);
+            getSharedPreferences("settings", MODE_PRIVATE).edit().putBoolean("pad_cursor", on).apply();
+            padCursor.setText(padCursorLabel());
+        });
         button(root, "Test", v -> showTest());
         button(root, "Quit", v -> finish());
         setContentView(root);
         play.requestFocus();                                // so the Thor's A button works without touching the screen
+    }
+
+    private String padCursorLabel() {
+        return "Right-stick cursor: " + (getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor", true) ? "On" : "Off");
     }
 
     // port: the bottom-screen companion panel (docs/companion.md). On by default; the choice is remembered.

@@ -18,6 +18,8 @@
 #include "OMediaPeriodical.h"
 #include "OMediaDefMessages.h"
 #include <SDL.h>
+#include <deque>
+#include <vector>
 
 // OMT.dll's OMediaEvent (the part the engine fills): type, modifiers, key, character, pointer
 enum omt_EventType
@@ -69,6 +71,14 @@ class OMediaEventManager : public OMediaPeriodical
 
 	inline bool quit_requested(void) const {return quit;}
 	inline static OMediaEventManager *get_event_manager(void) {return event_manager;}
+	// port: the event source of the game loops (replaces SDL_PollEvent). Same events, plus: a finger on
+	// the screen becomes a left-button mouse (down/motion/up, the pointer warped to the finger; SDL's own
+	// touch->mouse events are off and dropped, so a tap clicks once), and the gamepad's right stick moves
+	// the pointer with R3 as the left button (SB_PAD_CURSOR=0 turns the pad off). docs/controls.md.
+	omtshared static bool poll(SDL_Event *e);
+	static bool pad_button_down(void);							// port: R3 held (the polled button state cannot see a synthetic click)
+	static bool pad_cursor_enabled(void);
+
 	static void window_to_logical(int &px, int &py);			// port: SDL window pixels -> the 640x480 screen (one place for the viewport mapping)
 
 	omtshared static OMediaEventManager		*event_manager;		// 0x10420d84

@@ -339,7 +339,7 @@ class StartupApp : public MenuHost
         while(!menu.quit && !start_game) {
             if(event_manager->quit_requested()) { quit_app=true; break; }
             SDL_Event ev;
-            while(SDL_PollEvent(&ev)) {
+            while(OMediaEventManager::poll(&ev)) {
                 event_manager->handle_sdl_event(&ev);
                 if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); menu.hover(x,y); }
                 if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE) { if(menu.atTop() && paused) menu_resume(); else menu.back(); }
@@ -444,7 +444,7 @@ class StartupApp : public MenuHost
                 SDL_Event ev; bool leave=false;
                 // port: replay against the displayed transform before this frame can pan.
                 test_clicks(frame,"SB_TEST_GAME_CLICKS");
-                while(SDL_PollEvent(&ev)) {
+                while(OMediaEventManager::poll(&ev)) {
                     event_manager->handle_sdl_event(&ev);
                     if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); game->mouseMove(x,y); }
                     if(ev.type==SDL_KEYDOWN && (ev.key.keysym.sym==SDLK_F10 || ev.key.keysym.sym==SDLK_AC_BACK)) leave=true;   // port: back to the menu
