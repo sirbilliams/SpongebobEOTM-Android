@@ -164,6 +164,11 @@ else()
   target_link_libraries(omt1_view omt1)
   target_compile_options(omt1_view PRIVATE -Wno-multichar)
 
+  # OMT.dll's 2D UI elements (box, caption, string field, viewport element), event manager and click dispatcher
+  add_executable(omt1_ui_test tests/omt1_ui_test.cpp ${OMT_MAIN})
+  target_link_libraries(omt1_ui_test omt1)
+  target_compile_options(omt1_ui_test PRIVATE -Wno-multichar)
+
   add_executable(omt_datatest tests/omt_datatest.cpp ${OMT_MAIN})
   target_link_libraries(omt_datatest omt)
   target_compile_options(omt_datatest PRIVATE -w -fpermissive)

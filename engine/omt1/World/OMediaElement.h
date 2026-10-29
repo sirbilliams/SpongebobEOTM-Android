@@ -39,7 +39,13 @@ class OMediaWorldClickInfo
 	short			field_18;
 	short			first;			// +0x1a (1)
 	int				field_1c[4];	// +0x1c .. +0x2b (3D: hit point and polygon)
-	OMediaWorldClickInfo() {type = 0; viewport = NULL; element = NULL; field_c = 0; canvas = NULL; x = y = 0;
+	// What OMediaWorldClickDispatcher adds (0x38 bytes in all): the click as the dispatcher
+	// received it, for the elements that react to it (text fields, ...)
+	short			click_x, click_y;		// +0x2c +0x2e
+	unsigned short	modifiers;				// +0x30 OMediaEvent modifier bits
+	unsigned short	right_button;			// +0x32 1 when it was not the left button
+	int				event_type;				// +0x34 OMediaEvent type
+	OMediaWorldClickInfo() {click_x = click_y = 0; modifiers = 0; right_button = 0; event_type = 0; type = 0; viewport = NULL; element = NULL; field_c = 0; canvas = NULL; x = y = 0;
 							field_18 = 0; first = 1; field_1c[0] = field_1c[1] = field_1c[2] = field_1c[3] = 0;}
 };
 typedef OMediaWorldClickInfo OMediaWorldPositionInfo;

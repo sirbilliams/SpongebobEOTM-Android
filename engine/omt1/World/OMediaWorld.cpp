@@ -41,7 +41,9 @@ OMediaWorld::~OMediaWorld()
 		delete temp_buffer;
 		temp_buffer = NULL;
 	}
-	// the elements are deleted by ~OMediaElementContainer
+	// OMT.dll: the elements are deleted by ~OMediaElementContainer, with the world's memory still readable.
+	// port: deleted here, while this is still an OMediaWorld (the elements ask it is_destroying())
+	while (elements.size()) delete elements.front();
 }
 
 OMediaVPModel *OMediaWorld::create_vp_model(OMediaViewPort *) { return NULL; }	// 0x1039a050
