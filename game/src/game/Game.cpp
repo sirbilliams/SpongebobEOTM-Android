@@ -55,7 +55,7 @@ bool OmtFile::open(const std::string& file)
 
 // ------------------------------------------------------------------------------------------- Game
 Game::Game()
-    : blending(true), optText(1), optShadows(1), movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), pendingObj(0), pendingEvent(false), walkInMs(0), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
+    : blending(true), optText(1), optShadows(1), movieHook(0), movieHookData(0), warpHook(0), suspended(false), inputConsumed(false), letterboxIn(false), pendingObj(0), pendingEvent(false), walkInMs(0), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
       pendingId_(0), pendingStart_(0), runner_(0), host_(0), hoverCap_(0), commentCap_(0), commentMs_(0), mx_(320), my_(240),
       inputAttached_(false), commentBlock_(0), commentVoice_(false), hud_(0), mini_(0), cursor_(0)
 {
@@ -478,6 +478,7 @@ void Game::update(float dt)
     if (!scene_) { if (cursor_) cursor_->update(mx_, my_); return; }   // port: cursor
     if (walkInMs > 0) { walkInMs -= dt; if (walkInMs < 0) walkInMs = 0; }
     scene_->update(dt);
+    scene_->pan(dt);                  // lane e: 0x43b200 (vt+0x11c), only the pan scenes
     if (scene_->dialogue()) scene_->dialogue()->update(dt);
     host_->update(dt);
     if (mini_) mini_->update(dt); // 0x435830

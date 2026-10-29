@@ -51,7 +51,7 @@ static void trackClue(Game* g)
     if (n == 3) { for (int k = 0; k < 3; ++k) g_clue[k] = sym[k] - 6; g_mazeStep = 0; }
 }
 
-Playthrough::Playthrough(const char* file) : cur_(0), phase_(0), frames_(0), waitLeft_(0), idleFrames_(0), file_(file), failed_(false)
+Playthrough::Playthrough(const char* file) : cur_(0), phase_(0), frames_(0), waitLeft_(0), idleFrames_(0), hoverFrames_(0), file_(file), failed_(false)
 {
     FILE* f = fopen(file, "r");
     if (!f) { fprintf(stdout, "PLAYTHROUGH: cannot open %s\n", file); return; }
@@ -209,6 +209,14 @@ bool Playthrough::tick(Game* g, void (*click)(int, int), void (*move)(int, int),
         ++g_mazeStep;
         click(x, y);
         done = true;
+    } else if (c == "hover") {                      // lane e: hold the pointer at x,y for n frames (default: until a script starts / the scene changes)
+        if (st.args.size() < 2) { fail(g, "hover needs x y [frames]"); *failed = true; return false; }
+        int n = st.args.size() > 2 ? atoi(st.args[2].c_str()) : 0;
+        if (phase_ == 0) { phase_ = 1; hoverFrames_ = 0; }
+        ++hoverFrames_;
+        if (g->runner() || g->pendingScene() || (n > 0 && hoverFrames_ > n)) { if (n > 0) move(320, 240); done = true; }
+        else if (hoverFrames_ % 10 == 1) move(atoi(st.args[0].c_str()), atoi(st.args[1].c_str()));
+        if (!done) return true;
     } else if (c == "snap") {                       // a shot without waiting for idle
         const char* dir = getenv("SB_TEST_SHOTDIR");
         std::string p = std::string(dir ? dir : ".") + "/" + (st.args.empty() ? "shot" : st.args[0]) + ".bmp";

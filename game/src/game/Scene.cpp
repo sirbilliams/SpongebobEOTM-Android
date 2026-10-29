@@ -11,6 +11,7 @@
 #include <string.h>
 #include <math.h>
 #include <algorithm>
+#include <SDL.h>      // lane e: the pan keys (GetKeyState in the exe)
 
 namespace sbgame {
 
@@ -36,7 +37,7 @@ GameScene::GameScene(Game* game)
     : game_(game), sceneId_(0), artDb_(0), artFile_(0), background_(0), skyScroll_(0), dialogue_(0), barTop_(0), barBot_(0),
       barState_(0), barHold_(0), topY_(0), botY_(240), shake_(0), shakeCount_(0), shakeX_(0), shakeY_(0), lock_(0), doorTrig_(0), lastClicked_(0)
 {
-    sky_[0] = sky_[1] = 0; skyX_[0] = skyX_[1] = 0;
+    sky_[0] = sky_[1] = 0; skyX_[0] = skyX_[1] = 0; panX_ = panY_ = 0;
 }
 
 GameScene::~GameScene()
@@ -314,6 +315,14 @@ void GameScene::enter(int startPoint)
     if (game_->letterboxIn) transitionOpen();
     // "here 12": the map (level 1, vt+0xd0 0x437140) and the scenes without a level hide the "loading" object
     if ((sceneId_ & 0xf00) == 0x100 || (sceneId_ & 0xf00) == 0) hide("loading");
+    // lane e (0x437cf0 "here 13"): a pan scene starts with the background shifted (c2l4s0 -50,-50, c4l4s9 -320,-240) and the
+    // pointer in the middle of the screen (input manager vt+0xc(0x140, 0xf0))
+    if (panScene()) {
+        panX_ = sceneId_ == 0x402 ? -50 : -320;
+        panY_ = sceneId_ == 0x402 ? -50 : -240;
+        if (background_) background_->place((float)panX_, (float)panY_, -10000.0f);
+        game_->warpMouse(320, 240);
+    }
     lock_ = 500.0f;     // 0x437cf0 "here 16": param_1[0x735] = 500.0
 }
 
@@ -919,6 +928,77 @@ void GameScene::playDoor()                      // 0x43adb0: the door trigger's 
     SceneObject* a = find(doorTrig_->doorAnim.c_str(), 1 << SceneObject::Anim2D);
     if (a) { setHidden(a, false); startAnim(a); }
     else game_->log("door: no 2D animation '%s'\n", doorTrig_->doorAnim.c_str());
+}
+
+// lane e: 0x43b200 (scene vt+0x11c), the pan of the big background in the binocular scenes.  The pointer near an edge of the screen
+// (or the A/D/W/S and arrow keys) moves the background 0.15 px per ms (scene+0x1ca2 / +0x1ca4, rounded to whole pixels, limits
+// per scene); the "turn" sound plays on the mini game's channel while it moves.  Returns the cursor index (2..9 = the eight arrows,
+// 0xffff = none; the port draws its own pointer, so the index is not used).  When the sign is inside the window the script
+// `sbinoc` (c4l4s9) / `splank` (c2l4s0) starts once.
+int GameScene::pan(float dtMs)
+{
+    if (!panScene() || game_->runner()) return 0xffff;
+    int mx = game_->mouseX(), my = game_->mouseY();
+    const Uint8* k = SDL_GetKeyboardState(NULL);
+    bool left = k[SDL_SCANCODE_A] || k[SDL_SCANCODE_LEFT], right = k[SDL_SCANCODE_D] || k[SDL_SCANCODE_RIGHT];
+    bool up = k[SDL_SCANCODE_W] || k[SDL_SCANCODE_UP], down = k[SDL_SCANCODE_S] || k[SDL_SCANCODE_DOWN];
+    int Lth, Tth, Rth, Bth;
+    if (sceneId_ == 0x90404) { Lth = 0xbe; Tth = 0xaf; Rth = 0x1c2; Bth = 0x131; }
+    else { Lth = 0xa0; Tth = 0x7d; Rth = 0x1e0; Bth = 0x166; }
+    if (!left && !right && !up && !down && my > 0x1b8) { game_->stopChannel(7); return 0xffff; }   // 0x4368f0
+    int cur = -1;
+    float d = dtMs * 0.15f;                                                   // 0x44d968
+    if (mx > Rth || right) {
+        if (panX_ > Rth - 0x500) {
+            panX_ = (short)nearbyintf((float)panX_ - d);
+            if (panX_ < Rth - 0x500) panX_ = (short)(Rth - 0x500);
+            cur = 3;
+        }
+    }
+    if (mx < Lth || left) {
+        if (panX_ < Lth) {
+            panX_ = (short)nearbyintf((float)panX_ + d);
+            if (panX_ > Lth) panX_ = (short)Lth;
+            cur = 2;
+        }
+    }
+    if (my < Tth || up) {
+        if (panY_ < Tth) {
+            panY_ = (short)nearbyintf((float)panY_ + d);
+            if (panY_ > Tth) panY_ = (short)Tth;
+            cur = cur == 3 ? 7 : cur == 2 ? 6 : 4;
+        }
+    }
+    if (my > Bth || down) {
+        if (panY_ > Bth - 0x3c0) {
+            panY_ = (short)nearbyintf((float)panY_ - d);
+            if (panY_ < Bth - 0x3c0) panY_ = (short)(Bth - 0x3c0);
+            cur = cur == 3 ? 9 : cur == 2 ? 8 : 5;
+        }
+    }
+    if (cur == -1) game_->stopChannel(7);                                      // 0x4368f0
+    else {
+        game_->createMiniGame();                                               // 0x4354d0 when the object is not there yet
+        if (!game_->channelBusy(7)) {                                          // 0x436940 / 0x4367a0("turn")
+            bool shared = false;
+            OMediaSound* s = game_->findSound("turn", &shared);
+            if (s) game_->playOnChannel(7, s, 0);
+        }
+    }
+    if (background_) background_->place((float)panX_, (float)panY_, -10000.0f);
+    if (sceneId_ == 0x90404 && !game_->state().scriptSeen("sbinoc")) {
+        if (panX_ + 0x1e6 >= Lth && panY_ + 0x105 >= Tth && panX_ + 0x291 <= Rth && panY_ + 0x143 <= Bth) {
+            game_->stopChannel(7);
+            game_->switchTo("sbinoc");
+        }
+    }
+    if (sceneId_ == 0x402 && !game_->state().scriptSeen("splank")) {
+        if (panX_ + 0x271 >= 0x104 && panY_ + 0x195 >= 0x96 && panX_ + 0x2cc <= 0x17c && panY_ + 0x21a <= 0x145) {
+            game_->stopChannel(7);
+            game_->switchTo("splank");
+        }
+    }
+    return cur < 0 ? 0xffff : cur;
 }
 
 }  // namespace sbgame

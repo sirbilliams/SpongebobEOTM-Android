@@ -122,6 +122,9 @@ public:
     // Mouse position for tests / synthetic events
     void mouseDown(int x, int y);
     void mouseMove(int x, int y);
+    // lane e: 0x437cf0 pan scenes put the pointer in the middle (input manager vt+0xc); port: the startup's hook moves the SDL pointer
+    void warpMouse(int x, int y) { mx_ = x; my_ = y; if (warpHook) warpHook(x, y); }
+    void (*warpHook)(int x, int y);
     // port: the movie player (Bink) is the startup's; a hook receives the movie name
     void (*movieHook)(const char* name, void* data);
     void* movieHookData;
