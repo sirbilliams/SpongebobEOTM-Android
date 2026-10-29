@@ -140,13 +140,16 @@ endif()
 # The reconstructed game (../game/src). MSVC's char is signed and the original code relies on it,
 # so -fsigned-char (arm64's default char is unsigned).
 file(GLOB_RECURSE SB_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/*.cpp)
+if(SB_SRC AND NOT TARGET bink)
+  message(FATAL_ERROR "Startup needs Bink: fetch pinned FFmpeg or set FFMPEG_PREFIX")
+endif()
 set(SB_FLAGS -fsigned-char -Wno-multichar -Wno-write-strings -Werror=narrowing -Wfloat-conversion -fno-strict-aliasing)
 
 if(ANDROID)
   # SDLActivity loads libspongebob.so (the game) and calls SDL_main (OMediaSDLMain.cpp's main).
   if(SB_SRC)
     add_library(spongebob SHARED ${SB_SRC} ${OMT_MAIN})
-    target_link_libraries(spongebob omt granny_compat)
+    target_link_libraries(spongebob omt granny_compat bink)
     target_compile_options(spongebob PRIVATE ${SB_FLAGS})
   endif()
 else()
@@ -178,7 +181,7 @@ else()
   # The reconstructed game, desktop build
   if(SB_SRC)
     add_executable(spongebob ${SB_SRC} ${OMT_MAIN})
-    target_link_libraries(spongebob omt granny_compat)
+    target_link_libraries(spongebob omt granny_compat bink)
     target_compile_options(spongebob PRIVATE ${SB_FLAGS})
   endif()
 
@@ -195,4 +198,8 @@ else()
       target_compile_options(sample_${s} PRIVATE -w -fpermissive)
     endif()
   endforeach()
+endif()
+
+if(TARGET spongebob AND TARGET bink)
+  set_target_properties(spongebob PROPERTIES BUILD_RPATH "${FFMPEG_PREFIX}/lib")
 endif()
