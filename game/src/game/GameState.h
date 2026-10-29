@@ -48,6 +48,9 @@ public:
     const std::vector<std::string>& items() const { return items_; }
     void setFlag(const char* name, bool on);
     void addChar(const char* name);
+    // port: companion (docs/companion.md): read-only views for the chapter tracker
+    const std::set<unsigned>& scenesEntered() const { return scen_; }
+    size_t scriptsSeenCount() const { return seen_.size(); }
     void markScene(unsigned id) { scen_.insert(id); }               // 0x416a60: the scene was entered (a 'C' condition term)                                 // 0x416c70 (the 'CHAR' save record: an item was given to it)
     // 0x416ba0 'block' / 'unblock': (scene, x, y) cells the player may not walk on
     void setBlocked(unsigned scene, int x, int y, bool blocked);

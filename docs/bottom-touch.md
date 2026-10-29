@@ -39,7 +39,7 @@ Quick check: **Engine room > Touch test**: a draw-where-you-touch screen on top 
 * **(c) Nothing arrives.** The panel keeps showing the game state (snapshot polling does not need touch); MENU/SKIP etc. just do not respond. The Touch test and log show it.
 
 ## UX: Panel and Touchpad (Settings > "Bottom screen: Panel / Touchpad", default Panel; also the PANEL | TOUCHPAD switch in the panel's header)
-* **Panel**: the dashboard (hint ticket, dialogue choices / Next, pocket cards, map trail).
+* **Panel**: the dashboard (tabs Pocket / Map / Talk / Goals + REVEAL; hint ticket, dialogue choices / Next, pocket cards (drag one onto another to combine), map trail). The tab row is also there in Touchpad mode. See docs/companion.md "Pages".
 * **Touchpad** (layout in 1240x1080): header as in Panel (scene, MENU, SKIP); a **large pad** (1160 x ~660) as one glass surface with a dot grid that drifts with the finger; below it a slim
   **pocket row** (4 cards, paging arrows, HINT, PUT AWAY). When a dialogue line is open a slim strip with the line and **Next** sits above the pad; when a dialogue offers choices the Panel layout takes over
   (big numbered buttons: no cursor is needed).

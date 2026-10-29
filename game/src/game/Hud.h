@@ -65,6 +65,8 @@ public:
     bool holding() const { return held_ != 0; }
     const std::string& heldName() const;
     bool holdFromPanel(const std::string& name);    // port: the companion panel puts an item in hand
+    // port: companion: one card dragged onto another = dropping `a` on the slot of `b` (dropAt): combine() (0x421880), else the refusal comment H000F.  false: not possible now
+    bool combineFromPanel(const std::string& a, const std::string& b, bool* made);
     bool overHotspot(int x, int y);                 // a button of the bar, or something clickable in the scene
     // the hover caption (0x4201c0) that replaces the scene's; false: none
     bool caption(std::string* out);

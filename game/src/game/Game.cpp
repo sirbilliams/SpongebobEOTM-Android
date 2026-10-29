@@ -66,6 +66,7 @@ Game::Game()
 {
     gameCompleted = false;
     music_ = 0; musicChapter_ = -1;
+    commentSerial = 0;       // port: companion
 }
 
 Game::~Game()
@@ -493,6 +494,7 @@ void Game::showComment(const char* id)      // game+0xc4 vt+0x14
     commentMs_ = 0;
     if (!e) { log("comment '%s' not found\n", id); return; }
     log("comment %s: %s\n", id, e->text.c_str());
+    lastCommentText = e->text; ++commentSerial;      // port: companion
     commentBlock_ = new TextBlock;
     commentBlock_->show(this, 5, 440, 10100, false, e->text, 630);
     OMediaSound* s = 0;

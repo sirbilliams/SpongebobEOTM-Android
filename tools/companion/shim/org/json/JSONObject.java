@@ -7,6 +7,7 @@ public class JSONObject {
     public JSONObject(String s) throws JSONException { JSONObject o = (JSONObject) new Parser(s).value(); m.putAll(o.m); }
     public Object opt(String k) { return m.get(k); }
     public String optString(String k, String d) { Object o = m.get(k); return o instanceof String ? (String) o : d; }
+    public int optInt(String k) { return optInt(k, 0); }
     public int optInt(String k, int d) { Object o = m.get(k); return o instanceof Number ? ((Number) o).intValue() : d; }
     public double optDouble(String k, double d) { Object o = m.get(k); return o instanceof Number ? ((Number) o).doubleValue() : d; }
     public JSONArray optJSONArray(String k) { Object o = m.get(k); return o instanceof JSONArray ? (JSONArray) o : null; }

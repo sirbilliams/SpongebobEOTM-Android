@@ -41,6 +41,44 @@ public final class RenderPanel {
             ImageIO.write(out.img, "png", new File(a[1]));
             return;
         }
+        if (m.equals("banner") && json != null) v.setSnapshot(json.replace("\"n\":2", "\"n\":3"));    // a new combine result arrives: the banner shows
+        if (m.startsWith("page:")) {                   // page:map | page:talk | page:goals | page:pocket (+ ":pad" = Touchpad mode)
+            String[] parts = m.split(":");
+            v.setPage(parts[1].equals("map") ? CompanionView.PAGE_MAP : parts[1].equals("talk") ? CompanionView.PAGE_TALK
+                    : parts[1].equals("goals") ? CompanionView.PAGE_GOALS : CompanionView.PAGE_POCKET);
+            if (parts.length > 2 && parts[2].equals("pad")) v.setMode(CompanionView.MODE_PAD);
+        }
+        if (m.equals("combine") || m.equals("combine:mid") || m.equals("maptap") || m.equals("tabtap")) {
+            // gestures with the real touch code; the Sender prints what the game would receive
+            v.drawForTest(new Canvas(Bitmap.createBitmap(1240, 1080, Bitmap.Config.ARGB_8888)));
+            long t = 1000;
+            if (m.startsWith("combine")) {                // drag the first card onto the second
+                String[] ids = System.getProperty("cards", "isp1,ict2").split(",");
+                float[] f = v.hitCenterForTest(ids[0]), g = v.hitCenterForTest(ids[1]);
+                v.onTouchEvent(ev(t, MotionEvent.ACTION_DOWN, f[0], f[1]));
+                int steps = 10;
+                int stop = m.equals("combine:mid") ? steps - 2 : steps;
+                for (int i = 1; i <= stop; i++) v.onTouchEvent(ev(t + i * 16, MotionEvent.ACTION_MOVE, f[0] + (g[0] - f[0]) * i / steps, f[1] + (g[1] - f[1]) * i / steps));
+                if (!m.equals("combine:mid")) v.onTouchEvent(ev(t + 200, MotionEvent.ACTION_UP, g[0], g[1]));
+            } else if (m.equals("maptap")) {              // tap every place of the chart
+                int k = 0;
+                String[] cmds = System.getProperty("taps", "").split(";");
+                for (String cmd : cmds) {
+                    float[] f = v.hitCenterForTest(cmd);
+                    if (f == null) { System.out.println("no target " + cmd); continue; }
+                    v.onTouchEvent(ev(t + k * 400, MotionEvent.ACTION_DOWN, f[0], f[1])); v.onTouchEvent(ev(t + k * 400 + 60, MotionEvent.ACTION_UP, f[0], f[1]));
+                    v.drawForTest(new Canvas(Bitmap.createBitmap(1240, 1080, Bitmap.Config.ARGB_8888))); k++;
+                }
+            } else {                                      // tabtap: Map tab, then Talk tab
+                for (String cmd : System.getProperty("taps", "tab:1").split(";")) {
+                    float[] f = v.hitCenterForTest(cmd);
+                    v.onTouchEvent(ev(t, MotionEvent.ACTION_DOWN, f[0], f[1])); v.onTouchEvent(ev(t + 60, MotionEvent.ACTION_UP, f[0], f[1]));
+                    v.drawForTest(new Canvas(Bitmap.createBitmap(1240, 1080, Bitmap.Config.ARGB_8888)));
+                    t += 200;
+                }
+                System.out.println("page " + v.getPage());
+            }
+        }
         if (m.startsWith("pad")) {
             v.setMode(CompanionView.MODE_PAD);
             v.drawForTest(new Canvas(Bitmap.createBitmap(1240, 1080, Bitmap.Config.ARGB_8888)));   // lay out once: the pad's rectangle

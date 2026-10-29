@@ -81,14 +81,37 @@ public class CompanionView extends View {
     private final List<String> visited = new ArrayList<String>();
     private int invPage;
 
+    // ---- pages: Pocket (the dashboard), Map, Talk, Goals ----
+    public static final int PAGE_POCKET = 0, PAGE_MAP = 1, PAGE_TALK = 2, PAGE_GOALS = 3;
+    private static final String[] TABS = { "POCKET", "MAP", "TALK", "GOALS" };
+    private int page = PAGE_POCKET;
+    private static final float TAB_Y = 184, TAB_H = 56, CONTENT_Y = 256;
+    private static final class Area { String name = "", cmd = ""; int x, y, w, h; boolean ok, visited, here; }
+    private final List<Area> areas = new ArrayList<Area>();
+    private boolean mapBusy;
+    private String mapNote = ""; private long mapNoteUntil;
+    private static final class Line { int id; String speaker = "", text = ""; boolean voice; }
+    private final List<Line> talk = new ArrayList<Line>();
+    private float talkScroll; private boolean talkStick = true; private int talkSeen;
+    private final RectF listRect = new RectF();                        // the scrollable list of the Talk page (empty elsewhere)
+    private int combineSerial = -1; private boolean combineOk; private String combineText = ""; private long combineAt;
+    private int goalSeen, goalTotal, goalScripts;
+    private final List<String> placeNames = new ArrayList<String>();
+    private final List<int[]> placeCounts = new ArrayList<int[]>();
+
     // ---- touch ----
     private static final class Hit {
-        final RectF box = new RectF(); String cmd;
+        final RectF box = new RectF(); String cmd; String item;      // item: an inventory card (can be dragged onto another)
         Hit(float l, float t, float rr, float b, String c) { box.set(l, t, rr, b); cmd = c; }
     }
     private final List<Hit> hits = new ArrayList<Hit>();
     private Hit down;
     private float scale = 1f, offX, offY;
+    // dragging an inventory card onto another (= combine), and scrolling the Talk list
+    private static final float DRAG_SLOP = 26f;
+    private Hit dragCand;
+    private boolean dragging, scrollTouch, scrolling;
+    private float dragX, dragY, touchX0, touchY0, scrollLastY;
 
     public CompanionView(Context c) {
         super(c);
@@ -111,6 +134,7 @@ public class CompanionView extends View {
     public void setSnapshot(String json) {
         haveGame = false; dialogue = choiceMode = cutscene = false;
         items.clear(); itemNames.clear(); choices.clear(); visited.clear(); iconDir = "";
+        areas.clear(); talk.clear(); placeNames.clear(); placeCounts.clear(); mapBusy = false; goalSeen = goalTotal = goalScripts = 0;
         sceneTitle = chapterTitle = hint = caption = selected = speaker = line = "";
         if (json != null && json.length() > 2) {
             try {
@@ -126,6 +150,7 @@ public class CompanionView extends View {
                 strings(o.optJSONArray("names"), itemNames);
                 iconDir = o.optString("icons", "");
                 strings(o.optJSONArray("visited"), visited);
+                parseExtra(o);
                 JSONObject d = o.optJSONObject("dlg");
                 if (d != null) {
                     dialogue = true;
@@ -140,6 +165,51 @@ public class CompanionView extends View {
         }
         invalidate();
     }
+
+    /** The map, talk, combine and goals parts of the snapshot (docs/companion.md). */
+    private void parseExtra(JSONObject o) {
+        JSONArray m = o.optJSONArray("map");
+        if (m != null) for (int i = 0; i < m.length(); i++) {
+            JSONObject j = m.optJSONObject(i);
+            if (j == null) continue;
+            Area a = new Area();
+            a.name = j.optString("n", ""); a.cmd = j.optString("c", "");
+            a.x = j.optInt("x"); a.y = j.optInt("y"); a.w = j.optInt("w"); a.h = j.optInt("h");
+            a.ok = j.optInt("ok") != 0; a.visited = j.optInt("v") != 0; a.here = j.optInt("here") != 0;
+            areas.add(a);
+        }
+        mapBusy = o.optInt("mapbusy", 0) != 0;
+        JSONArray t = o.optJSONArray("talk");
+        if (t != null) for (int i = 0; i < t.length(); i++) {
+            JSONObject j = t.optJSONObject(i);
+            if (j == null) continue;
+            Line l = new Line();
+            l.id = j.optInt("i"); l.speaker = j.optString("s", ""); l.text = j.optString("t", ""); l.voice = j.optInt("v") != 0;
+            talk.add(l);
+        }
+        JSONObject cb = o.optJSONObject("combine");
+        if (cb != null) {
+            int n = cb.optInt("n", 0);
+            if (combineSerial < 0) combineSerial = n;             // a result from before the panel came up is not news
+            else if (n != combineSerial) {
+                combineSerial = n; combineOk = cb.optInt("ok") != 0; combineText = cb.optString("t", "");
+                combineAt = SystemClock.uptimeMillis();
+            }
+        }
+        JSONObject g = o.optJSONObject("goals");
+        if (g != null) {
+            goalSeen = g.optInt("sv"); goalTotal = g.optInt("st"); goalScripts = g.optInt("sc");
+            JSONArray pl = g.optJSONArray("places");
+            if (pl != null) for (int i = 0; i < pl.length(); i++) {
+                JSONObject j = pl.optJSONObject(i);
+                if (j == null) continue;
+                placeNames.add(j.optString("n", "")); placeCounts.add(new int[] { j.optInt("v"), j.optInt("t") });
+            }
+        }
+    }
+
+    public void setPage(int p) { page = Math.max(0, Math.min(3, p)); talkStick = true; invalidate(); }
+    public int getPage() { return page; }
 
     /** The item's picture (a small PNG the game wrote), or null (not there yet, or not readable): then the initials badge is drawn. */
     private Bitmap picture(String id) {
@@ -191,15 +261,33 @@ public class CompanionView extends View {
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
                 down = hitAt(x, y);
+                dragCand = down != null && down.item != null ? down : null;
+                dragging = scrolling = false;
+                dragX = touchX0 = x; dragY = touchY0 = y; scrollLastY = y;
+                scrollTouch = page == PAGE_TALK && x >= listRect.left && x <= listRect.right && y >= listRect.top && y <= listRect.bottom;
                 if (down != null) tap(down.cmd.startsWith("item:") ? 2 : 1);
                 else if (mode == MODE_PAD && (x >= padRect.left && x <= padRect.right && y >= padRect.top && y <= padRect.bottom)) padStart(x, y, t);
                 invalidate();
                 return true;
             case MotionEvent.ACTION_MOVE:
                 if (padOn) padMove(x, y, t);
+                if (dragCand != null && !dragging && Math.hypot(x - touchX0, y - touchY0) > DRAG_SLOP) { dragging = true; tap(2); }
+                if (dragging) { dragX = x; dragY = y; invalidate(); }
+                if (scrollTouch && !scrolling && Math.abs(y - touchY0) > 18) { scrolling = true; down = null; }
+                if (scrolling) { talkScroll -= y - scrollLastY; talkStick = false; invalidate(); }
+                scrollLastY = y;
                 return true;
             case MotionEvent.ACTION_UP: {
                 if (padOn) { padEnd(x, y, t); invalidate(); return true; }
+                if (dragging) {                                  // a card was dragged: dropped on another card = combine (the game's own code decides)
+                    Hit tgt = cardAt(x, y);
+                    String a = dragCand.item;
+                    dragging = false; dragCand = null; down = null;
+                    invalidate();
+                    if (tgt != null && !tgt.item.equalsIgnoreCase(a) && sender != null) { tap(1); sender.send("combine:" + a + ":" + tgt.item); }
+                    return true;
+                }
+                if (scrolling) { scrolling = scrollTouch = false; down = null; invalidate(); return true; }
                 Hit h = hitAt(x, y);
                 Hit d = down;
                 down = null;
@@ -208,7 +296,7 @@ public class CompanionView extends View {
                 return true;
             }
             case MotionEvent.ACTION_CANCEL:
-                down = null;
+                down = null; dragging = scrolling = scrollTouch = false; dragCand = null;
                 padRelease(true);
                 invalidate();
                 return true;
@@ -285,7 +373,32 @@ public class CompanionView extends View {
         return null;
     }
 
+    /** The inventory card under x,y (a drop target), or null. */
+    private Hit cardAt(float x, float y) {
+        for (int i = hits.size() - 1; i >= 0; i--) {
+            Hit h = hits.get(i);
+            if (h.item != null && x >= h.box.left && x <= h.box.right && y >= h.box.top && y <= h.box.bottom) return h;
+        }
+        return null;
+    }
+
+    /** Test helper (tools/companion/panel-test.sh): the centre of a hit target by its command or item id, in view pixels; null if not drawn. */
+    public float[] hitCenterForTest(String cmdOrItem) {
+        for (Hit h : hits)
+            if (cmdOrItem.equals(h.cmd) || cmdOrItem.equals(h.item) || (cmdOrItem.startsWith("note:") && h.cmd.startsWith(cmdOrItem))) return new float[] { offX + h.box.centerX() * scale, offY + h.box.centerY() * scale };
+        return null;
+    }
+
     private void fire(String cmd) {
+        if (cmd.startsWith("tab:")) {                        // panel-local: Pocket / Map / Talk / Goals
+            setPage(Integer.parseInt(cmd.substring(4)));
+            return;
+        }
+        if (cmd.startsWith("note:")) {                       // panel-local: a short message (a map place that is not open)
+            mapNote = cmd.substring(5); mapNoteUntil = SystemClock.uptimeMillis() + 3500;
+            invalidate();
+            return;
+        }
         if (cmd.startsWith("mode:")) {                       // panel-local: Panel / Touchpad
             mode = cmd.endsWith("1") ? MODE_PAD : MODE_PANEL;
             if (modeListener != null) modeListener.modeChanged(mode);
@@ -317,10 +430,19 @@ public class CompanionView extends View {
         c.clipRect(0, 0, W, H);
         drawSea(c, t);
         drawHeader(c, t);
-        float y = 196;
+        float y = CONTENT_Y;
         padRect.set(0, 0, 0, 0);
+        listRect.set(0, 0, 0, 0);
+        int pg = dialogue && choiceMode ? PAGE_POCKET : page;      // a question to answer always shows the Pocket page
+        if (haveGame) drawTabs(c, pg);
         if (!haveGame) {
             drawWaiting(c);
+        } else if (pg == PAGE_MAP) {
+            drawMap(c, y);
+        } else if (pg == PAGE_TALK) {
+            drawTalk(c, y);
+        } else if (pg == PAGE_GOALS) {
+            drawGoals(c, y);
         } else if (mode == MODE_PAD && !(dialogue && choiceMode)) {
             drawPadLayout(c, y, t);
         } else {
@@ -329,6 +451,8 @@ public class CompanionView extends View {
             drawInventory(c, y, 944);
             drawTrail(c, 960);
         }
+        if (haveGame && pg == PAGE_POCKET) drawCombineBanner(c, t);
+        drawDragGhost(c);
         c.restore();
         c.restore();
     }
@@ -663,8 +787,10 @@ public class CompanionView extends View {
     }
 
     /** The hint as an order ticket; returns the bottom y. */
-    private float drawHint(Canvas c, float y) {
-        List<String> lines = wrap(hint, 30, 1040, 2, false);
+    private float drawHint(Canvas c, float y) { return drawTicket(c, y, "HINT", hint, 2); }
+
+    private float drawTicket(Canvas c, float y, String title, String body, int maxLines) {
+        List<String> lines = wrap(body, 30, 1040, maxLines, false);
         float h = 60 + lines.size() * 38;
         r.set(40, y, 1200, y + h);
         p.setStyle(Paint.Style.FILL); p.setColor(0x33000000);
@@ -682,7 +808,7 @@ public class CompanionView extends View {
         p.setColor(RED);
         c.drawCircle(78, y + 34, 15, p);
         text(c, "?", 78, y + 45, 28, 0xFFFFFFFF, true, Paint.Align.CENTER);
-        text(c, "HINT", 112, y + 40, 22, RED, true, Paint.Align.LEFT);
+        text(c, title, 112, y + 40, 22, RED, true, Paint.Align.LEFT);
         float ty = y + 48 + 24;
         for (String s : lines) { text(c, s, 112, ty, 30, INK, false, Paint.Align.LEFT); ty += 38; }
         return y + h + 8;
@@ -743,10 +869,11 @@ public class CompanionView extends View {
     }
 
     private void drawInventory(Canvas c, float top, float bottom) {
-        boolean compact = dialogue && choiceMode;
+        boolean compact = (dialogue && choiceMode) || bottom - (top + 44) < 200;
         float headH = 44;
         text(c, "POCKET", 52, top + 32, 28, GOLD, true, Paint.Align.LEFT);
         if (selected.length() > 0) text(c, "In hand: " + itemName(items.indexOf(selected), selected), 1200, top + 32, 26, 0xFFFFFFFF, true, Paint.Align.RIGHT);
+        else if (items.size() > 1) text(c, "Drag one card onto another to combine", 1200, top + 32, 24, 0xFFF3E3C0, false, Paint.Align.RIGHT);
         float y0 = top + headH;
         float avail = bottom - y0;
         int cols = compact ? 4 : 3;
@@ -787,6 +914,7 @@ public class CompanionView extends View {
     private void itemCard(Canvas c, float l, float t, float rr, float b, String id, String name, boolean compact) {
         boolean sel = id.equalsIgnoreCase(selected);
         Hit h = new Hit(l, t, rr, b, sel ? "noitem" : "item:" + id);
+        h.item = id;
         hits.add(h);
         boolean pr = h == down;
         plank(c, l, t, rr, b, pr);
@@ -832,6 +960,296 @@ public class CompanionView extends View {
             for (String s : lines) { text(c, s, (l + rr) / 2, ty, 28, 0xFFFFFFFF, true, Paint.Align.CENTER); ty += 32; }
         }
         if (sel && !compact) text(c, "IN HAND", rr - 14, t + 30, 20, GOLD, true, Paint.Align.RIGHT);
+        if (dragging && dragCand != null) {
+            if (id.equalsIgnoreCase(dragCand.item)) {                 // the card being carried
+                r.set(l, t, rr, b);
+                p.setStyle(Paint.Style.FILL); p.setColor(0x66000000);
+                c.drawRoundRect(r, 22, 22, p);
+            } else if (dragX >= l && dragX <= rr && dragY >= t && dragY <= b) {   // a card to drop on
+                r.set(l - 6, t - 6, rr + 6, b + 6);
+                p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(8); p.setColor(TEAL);
+                c.drawRoundRect(r, 26, 26, p);
+                p.setStyle(Paint.Style.FILL);
+                text(c, "COMBINE", (l + rr) / 2, t + 26, 22, TEAL, true, Paint.Align.CENTER);
+            }
+        }
+    }
+
+    /** The card in the finger while dragging. */
+    private void drawDragGhost(Canvas c) {
+        if (!dragging || dragCand == null) return;
+        String id = dragCand.item;
+        Bitmap pic = picture(id);
+        float rad = 54;
+        p.setStyle(Paint.Style.FILL); p.setColor(0x66000000);
+        c.drawCircle(dragX + 5, dragY + 9, rad, p);
+        p.setColor(pic != null ? 0xFF3B8FC4 : hue(id));
+        c.drawCircle(dragX, dragY, rad, p);
+        if (pic != null) {
+            r.set(dragX - rad * 0.92f, dragY - rad * 0.92f, dragX + rad * 0.92f, dragY + rad * 0.92f);
+            c.drawBitmap(pic, null, r, picPaint);
+        } else text(c, initials(id), dragX, dragY + rad * 0.3f, rad * 0.9f, 0xFFFFFFFF, true, Paint.Align.CENTER);
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(5); p.setColor(GOLD);
+        c.drawCircle(dragX, dragY, rad, p);
+        p.setStyle(Paint.Style.FILL);
+    }
+
+    /** The result of the last combine: what was made, or the game's own refusal comment. Shown for 6 s. */
+    private void drawCombineBanner(Canvas c, long t) {
+        if (combineText.length() == 0 || t - combineAt > 6000) return;
+        List<String> lines = wrap(combineText, 28, 900, 2, true);
+        float h = 44 + lines.size() * 34;
+        float by = mode == MODE_PAD ? 770 : 868;             // floats over the bottom of the pad / of the pocket cards
+        r.set(120, by, 1120, by + h);
+        p.setStyle(Paint.Style.FILL); p.setColor(0x55000000);
+        c.drawRoundRect(new RectF(124, by + 8, 1124, by + 8 + h), 20, 20, p);
+        p.setColor(combineOk ? 0xFFDDF3D0 : 0xFFFFE0D8);
+        c.drawRoundRect(r, 20, 20, p);
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(4); p.setColor(combineOk ? KELP_DK : RED);
+        c.drawRoundRect(r, 20, 20, p);
+        p.setStyle(Paint.Style.FILL);
+        float ty = by + 24 + 16;
+        text(c, combineOk ? "COMBINED" : "NO LUCK", 144, ty - 2, 20, combineOk ? KELP_DK : RED, true, Paint.Align.LEFT);
+        for (String s : lines) { text(c, s, 1100, ty + 4, 28, INK, true, Paint.Align.RIGHT); ty += 34; }
+    }
+
+    // ------------------------------------------------------------------ tabs and pages
+
+    private void drawTabs(Canvas c, int shown) {
+        float w = 206, gap = 8;
+        for (int i = 0; i < 4; i++) {
+            float x = 40 + i * (w + gap);
+            Hit hh = new Hit(x, TAB_Y, x + w, TAB_Y + TAB_H + 6, "tab:" + i);
+            hits.add(hh);
+            boolean on = shown == i, pr = hh == down;
+            r.set(x, TAB_Y, x + w, TAB_Y + TAB_H);
+            p.setStyle(Paint.Style.FILL);
+            p.setColor(on ? GOLD : (pr ? WOOD_DK : WOOD));
+            c.drawRoundRect(r, 24, 24, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(4); p.setColor(WOOD_EDGE);
+            c.drawRoundRect(r, 24, 24, p);
+            text(c, TABS[i], x + w / 2, TAB_Y + 38, 26, on ? INK : 0xFFF3E3C0, true, Paint.Align.CENTER);
+        }
+        // REVEAL: the game shows its hidden hot spots for a moment (lane e implements the 'reveal' command)
+        chip(c, 40 + 4 * (w + gap) + 6, TAB_Y, 1200, TAB_Y + TAB_H, "REVEAL", "reveal", !(dialogue || cutscene));
+        p.setStyle(Paint.Style.FILL);
+    }
+
+    private static final int GREY = 0xFF8A9AA0;
+
+    private void drawMap(Canvas c, float top) {
+        float l = 40, rr = 1200, b = 944;
+        plank(c, l, top, rr, b, false);
+        float sc = 1.28f, mw = 640 * sc, mh = 480 * sc;
+        float ox = l + 26, oy = top + (b - top - mh) / 2;
+        // the chart: sand paper with waves, the map scene's own layout (640x480)
+        r.set(ox, oy, ox + mw, oy + mh);
+        p.setStyle(Paint.Style.FILL); p.setColor(0xFFF2E3B0);
+        c.drawRoundRect(r, 26, 26, p);
+        c.save();
+        c.clipRect(r);
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(0x2236A6C4);
+        for (float wy = oy + 30; wy < oy + mh; wy += 46) {
+            path.reset(); path.moveTo(ox, wy);
+            for (float wx = ox; wx < ox + mw; wx += 40) path.lineTo(wx + 20, wy + ((int) ((wx - ox) / 40) % 2 == 0 ? -8 : 8));
+            c.drawPath(path, p);
+        }
+        c.restore();
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(5); p.setColor(PAPER_EDGE);
+        c.drawRoundRect(r, 26, 26, p);
+        p.setStyle(Paint.Style.FILL);
+        long now = SystemClock.uptimeMillis();
+        if (areas.isEmpty()) text(c, "No chart for this place", ox + mw / 2, oy + mh / 2, 34, INK, true, Paint.Align.CENTER);
+        int open = 0, seenN = 0;
+        for (Area a : areas) {
+            float cx = ox + (a.x + a.w / 2f) * sc, cy = oy + (a.y + a.h / 2f) * sc - 14;
+            float rad = Math.max(44, Math.min(78, Math.min(a.w, a.h) * sc * 0.30f));
+            boolean go = a.ok && !mapBusy && !a.here;
+            if (a.ok) open++;
+            if (a.visited) seenN++;
+            int fill = a.here ? RED : (!a.ok ? GREY : (a.visited ? TEAL : GOLD));
+            String cmd = go ? "travel:" + a.cmd
+                    : "note:" + (a.here ? "You are here." : (!a.ok ? "Not open yet - keep exploring." : "Finish what you are doing first."));
+            Hit h = new Hit(cx - rad - 12, cy - rad - 12, cx + rad + 12, cy + rad + 74, cmd);
+            hits.add(h);
+            boolean pr = h == down;
+            p.setStyle(Paint.Style.FILL); p.setColor(0x55000000);
+            c.drawCircle(cx + 4, cy + 7, rad, p);
+            p.setColor(pr ? GOLD_DK : fill);
+            c.drawCircle(cx, cy, rad, p);
+            p.setColor(0x33FFFFFF);
+            c.drawCircle(cx - rad * 0.3f, cy - rad * 0.35f, rad * 0.5f, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(6); p.setColor(WOOD_EDGE);
+            c.drawCircle(cx, cy, rad, p);
+            if (go) {                                   // a pulsing ring: you can go here
+                p.setStrokeWidth(5); p.setColor(0xCCFFFFFF);
+                c.drawCircle(cx, cy, rad + 8 + (float) Math.sin(now / 300.0) * 3, p);
+            }
+            p.setStyle(Paint.Style.FILL);
+            String glyph = a.here ? "HERE" : (!a.ok ? "?" : (a.visited ? "GO" : "NEW"));
+            text(c, glyph, cx, cy + (glyph.length() == 1 ? 18 : 10), glyph.length() == 1 ? 52 : 30, 0xFFFFFFFF, true, Paint.Align.CENTER);
+            String label = a.name.length() > 0 ? a.name : "Not open yet";
+            List<String> nm = wrap(label, 24, 230, 2, true);
+            float pw = 0;
+            for (String s : nm) pw = Math.max(pw, p.measureText(s));
+            pw = Math.min(250, pw + 28);
+            float ph = nm.size() * 28 + 14, py = cy + rad + 10;
+            float lx = Math.max(ox + 8, Math.min(ox + mw - pw - 8, cx - pw / 2));
+            r.set(lx, py, lx + pw, py + ph);
+            p.setStyle(Paint.Style.FILL); p.setColor(a.ok || a.visited ? PAPER : 0xCCE0E0E0);
+            c.drawRoundRect(r, 16, 16, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
+            c.drawRoundRect(r, 16, 16, p);
+            float ny = py + 28;
+            for (String s : nm) { text(c, s, lx + pw / 2, ny, 24, a.ok || a.visited ? INK : 0xFF6A767A, true, Paint.Align.CENTER); ny += 28; }
+        }
+        // the side column: legend and the note
+        float cx0 = ox + mw + 26, y = top + 56;
+        text(c, "CHART", cx0, y, 30, GOLD, true, Paint.Align.LEFT);
+        y += 22;
+        String[] names = { "You are here", "New place", "Been there", "Not open yet" };
+        int[] cols = { RED, GOLD, TEAL, GREY };
+        for (int i = 0; i < 4; i++) {
+            y += 42;
+            p.setStyle(Paint.Style.FILL); p.setColor(cols[i]);
+            c.drawCircle(cx0 + 16, y - 9, 15, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
+            c.drawCircle(cx0 + 16, y - 9, 15, p);
+            text(c, names[i], cx0 + 44, y, 24, 0xFFFFFFFF, false, Paint.Align.LEFT);
+        }
+        y += 56;
+        text(c, seenN + " of " + areas.size() + " places seen", cx0, y, 22, 0xFFF3E3C0, false, Paint.Align.LEFT);
+        y += 40;
+        List<String> how = wrap("Tap a place that is open to go there, as with the map button in the game.", 22, 1176 - cx0, 5, false);
+        for (String s : how) { text(c, s, cx0, y, 22, 0xFFF3E3C0, false, Paint.Align.LEFT); y += 28; }
+        String msg = mapBusy ? "Finish what you are doing first." : (now < mapNoteUntil ? mapNote : "");
+        if (msg.length() > 0) {
+            y += 14;
+            List<String> ml = wrap(msg, 24, 1176 - cx0 - 28, 3, true);
+            float mh2 = ml.size() * 30 + 22;
+            r.set(cx0, y, 1180, y + mh2);
+            p.setStyle(Paint.Style.FILL); p.setColor(PAPER);
+            c.drawRoundRect(r, 16, 16, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(RED);
+            c.drawRoundRect(r, 16, 16, p);
+            float ty = y + 32;
+            for (String s : ml) { text(c, s, cx0 + 14, ty, 24, INK, true, Paint.Align.LEFT); ty += 30; }
+        }
+        p.setStyle(Paint.Style.FILL);
+    }
+
+    private void drawTalk(Canvas c, float top) {
+        float l = 40, rr = 1200, b = 944;
+        plank(c, l, top, rr, b, false);
+        text(c, "WHAT WAS SAID", 66, top + 46, 28, GOLD, true, Paint.Align.LEFT);
+        text(c, talk.size() + (talk.size() == 1 ? " line" : " lines"), rr - 30, top + 46, 24, 0xFFF3E3C0, false, Paint.Align.RIGHT);
+        listRect.set(60, top + 64, rr - 20, b - 20);
+        float vw = listRect.width(), vh = listRect.height();
+        if (talk.isEmpty()) {
+            text(c, "Nobody has said anything yet.", (l + rr) / 2, top + 300, 34, 0xFFFFFFFF, true, Paint.Align.CENTER);
+            text(c, "The conversations you have in the game collect here.", (l + rr) / 2, top + 350, 26, 0xFFF3E3C0, false, Paint.Align.CENTER);
+            return;
+        }
+        float textW = vw - 40 - 120;
+        int n = talk.size();
+        float[] hgt = new float[n];
+        List<List<String>> wrapped = new ArrayList<List<String>>();
+        float total = 0;
+        for (int i = 0; i < n; i++) {
+            List<String> ls = wrap(talk.get(i).text, 28, textW, 6, false);
+            wrapped.add(ls);
+            hgt[i] = Math.max(96, 54 + ls.size() * 34 + 14);
+            total += hgt[i] + 12;
+        }
+        float maxScroll = Math.max(0, total - 12 - vh);
+        if (n != talkSeen) { if (talkStick) talkScroll = maxScroll; talkSeen = n; }     // a new line: stay at the bottom unless the player scrolled up
+        if (talkStick) talkScroll = maxScroll;
+        talkScroll = Math.max(0, Math.min(maxScroll, talkScroll));
+        if (talkScroll >= maxScroll - 2) talkStick = true;
+        c.save();
+        c.clipRect(listRect);
+        float y = listRect.top - talkScroll + (total - 12 < vh ? vh - (total - 12) : 0);     // a short log sits at the bottom, newest last
+        boolean canPlay = !dialogue;
+        for (int i = 0; i < n; i++) {
+            float h = hgt[i];
+            if (y + h >= listRect.top && y <= listRect.bottom) {
+                Line ln = talk.get(i);
+                r.set(listRect.left, y, listRect.right - 14, y + h);
+                p.setStyle(Paint.Style.FILL); p.setColor(0x44000000);
+                c.drawRoundRect(r, 18, 18, p);
+                text(c, ln.speaker.length() > 0 ? ln.speaker : "...", listRect.left + 20, y + 36, 26, GOLD, true, Paint.Align.LEFT);
+                float ty = y + 36 + 34;
+                for (String s : wrapped.get(i)) { text(c, s, listRect.left + 20, ty - 4, 28, 0xFFFFFFFF, false, Paint.Align.LEFT); ty += 34; }
+                // the replay-voice button
+                float bx = listRect.right - 14 - 62, by = y + h / 2;
+                boolean live = ln.voice && canPlay;
+                if (live) {
+                    float tt = Math.max(by - 40, listRect.top), bb = Math.min(by + 40, listRect.bottom);
+                    if (bb > tt) { Hit hh = new Hit(bx - 46, tt, bx + 46, bb, "voice:" + ln.id); hits.add(hh); }
+                }
+                boolean pr = live && down != null && down.cmd.equals("voice:" + ln.id);
+                p.setStyle(Paint.Style.FILL); p.setColor(live ? (pr ? GOLD_DK : TEAL) : 0x55FFFFFF);
+                c.drawCircle(bx, by, 34, p);
+                p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(4); p.setColor(live ? WOOD_EDGE : 0x55000000);
+                c.drawCircle(bx, by, 34, p);
+                p.setStyle(Paint.Style.FILL); p.setColor(live ? 0xFFFFFFFF : 0x88FFFFFF);        // a speaker: cone and two waves
+                path.reset(); path.moveTo(bx - 16, by - 7); path.lineTo(bx - 7, by - 7); path.lineTo(bx + 3, by - 16);
+                path.lineTo(bx + 3, by + 16); path.lineTo(bx - 7, by + 7); path.lineTo(bx - 16, by + 7); path.close();
+                c.drawPath(path, p);
+                p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3);
+                c.drawLine(bx + 10, by - 6, bx + 14, by - 10, p); c.drawLine(bx + 12, by, bx + 18, by, p); c.drawLine(bx + 10, by + 6, bx + 14, by + 10, p);
+                p.setStyle(Paint.Style.FILL);
+            }
+            y += h + 12;
+        }
+        c.restore();
+        if (maxScroll > 0) {                                           // scroll bar
+            float th = Math.max(50, vh * vh / (total - 12));
+            float ty = listRect.top + (vh - th) * (talkScroll / maxScroll);
+            r.set(listRect.right - 8, ty, listRect.right - 2, ty + th);
+            p.setStyle(Paint.Style.FILL); p.setColor(0x99FFFFFF);
+            c.drawRoundRect(r, 3, 3, p);
+        }
+    }
+
+    private void drawGoals(Canvas c, float top) {
+        float y = drawTicket(c, top, "WHAT NEXT", hint.length() > 0 ? hint : "Nothing to suggest yet. Talk to everyone and look around.", 3) + 14;
+        float l = 40, rr = 1200, b = 944;
+        plank(c, l, y, rr, b, false);
+        text(c, chapterTitle.length() > 0 ? chapterTitle.toUpperCase() : "CHAPTER", 66, y + 48, 28, GOLD, true, Paint.Align.LEFT);
+        // overall bar
+        float frac = goalTotal > 0 ? Math.min(1f, goalSeen / (float) goalTotal) : 0;
+        text(c, goalSeen + " of " + goalTotal + " scenes seen", rr - 30, y + 48, 26, 0xFFFFFFFF, true, Paint.Align.RIGHT);
+        bar(c, 66, y + 66, rr - 30, y + 98, frac);
+        text(c, "Story scripts seen: " + goalScripts, 66, y + 138, 24, 0xFFF3E3C0, false, Paint.Align.LEFT);
+        float ry = y + 168;
+        int rows = placeNames.size();
+        float rh = Math.min(64, (b - 24 - ry) / Math.max(1, rows));
+        for (int i = 0; i < rows; i++) {
+            int[] v = placeCounts.get(i);
+            text(c, placeNames.get(i), 66, ry + rh * 0.62f, 26, 0xFFFFFFFF, true, Paint.Align.LEFT);
+            float f2 = v[1] > 0 ? Math.min(1f, v[0] / (float) v[1]) : 0;
+            bar(c, 560, ry + rh * 0.22f, rr - 120, ry + rh * 0.22f + 26, f2);
+            text(c, v[0] + "/" + v[1], rr - 30, ry + rh * 0.62f, 24, v[0] >= v[1] && v[1] > 0 ? GOLD : 0xFFF3E3C0, true, Paint.Align.RIGHT);
+            ry += rh;
+        }
+        if (rows == 0) text(c, "Nothing to count in this place yet.", 66, y + 230, 26, 0xFFF3E3C0, false, Paint.Align.LEFT);
+        p.setStyle(Paint.Style.FILL);
+    }
+
+    private void bar(Canvas c, float l, float t, float rr, float b, float frac) {
+        r.set(l, t, rr, b);
+        p.setStyle(Paint.Style.FILL); p.setColor(0x55000000);
+        c.drawRoundRect(r, (b - t) / 2, (b - t) / 2, p);
+        if (frac > 0) {
+            r.set(l, t, l + Math.max(b - t, (rr - l) * frac), b);
+            p.setColor(frac >= 1f ? GOLD : KELP);
+            c.drawRoundRect(r, (b - t) / 2, (b - t) / 2, p);
+        }
+        r.set(l, t, rr, b);
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
+        c.drawRoundRect(r, (b - t) / 2, (b - t) / 2, p);
+        p.setStyle(Paint.Style.FILL);
     }
 
     /** The scenes visited, newest on the right: chips on a rope. */

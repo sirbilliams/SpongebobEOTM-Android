@@ -36,6 +36,8 @@ void esc(std::string& out, const std::string& s)
         else if (ch == '\n') out += "\\n";
         else if (ch == '\t') out += ' ';
         else if (ch < 0x20) out += ' ';
+        else if (ch == 0x91 || ch == 0x92) out += '\'';        // Windows-1252 curly quotes
+        else if (ch == 0x93 || ch == 0x94) out += "\\\"";
         else if (ch >= 0x80) out += '?';       // the game's text is Latin-1 (not valid UTF-8): keep the JSON clean
         else out += (char)ch;
     }
@@ -72,6 +74,48 @@ std::string CompanionJsonOf(const CompanionState& s)
     o += ",\"names\":"; arr(o, s.itemNames);
     o += ",\"icons\":"; esc(o, s.iconDir);
     o += ",\"visited\":"; arr(o, s.visited);
+    if (!s.map.empty()) {
+        o += ",\"map\":[";
+        for (size_t i = 0; i < s.map.size(); ++i) {
+            const CompanionState::MapArea& m = s.map[i];
+            char b[160];
+            if (i) o += ',';
+            o += "{\"n\":"; esc(o, m.name);
+            o += ",\"c\":"; esc(o, m.target);
+            snprintf(b, sizeof b, ",\"x\":%d,\"y\":%d,\"w\":%d,\"h\":%d,\"ok\":%d,\"v\":%d,\"here\":%d}", m.x, m.y, m.w, m.h, m.ok ? 1 : 0, m.visited ? 1 : 0, m.here ? 1 : 0);
+            o += b;
+        }
+        o += s.mapBusy ? "],\"mapbusy\":1" : "],\"mapbusy\":0";
+    }
+    if (!s.talk.empty()) {
+        o += ",\"talk\":[";
+        for (size_t i = 0; i < s.talk.size(); ++i) {
+            const CompanionState::TalkLine& t = s.talk[i];
+            char b[48];
+            if (i) o += ',';
+            snprintf(b, sizeof b, "{\"i\":%u,\"v\":%d,\"s\":", t.id, t.voice ? 1 : 0);
+            o += b; esc(o, t.speaker);
+            o += ",\"t\":"; esc(o, t.text);
+            o += '}';
+        }
+        o += ']';
+    }
+    if (s.combineSerial) {
+        char b[64];
+        snprintf(b, sizeof b, ",\"combine\":{\"n\":%u,\"ok\":%d,\"t\":", s.combineSerial, s.combineOk ? 1 : 0);
+        o += b; esc(o, s.combineText); o += '}';
+    }
+    if (s.inGame) {
+        char b[96];
+        snprintf(b, sizeof b, ",\"goals\":{\"sv\":%d,\"st\":%d,\"sc\":%d,\"places\":[", s.scenesVisited, s.scenesTotal, s.scriptsSeen);
+        o += b;
+        for (size_t i = 0; i < s.places.size(); ++i) {
+            if (i) o += ',';
+            snprintf(b, sizeof b, ",\"v\":%d,\"t\":%d}", s.places[i].visited, s.places[i].total);
+            o += "{\"n\":"; esc(o, s.places[i].name); o += b;
+        }
+        o += "]}";
+    }
     if (s.dialogue) {
         o += s.choiceMode ? ",\"dlg\":{\"choice\":1" : ",\"dlg\":{\"choice\":0";
         o += ",\"speaker\":"; esc(o, s.speaker);
