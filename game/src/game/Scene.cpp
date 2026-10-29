@@ -518,6 +518,41 @@ SceneObject* GameScene::pickAll(int x, int y)
     return o ? o : pick2D(x, y);
 }
 
+// port: hotspot reveal.  The same tests as the three picking passes (0x43a310) minus the point test: TRIG (Condition when "use Condition",
+// Visible Condition, other-height connectors), CHAR / ITEM (Clickable, model shown; the player itself ignores clicks), 2D objects /
+// animations / spots (shown, toggle / rollover rules).  Whatever the game hides is not listed.
+void GameScene::collectClickable(std::vector<SceneObject*>& out)
+{
+    World3D* w = game_->world3d();
+    Actor3D* p = w ? w->player() : 0;
+    for (size_t i = 0; i < objects_.size(); ++i) {
+        SceneObject* o = objects_[i];
+        if (o->x2 - o->x1 == 0 || o->y2 == o->y1) continue;
+        if (o->description.empty() && !nonEmptyEvent(o->event) && !nonEmptyEvent(o->altEvent) && o->itemAccept.empty()) continue;
+        if (o->kind == SceneObject::Trigger) {
+            if (o->useCond && !game_->cond(o->condition.c_str())) continue;
+            if (o->hidden3D) continue;
+            if (p && !w->samePlane(o) && upDown(o)) continue;
+        } else if (o->is3D()) {
+            if (!o->clickable) continue;
+            Actor3D* a = w ? w->actorFor(o) : 0;
+            if (!a || a->elem->get_hide_count() != 0) continue;
+            if (p && o == p->obj) continue;
+        } else {
+            bool hidden = o->elem && o->elem->get_hide_count() != 0;
+            if (o->kind == SceneObject::Obj2D) {
+                if (hidden && !game_->state().debugAll() && o != lastClicked_) continue;
+            } else if (o->kind == SceneObject::Anim2D) {
+                if (hidden && o->allowToggle == 0 && !game_->state().debugAll()) continue;
+                if (o->stayOnLast && o->playing) continue;
+            } else if (o->kind == SceneObject::Spot) {
+                if (o->rolloverCond && !game_->cond(o->condition.c_str())) continue;
+            }
+        }
+        out.push_back(o);
+    }
+}
+
 bool GameScene::baseEvent(SceneObject* o, bool touching, bool fromClick)    // 0x415a70
 {
     std::string ev;

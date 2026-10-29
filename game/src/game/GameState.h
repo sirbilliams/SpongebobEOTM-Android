@@ -34,6 +34,12 @@ public:
     // 0x416d30: store the state of a group (current line key and the two shorts)
     void storeDialogue(unsigned scene, const std::string& groupKey, const std::string& currentKey, short a, short b);
 
+    // ---- port: voice gallery (docs/reveal-and-gallery.md): the dialogue voices heard in this run + the saved dialogue progress ----
+    struct DProg { unsigned scene; std::string group, cur; short a, b; };
+    void dialogueEntries(std::vector<DProg>& out) const;            // the 0x416d30 progress records (what the save file's THRD list holds)
+    void markVoiceHeard(unsigned scene, const std::string& key);    // port: a voiced dialogue line started (DialogueUI::startVoice)
+    const std::set<std::string>& voicesHeard() const { return heard_; }   // "%08x:KEY"
+
     // ---- script / item / flag lists ----
     void markScriptSeen(const char* name);                          // 0x416610
     void undoScript(const char* name);                              // 0x416590 ('undo')
@@ -73,6 +79,7 @@ public:
 private:
     static std::string low(const std::string& s);
     std::set<std::string> seen_, flags_;
+    std::set<std::string> heard_;                   // port: not saved (the save format is the game's)
     std::vector<std::string> items_;
     std::set<unsigned long long> blocked_;
     struct DEntry { std::string key; short a, b; std::string group; };   // group: the key as stored (the map key is lower case: 0x416e50 uses _stricmp)
