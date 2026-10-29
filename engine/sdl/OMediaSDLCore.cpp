@@ -9,7 +9,9 @@
 #include "OMediaMemTools.h"
 #include "OMediaTimeCounter.h"
 #include "OMediaClipboard.h"
+#ifndef OMT1_ENGINE
 #include "OMediaApplication.h"
+#endif
 #include "OMediaError.h"
 #include "OMediaSDLRetarget.h"
 
@@ -344,4 +346,6 @@ bool OMediaClipboard::get_clip(omt_ClipType, OMediaMoveableMem &) { return false
 // ---------------------------------------------------------------------------
 // OMediaApplication
 
+#ifndef OMT1_ENGINE
 void OMediaApplication::init_retarget(omt_InitAppHints) {}
+#endif

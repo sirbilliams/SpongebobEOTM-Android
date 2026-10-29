@@ -5,8 +5,10 @@
 
 #include "OMediaSysDefs.h"
 #include "OMediaRetarget.h"
+#ifndef OMT1_ENGINE
 #include "OMediaVideoEngine.h"
 #include "OMediaOffscreenBuffer.h"
+#endif
 #include <string>
 #include <SDL.h>
 
@@ -45,6 +47,7 @@ class OMediaSDLRtgSound : public OMediaRetarget
 	int				freq, channels, bits;
 };
 
+#ifndef OMT1_ENGINE		// the OMT 2.5 video engine (engine/omt1 has its own display layer)
 class OMediaSDLVideoEngine : public OMediaVideoEngine
 {
 	public:
@@ -87,5 +90,7 @@ class OMediaSDLOffscreenBuffer : public OMediaOffscreenBuffer
 	SDL_Surface	*surface;
 	int			lock_count;
 };
+
+#endif
 
 #endif

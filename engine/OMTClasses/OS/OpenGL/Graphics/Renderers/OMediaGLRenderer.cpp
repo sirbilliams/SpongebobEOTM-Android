@@ -1823,7 +1823,7 @@ void OMediaPureGLRenderTarget::flip_buffers(void) {}
 // Renderer
 
 OMediaGLRenderer::OMediaGLRenderer(OMediaVideoEngine *video,OMediaRendererDef *def, omt_ZBufferBitDepthFlags zbuffer_flags):
-					OMediaRenderer(video,def,zbuffer)
+					OMediaRenderer(video,def,zbuffer_flags)	// port: was the not yet constructed member 'zbuffer' (UBSan)
 {
 	init_retarget(video->get_current_video_mode(), def);
 

@@ -25,6 +25,9 @@
 
 extern void omt_main(void);
 
+int omt_argc = 0;			// the command line, for tools (OMT.dll: OMediaWinStoreStartInfo::commandLine)
+char **omt_argv = NULL;
+
 static int omg_frame = 0;
 static FILE *omg_logfile = NULL;
 
@@ -148,6 +151,8 @@ static string omf_find_data_dir(void)
 
 int main(int argc, char **argv)
 {
+	omt_argc = argc;
+	omt_argv = argv;
 	SDL_LogSetOutputFunction(omf_log, NULL);
 	string data = omf_find_data_dir();
 #ifdef __ANDROID__
