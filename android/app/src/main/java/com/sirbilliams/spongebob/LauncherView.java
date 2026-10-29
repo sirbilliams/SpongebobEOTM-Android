@@ -7,6 +7,8 @@ import android.view.*;
 
 /** Original procedural nautical launcher; coordinates are a letterboxed 1920 x 1080 deck. */
 public final class LauncherView extends View {
+    // port: shared labels for the Captain's cursor preference.
+    static final String[] CURSORS = {"Spatula", "Net", "Bubble", "Classic"};
     public interface Actions { void select(int row); void back(); }
     private final Actions actions;
     private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -36,6 +38,8 @@ public final class LauncherView extends View {
         p.setTextAlign(Paint.Align.LEFT); c.drawText(s,x,y,p);
     }
     private void circle(Canvas c,float x,float y,float r,int color) { fill(color); c.drawCircle(x,y,r,p); }
+    // port: seven settings rows fit inside the same timber board.
+    private int rowStep() { return rows.length > 6 ? 88 : 96; }
     private float scale() { return Math.min(getWidth()/1920f,getHeight()/1080f); }
     @Override protected void onDraw(Canvas c) {
         super.onDraw(c);
@@ -68,7 +72,7 @@ public final class LauncherView extends View {
             line(c,140,323+i*80,1070,330+i*80,0xff8c6140,2);
         }
         for(int i=0;i<rows.length;i++) {
-            float y=326+i*96;
+            float y=326+i*rowStep();
             fill(i==selected?0xffffd47d:0xffb59255); c.drawRoundRect(new RectF(151,y,1066,y+80),40,40,p);
             fill(i==selected?0xff106d7b:0xff143d4b); c.drawRoundRect(new RectF(159,y+7,1058,y+73),33,33,p);
             circle(c,187,y+40,8,0xffebc77c); circle(c,1030,y+40,8,0xffebc77c);
@@ -110,8 +114,8 @@ public final class LauncherView extends View {
     private int hit(MotionEvent e) {
         float s=scale(); if(s<=0)return -1;
         float x=(e.getX()-(getWidth()-1920*s)/2)/s,y=(e.getY()-(getHeight()-1080*s)/2)/s;
-        int row=(int)((y-326)/96);
-        return x>=151 && x<=1066 && y>=326 && row<rows.length && y<=326+row*96+80?row:-1;
+        int row=(int)((y-326)/rowStep());
+        return x>=151 && x<=1066 && y>=326 && row<rows.length && y<=326+row*rowStep()+80?row:-1;
     }
     @Override public boolean onTouchEvent(MotionEvent e) {
         if(busy)return true;

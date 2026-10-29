@@ -3,7 +3,8 @@
     inventory follows the pointer as its own little 3D picture (Hud.cpp, 0x4201c0).  The port replaces the system
     cursor by a sprite in the 2D world so that the same cursor is drawn on the desktop and under a finger on the
     Android touch screen (the pointer there is the last touch).  The sprites are drawn in code (no art copied).
-    Shapes: Normal (arrow), Hotspot (something under the pointer is clickable), Hand (an item is in hand), Wait.   */
+    // port: SB_CURSOR selects original Spatula (default), Net, Bubble or Classic sprite sets.
+    Shapes: Normal, Hotspot (clickable), Hand (item in hand), Wait.   */
 #pragma once
 #include "OMediaCanvasElement.h"
 #include "OMediaCanvas.h"
@@ -24,6 +25,10 @@ public:
     void set(Shape s);
 private:
     void build(int i, const char* const* rows, int h, unsigned fill, unsigned fill2);
+    void buildTheme(int state, int frame); // port: original procedural cursor themes
+    enum { Frames = 12 };
+    int theme_, frame_;
+    OMediaCanvas* themed_[ShapeCount][Frames];
     Game* g_;
     OMediaCanvas* canv_[ShapeCount];
     OMediaCanvasElement* sprite_;

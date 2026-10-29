@@ -116,7 +116,8 @@ public class SetupActivity extends Activity {
             "Bottom-screen panel: " + (panelOn() ? "On" : "Off"),
             "Bottom screen: " + (bottomMode() == CompanionView.MODE_PAD ? "Touchpad" : "Panel"),
             "Panel window: " + (panelFocusable() ? "Takes focus" : "Safe (default)"),
-            "Right-stick cursor: " + (getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor", true) ? "On" : "Off"), "Back");
+            "Right-stick cursor: " + (getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor", true) ? "On" : "Off"),
+            "Cursor: " + LauncherView.CURSORS[Math.floorMod(getSharedPreferences("settings", MODE_PRIVATE).getInt("cursor", 0), 4)], "Back");
     }
     private void showTest() {
         mPage = "test";
@@ -150,12 +151,14 @@ public class SetupActivity extends Activity {
         case "play": if(row==1)showMain(); else if(installed())play(false); else showImport(); break;
         case "import": if(row==0)pickIso(); else showMain(); break;
         case "settings":
-            if(row==5) {showMain();break;}
+            if(row==6) {showMain();break;}
             if(row==0) getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("widescreen", Math.floorMod(getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen",0)+1,4)).apply();
             if(row==1) getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE).edit().putBoolean(CompanionPanel.KEY_ON,!panelOn()).apply();
             if(row==2) getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE).edit().putInt(CompanionPanel.KEY_MODE, bottomMode() == CompanionView.MODE_PAD ? CompanionView.MODE_PANEL : CompanionView.MODE_PAD).apply();
             if(row==3) getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE).edit().putBoolean(CompanionPanel.KEY_FOCUSABLE, !panelFocusable()).apply();
             if(row==4) getSharedPreferences("settings", MODE_PRIVATE).edit().putBoolean("pad_cursor",!getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor",true)).apply();
+            // port: same persistent preference cycle as widescreen.
+            if(row==5) getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("cursor", Math.floorMod(getSharedPreferences("settings", MODE_PRIVATE).getInt("cursor",0)+1,4)).apply();
             showSettings(); launcher.focusRow(row); break;
         case "test":
             switch(row) {case 0:shareLog();break;case 1:startActivity(new Intent(this, TouchTestActivity.class), onTopScreen());break;case 2:break;case 3:resetSettings();break;case 4:if(installed())play(true);else showImport();break;case 5:showImport();break;default:showMain();} break;

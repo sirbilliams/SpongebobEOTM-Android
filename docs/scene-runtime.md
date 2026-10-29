@@ -311,3 +311,23 @@ SpongeBob and NPCs in all three; c2l2s3 `sflush` (`shadow off` -> no shadow, `sh
   radius `+0x398`), optionally 0x42d090 (`+0x39a`), validates each with 0x42c920 (clearance against the grid) and drops nodes that fail, finally reverses the list.
   That is a steering-arc generator of five more functions; the port still walks cell-centre waypoints. Not reconstructed (needs an arc geometry reading of
   0x42cbb0..0x42d090 and a visual comparison with retail paths, which cannot be made here).
+
+## Port cursor themes (lane c)
+`SB_CURSOR=spatula|net|bubble|classic` selects original procedural art (default Spatula;
+unknown values also use Spatula). Every theme shares the existing HUD/input shape selection.
+Spatula and Net hover poses and wait sprites animate in twelve 100 ms frames; Bubble wait
+orbits three bubbles. Item states surround the HUD's existing 64x64 item picture without
+changing item placement or hit testing. Sprite edges use 4x4 coverage sampling and dark
+outlines. Classic retains the existing arrow/hand/hourglass art. The visual hotspot stays
+at the input point at screen edges (the sprite clips rather than moving the click tip).
+Android's Captain's settings cycles Cursor after Right-stick cursor, persists `settings/cursor`,
+and exports it on every activity launch. Seven launcher rows use tighter spacing.
+
+Local verification: `.shots/cursor/contact.png` has theme rows (Spatula, Net, Bubble, Classic),
+state columns (normal, hover, item, wait), light exterior on the left and dark cave on the
+right; source captures are 1920x1080. Scripts and logs are alongside it. This managed sandbox
+is already inside `omtbuild`, but denies Xvfb socket binding on :83; SDL's headless fallback
+produces the captures with DISPLAY=:83. Actual Xvfb verification remains for an unrestricted
+run. Java 17 compiled all application classes against the available Android 23 jar, using
+local stubs for SDLActivity, generated R, and the existing newer ActivityOptions display API.
+ASan/UBSan checks disable retained engine-cache leak reporting, as in prior scene tests.

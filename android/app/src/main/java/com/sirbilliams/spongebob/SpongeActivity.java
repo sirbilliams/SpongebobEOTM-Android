@@ -34,6 +34,9 @@ public class SpongeActivity extends SDLActivity {
             String[] modes = { "fill", "panels", "stretch", "off" };
             int mode = getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen", 0);
             Os.setenv("SB_WIDESCREEN", modes[Math.floorMod(mode, 4)], true);
+            // port: reset the environment on every launch, including Classic.
+            String[] cursors = {"spatula", "net", "bubble", "classic"};
+            Os.setenv("SB_CURSOR", cursors[Math.floorMod(getSharedPreferences("settings", MODE_PRIVATE).getInt("cursor", 0), 4)], true);
             File base = getExternalFilesDir(null);
             Os.setenv("SB_PAD_CURSOR", getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor", true) ? "1" : "0", true);
             if (base != null) Os.setenv("OMT_DATA", new File(base, "game").getPath(), true);
