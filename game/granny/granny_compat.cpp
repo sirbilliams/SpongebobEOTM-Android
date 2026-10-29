@@ -1091,6 +1091,14 @@ granny_result GrannyTransformAnimation(granny_uint32 a0, granny_uint32 a1, const
 	return ret(GrannyOK);
 }
 
+const char *GrannyCompatTextureMaterialName(const granny_new_texture *t)
+{
+	if (!t || !t->internal) return "";
+	const TextureInst *ti = (const TextureInst *)t->internal;
+	if (!ti->model || !ti->model->file || ti->index >= ti->model->file->textures.size()) return "";
+	return ti->model->file->textures[ti->index].name.c_str();
+}
+
 const char *GrannyCompatTextureName(const granny_new_texture *t)
 {
 	static std::string name;

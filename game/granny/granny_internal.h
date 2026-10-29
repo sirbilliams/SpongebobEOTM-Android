@@ -78,7 +78,7 @@ struct Mesh
 	bool rigid() const { return nsource == 0 && bindings.size() < 2; }
 };
 
-struct TextureData { u32 w, h, format, bpp, pitch; std::vector<unsigned char> pixels; };
+struct TextureData { std::string name; u32 w, h, format, bpp, pitch; std::vector<unsigned char> pixels; };
 
 struct BoneDef
 {

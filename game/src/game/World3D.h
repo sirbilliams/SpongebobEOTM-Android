@@ -8,12 +8,14 @@
 #include "OMedia3DWorld.h"
 #include "OMedia3DGrannyModel.h"
 #include "OMediaVPElement.h"
+#include "../script/ScriptRunner.h"
 #include <string>
 #include <vector>
 
 namespace sbgame {
 
 class Game;
+class SceneScriptHost;
 
 struct Actor3D {
     Actor3D();
@@ -26,6 +28,7 @@ struct Actor3D {
     Mode mode;
     float x, y, z;                    // world position
     int heading;                      // 0x4000 = 360 degrees
+    bool kicking; // lane d: 0x410 kick movement, handled by Kick.cpp
     bool walking; float tx, tz, speed;
     std::vector< std::pair<float,float> > route;
     size_t waypoint;
@@ -44,6 +47,19 @@ struct Actor3D {
     // the attached object (+0xad8, 0x433780): an item model hanging from a bone of this character
     OMedia3DGrannyModel* attachModel; OMedia3DShapeElement* attachElem;
     std::string attachName, attachBone, attachParentBone, attachCond;   // +0xa56, +0xa76, +0xa96, +0xab6 (CHAR record +0x976..)
+    bool shadowOn;                    // char +0x30c shown (`shadow on/off`)
+    bool climbing; float climbTarget, climbPrev;   // char +0x3f8 / +0x3f4 / +0x3fc: `climb` arms a straight walk that blends y
+    // ---- lane f: character idle scripts (0x42f1a0) and the shadow model (0x422070) ----
+    bool idleWanted;                  // char +0x2c4 (set by the ctor, cleared when the idle runner is made)
+    bool idleSuspended;               // char +0x330: the player deals with this character (0x435080 / 0x4350d0)
+    SceneScriptHost* idleHost;        // port: one script host per idle runner (the exe's runner holds its own wait state)
+    sbscript::ScriptRunner* idleRunner;   // char +0x32c
+    bool wakeIdle;                    // an animation / walk the idle script waits on has finished
+    bool animSnd;                     // char +0xfc: the per-animation sound is playing (0x405040 / 0x404fe0)
+    float fidgetAcc, fidgetNext;      // char +0x38c / +0x390: random idle2 / idle3 timer (seconds)
+    std::string shadowName;           // CHAR record "Shadow Name" (+0x204)
+    OMedia3DGrannyModel* shadowModel; // char +0x22c of the 0x354 byte object: models/items/<name>_model
+    OMedia3DShapeElement* shadowElem;
 };
 
 class World3D {
@@ -67,6 +83,9 @@ public:
     void talkAll(bool on);
     bool walk(SceneObject* o, float x, float z, bool run);                      // vt+0x144
     bool walkGrid(SceneObject* o, int gx, int gy);
+    void setShadow(SceneObject* o, bool on);                                    // 0x434410 / 0x434430
+    void suspendIdle(SceneObject* o);                                           // 0x435080 (lane f)
+    void climb(SceneObject* o, float h);                                        // vt+0x154 (0x4342a0)
     void moveGrid(SceneObject* o, int gx, int gy);
     void blockCell(int x, int z, bool blocked);
     bool clickFloor(int x, int y, SceneObject* target = 0);      // 0x4398f0 tail: walk to the floor point under x,y
@@ -104,11 +123,17 @@ public:
 
 private:
     friend class SceneScriptHost;
+    friend class Kick; // lane d: isolated beachball character reconstruction
     const sb::scene::Grid* grid(float y) const;
     bool cell(const sb::scene::Grid& g, int x, int z) const;
     bool gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, bool neighbour = false);
     void setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m);
     void place(Actor3D* a);
+    void updateIdle(Actor3D* a, float dtMs);                                    // lane f: the idle part of 0x42f1a0
+    void resumeIdle(Actor3D* a);                                                // 0x4350d0
+    void animSound(Actor3D* a, const char* anim);                               // 0x405040 (char vt+0xf8): sound "<char><anim>" of the chapter bank on channel 0
+    void stopAnimSound(Actor3D* a);                                             // 0x404fe0 (char vt+0xfc)
+    void updateShadow(Actor3D* a);                                              // lane f: char +0x30c
     void finished(Actor3D* a);
     void finishInteraction(Actor3D* a);
     void animEnded(Actor3D* a);                              // 0x405620 tail: what follows a one-shot animation

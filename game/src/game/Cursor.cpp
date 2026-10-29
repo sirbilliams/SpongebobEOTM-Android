@@ -92,7 +92,13 @@ void Cursor::update(int x, int y)
     set(s);
     sprite_->link(g_->world());                                       // port: last in the list = drawn last (the world draws in link order)
     if (getenv("SB_HUD_DEBUG")) { static int n = 0; if (++n % 60 == 0) g_->log("cursor: shape %d hide %d size %dx%d at %d,%d\n", (int)s, sprite_->get_hide_count(), canv_[s]->getwidth(), canv_[s]->getheight(), x, y); }
-    sprite_->place((float)(x - hotX_[s]), (float)(y - hotY_[s]), 10500.0f);
+    // port: the picture is the 640x480 logical screen, so a pointer at its right / bottom edge (the right-stick cursor in SB_WIDESCREEN=panels stops
+    // there; it cannot enter the side panels) would show a sprite cut to 1 px.  The sprite is kept fully inside the picture; the click point stays x,y.
+    int px = x - hotX_[s], py = y - hotY_[s];
+    int w = canv_[s]->getwidth(), h = canv_[s]->getheight();
+    if (px > 640 - w) px = 640 - w;
+    if (py > 480 - h) py = 480 - h;
+    sprite_->place((float)px, (float)py, 10500.0f);
 }
 
 }  // namespace sbgame

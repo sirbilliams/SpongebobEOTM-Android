@@ -332,7 +332,7 @@ void OMediaGfxWorld::read_class(OMediaStreamOperators &stream)
 	char *src = buffer, *dst = rows;
 	for (int y = 0; y < height; y++)
 	{
-		short n = *(short*)src;
+		short n; memcpy(&n, src, sizeof n);		// port: the row length is not 2-byte aligned in the packed data
 		n = omd_IfLittleEndianReverseShort(n);
 		src += 2;
 		if (!OMediaRLEPacker::rle_unpack(&src, &dst, n, nbytes, pmode))

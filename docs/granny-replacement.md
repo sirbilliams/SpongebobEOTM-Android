@@ -104,8 +104,12 @@ Layout and node tags: see the comments in `granny_grn.cpp` (and `tools/granny/gr
 first `0c00`; its skeleton (`0c08`, 1-based) gives the bones (`0506`: parent, position, quaternion,
 scale/shear), named by the tool nodes of `0c02`. Animation tracks (`1204`) are named by their tool node.
 
-**Textures.** One "new texture" per texture map (`0e00`) whose material exists; its image is the texture
-(`0d03`, 1-based) of that material: `0301 > 0303 { w, h, format, Bink file }`. The Bink file is revision `i`,
+**Textures.** `0e00` selects a model; its `0e02` records select a model mesh slot
+(0-based) and material (1-based). Each referenced material is queued once; its image
+is selected by `0d03` (1-based): `0301 > 0303 { w, h, format, Bink file }`.
+See [marlin-model.md](marlin-model.md) for the SpongeBob multi-mesh corrections.
+
+The Bink file is revision `i`,
 one key frame; granny.dll decodes it with the Bink library linked into it (BinkOpen `0x1003c440`, BinkDoFrame
 `0x1003db40` with the plane decoder `0x10043480`, BinkCopyToBuffer `0x1003d590`): Huffman-coded bundles of
 block types, colours, patterns, runs and DCs read a block row ahead, 8x8 and scaled 16x16 blocks (run,
@@ -122,7 +126,7 @@ clamped, chroma by nearest sample, with `Vr = (V-128)*0xcc4b/32768`, `Ug = (128-
   different normal or layer value (compared as floats, so NaN normals never match) reuses an earlier
   duplicate with the same values or appends a new render vertex. Triangles in file order, corners in order;
   the state's triangle list is the corners' render vertices. A position no triangle uses stays all zero.
-- The texture map of a mesh (`0e02`: mesh index) lists per triangle one index per corner and layer (`0e06`)
+- The texture map of a mesh (`0e02`: model mesh slot and material) lists per triangle one index per corner and layer (`0e06`)
   into the uv layers (`0804 > 0803`) named by `0e04`. With one layer it gives the texture coordinates; with
   two the first is the vertex colour and the second the texture coordinates. Otherwise the colour is the
   material's (`0d02`) or white.
@@ -132,7 +136,7 @@ clamped, chroma by nearest sample, with `Vr = (V-128)*0xcc4b/32768`, `Ug = (128-
 - Bindings (`0c0a`, built at `0x100247a3..0x1002494e`): the bone's composed rest transform `{q, t, M}`
   (computed like a sequence's bind pose), with `t` negated (`bt`) and `M` inverted by cofactors in place
   (determinant `0x10018fd0` and `1/det` in double; a singular `M` is kept).
-- The state uses texture 0 (blend modes 1/0; 6/7 for an image-less one, see above).
+- Each state uses the texture of its mesh-slot material (blend modes 1/0; 6/7 for an image-less one, see above).
 
 ## Semantics (from `granny.dll`'s machine code)
 

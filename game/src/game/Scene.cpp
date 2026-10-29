@@ -1,4 +1,6 @@
 #include "Scene.h"
+#include "MiniGame.h" // chapter 2: maze TRIG picking pass (0x43a310)
+#include <stdlib.h>
 #include "Game.h"
 #include "World3D.h"
 #include "DialogueUI.h"
@@ -32,7 +34,7 @@ SceneObject::SceneObject()
 
 GameScene::GameScene(Game* game)
     : game_(game), sceneId_(0), artDb_(0), artFile_(0), background_(0), skyScroll_(0), dialogue_(0), barTop_(0), barBot_(0),
-      barState_(0), barHold_(0), topY_(0), botY_(240), shake_(0), lock_(0), doorTrig_(0), lastClicked_(0)
+      barState_(0), barHold_(0), topY_(0), botY_(240), shake_(0), shakeCount_(0), shakeX_(0), shakeY_(0), lock_(0), doorTrig_(0), lastClicked_(0)
 {
     sky_[0] = sky_[1] = 0; skyX_[0] = skyX_[1] = 0;
 }
@@ -253,7 +255,7 @@ void GameScene::place(SceneObject* o)
     float z;
     if (o->kind == SceneObject::Anim2D) z = o->postRender ? 10000.0f : -o->pz;      // 0x4096b0
     else z = o->postRender ? 10000.0f : o->pz;                                        // 0x402400 (flag +0x23a = 0)
-    o->elem->place(o->px, o->py, z);
+    o->elem->place(o->px + shakeX_, o->py + shakeY_, z);   // shake offset: 0x43d130 / 0x43b08b
 }
 
 void GameScene::setHidden(SceneObject* o, bool hide)
@@ -263,12 +265,14 @@ void GameScene::setHidden(SceneObject* o, bool hide)
     else while (o->elem->get_hide_count() > 0) o->elem->hide(false);
 }
 
+// Chapter 2: 0x43ad10 / 0x438fa0 / 0x439110 use case-insensitive 0x44b2d0.
+// Required by sdrapes (252drapes vs the authored 252Drapes).
 SceneObject* GameScene::find(const char* name, int kindMask)
 {
     for (size_t i = 0; i < objects_.size(); ++i) {
         SceneObject* o = objects_[i];
         if (kindMask && !(kindMask & (1 << o->kind))) continue;
-        if (strcmp(o->art.c_str(), name) == 0) return o;
+        if (strcasecmp(o->art.c_str(), name) == 0) return o;
     }
     return 0;
 }
@@ -308,13 +312,13 @@ void GameScene::show(const char* name)          // 0x438fa0
     for (size_t i = 0; i < objects_.size(); ++i) {
         SceneObject* o = objects_[i];
         if (o->kind == SceneObject::Anim2D || o->kind == SceneObject::Obj2D) {
-            if (strcmp(o->art.c_str(), name) == 0) {
+            if (strcasecmp(o->art.c_str(), name) == 0) {
                 if (o->elem && o->elem->get_hide_count() != 0) {
                     setHidden(o, false);
                     if (o->kind == SceneObject::Anim2D) startAnim(o);    // vt+0xb0
                 }
             }
-        } else if (o->is3D() && strcmp(o->art.c_str(), name) == 0) {
+        } else if (o->is3D() && strcasecmp(o->art.c_str(), name) == 0) {
             if (game_->world3d()) game_->world3d()->setHidden(o, false);
         }
     }
@@ -324,10 +328,10 @@ void GameScene::hide(const char* name)          // 0x439110
 {
     for (size_t i = 0; i < objects_.size(); ++i) {
         SceneObject* o = objects_[i];
-        if ((o->kind == SceneObject::Anim2D || o->kind == SceneObject::Obj2D) && strcmp(o->art.c_str(), name) == 0) {
+        if ((o->kind == SceneObject::Anim2D || o->kind == SceneObject::Obj2D) && strcasecmp(o->art.c_str(), name) == 0) {
             if (o->elem && o->elem->get_hide_count() == 0) setHidden(o, true);
             if (o->kind == SceneObject::Anim2D) o->playing = false;      // vt+0xb4 also stops its sound
-        } else if (o->is3D() && strcmp(o->art.c_str(), name) == 0) {
+        } else if (o->is3D() && strcasecmp(o->art.c_str(), name) == 0) {
             if (game_->world3d()) game_->world3d()->setHidden(o, true);
         }
     }
@@ -462,6 +466,8 @@ SceneObject* GameScene::pick2D(int x, int y)    // 0x43a310, third pass
 
 SceneObject* GameScene::hover(int x, int y)
 {
+    SceneObject* mz = game_->miniGame() ? game_->miniGame()->pickMazeDoor(x, y) : 0;    // the maze's doors (Codex lane)
+    if (mz) return mz;
     // 0x43a310 order: triggers, then the 3D characters / items, then the 2D objects
     for (size_t i = 0; i < objects_.size(); ++i) {
         SceneObject* o = objects_[i];
@@ -475,7 +481,8 @@ SceneObject* GameScene::hover(int x, int y)
 
 SceneObject* GameScene::pickAll(int x, int y)
 {
-    SceneObject* t = 0;
+    SceneObject* t = game_->miniGame() ? game_->miniGame()->pickMazeDoor(x, y) : 0;     // the maze's doors (Codex lane)
+    if (t) return t;
     for (size_t i = 0; i < objects_.size() && !t; ++i) {
         SceneObject* o = objects_[i];
         if (o->kind != SceneObject::Trigger || o->hidden3D) continue;
@@ -577,6 +584,7 @@ void GameScene::charEvent(SceneObject* o, bool touching)
     }
     World3D* w = game_->world3d();
     Actor3D* p = w ? w->player() : 0;
+    if (w) w->suspendIdle(o);                                   // 0x433bca: +0x24c, the character's idle script is put on hold (0x435080)
     if (!game_->state().debugAll() && p) {
         if (!touching && w->walkTo(o, o->px, o->pz)) return;
         bool turning = o->faceHeading == 0 ? w->rotateToward(o) : w->rotatePlayer(o->faceHeading);
@@ -649,6 +657,7 @@ bool GameScene::charUseItem(SceneObject* o, const char* item)
     World3D* w = game_->world3d();
     Actor3D* p = w ? w->player() : 0;
     bool match = strcasecmp(o->itemAccept.c_str(), item) == 0;
+    if (w && (match || o->used || !o->wrongItemEvent.empty())) w->suspendIdle(o);   // 0x433f00: +0x24c -> 0x435080
     if (!match || (o->used && (!p || p->obj != o))) {
         if ((o->wrongItemEvent.empty() || o->used) && !(dialogue_ && dialogue_->refusal(o->art.c_str(), 0)))
             return baseUseItem(o, item);
@@ -765,7 +774,20 @@ void GameScene::update(float dt)
         game_->switchTo(e.c_str());
     }
     if (lock_ > 0) { lock_ -= dt; if (lock_ < 0) lock_ = 0; }
-    if (shake_ > 0) { shake_ -= dt; if (shake_ <= 0) { shake_ = 0; game_->wake(); } }
+    if (shakeCount_ != 0) {                            // 0x43afce: ten steps of 50 ms; the script waits for the last one
+        shake_ -= dt;
+        if (shake_ <= 0) {
+            --shakeCount_;
+            shake_ = 50.0f;
+            if (shakeCount_ == 0) {                    // 0x43b00f: everything goes back, the script goes on (vt+0xe0)
+                shakeX_ = shakeY_ = 0;
+                shakeObjects();
+                if (background_) background_->place(0, 0, -10000.0f);
+                shake_ = 0;
+                game_->wake();
+            } else shakeStep(true);
+        }
+    }
     updateSky(dt);
     for (size_t i = 0; i < objects_.size(); ++i)
         if (objects_[i]->kind == SceneObject::Anim2D) tickAnim(objects_[i], dt);
@@ -850,7 +872,29 @@ void GameScene::transitionClose()   // 'transition close' (0x43f3b3): bars come 
     barState_ = 3;
 }
 
-void GameScene::shake() { shake_ = 1000.0f; game_->log("      3D: camera shake 1 s (scene vt+0x15c)\n"); }
+// 0x43d130 (scene vt+0x15c): ten steps, 50 ms apart; the 2D objects move to their place plus a random -5..4 px in x and y
+void GameScene::shake()
+{
+    shakeCount_ = 10; shake_ = 50.0f;
+    shakeStep(false);
+}
+
+void GameScene::shakeObjects()
+{
+    for (size_t i = 0; i < objects_.size(); ++i)
+        if (objects_[i]->kind == SceneObject::Obj2D || objects_[i]->kind == SceneObject::Anim2D) place(objects_[i]);
+}
+
+// 0x43b08b: the steps after the first also move the background (0x1c88, z -10000) by its own random offset
+void GameScene::shakeStep(bool background)
+{
+    if (background && background_) {
+        float bx = (float)(rand() % 10 - 5), by = (float)(rand() % 10 - 5);
+        background_->place(bx, by, -10000.0f);
+    }
+    shakeX_ = (float)(rand() % 10 - 5); shakeY_ = (float)(rand() % 10 - 5);
+    shakeObjects();
+}
 void GameScene::setDoor(const char* name)       // 'setdoor' (0x43fbed): scene+0x1c80 = the trigger of that name
 {
     doorTrig_ = 0;

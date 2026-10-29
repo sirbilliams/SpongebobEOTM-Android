@@ -239,7 +239,8 @@ static void omf_upload(OMediaGfxPixels *p)
 void omgl_forget(OMediaGfxPixels *p)
 {
 	if (p->gl_tex && omg_win) glDeleteTextures(1, &p->gl_tex);
-	p->gl_tex = 0;
+	if (p->gl_3d_tex && omg_win) glDeleteTextures(1, &p->gl_3d_tex);
+	p->gl_tex = p->gl_3d_tex = 0;
 }
 
 static void omf_quad(float x0, float y0, float x1, float y1, float u0, float v0, float u1, float v1)

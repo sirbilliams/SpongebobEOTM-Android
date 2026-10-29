@@ -120,8 +120,10 @@ public:
     void transitionOut();                           // 0x43bf50  bars off screen, then closes (state 3)
     void transitionOpen();                          // 0x43c100  bars cover the screen, then open (state 4)
     void transitionClose();
+    bool letterboxed() const { return topY_ < 0.0f && topY_ > -239.0f && barState_ != 3 && barState_ != 4; }   // port: companion: the cinematic bars are in (a cutscene runs)
     int  barState() const { return barState_; }     // +0x1c98 (0 = idle)
-    float shakeMs() const { return shake_; }        // camera shake timer
+    float shakeMs() const { return shake_; }        // time to the next shake step (ms)
+    bool shaking() const { return shakeCount_ != 0; }
     float lockMs() const { return lock_; }          // +0x1d4 (0x735): clicks are ignored for 500 ms after entering
     void shake();                                   // scene vt+0x15c
     void setDoor(const char* name);                 // 'setdoor' (0x43fbed): the door trigger by name
@@ -136,6 +138,7 @@ public:
 
 private:
     friend class Game;
+    friend class MiniGame; // 0x436250 switches the maze background
     void buildObjects();
     void place(SceneObject* o);
     void setHidden(SceneObject* o, bool hidden);
@@ -165,7 +168,11 @@ private:
     int barState_;
     float barHold_;
     float topY_, botY_;
-    float shake_;
+    float shake_;                       // 0x45734c: ms to the next step
+    short shakeCount_;                  // 0x457348: steps left
+    float shakeX_, shakeY_;             // the jitter of the 2D objects
+    void shakeStep(bool background);
+    void shakeObjects();
     float lock_;
     SceneObject* doorTrig_;
     void triggerEvent(SceneObject* o, bool touching);   // 0x441cb0

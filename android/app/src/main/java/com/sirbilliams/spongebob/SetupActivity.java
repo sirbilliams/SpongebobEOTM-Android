@@ -2,46 +2,28 @@ package com.sirbilliams.spongebob;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.database.Cursor;
-import android.graphics.Color;
-import android.graphics.Typeface;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
-import android.provider.OpenableColumns;
-import android.view.Gravity;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.LinearLayout;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-/**
- * First screen. If the game is installed (files/game/sb2.exe readable) it shows the launcher: Play and a
- * Test page (share omt-log.txt, crash test, reinstall). Otherwise it lets the player pick the game's CD
- * image (.iso), which is installed like the CD's setup does (GameImporter) into files/game, which the app
- * owns. Files copied in over USB can be visible to the app but not readable on some Android builds;
- * files the app writes itself always are.
- */
+/** Hosts the Canvas launcher and the original CD importer and diagnostic actions. */
 public class SetupActivity extends Activity {
 
     private static final int PICK_ISO = 1;
 
     private String mPage = "main";
-    private TextView message;
-    private Button choose;
-    private ProgressBar progress;
+    private LauncherView launcher;
+    private boolean importing;
     private final Handler ui = new Handler(Looper.getMainLooper());
 
     // ------------------------------------------------------------------ lifecycle
@@ -51,8 +33,13 @@ public class SetupActivity extends Activity {
         super.onCreate(savedInstanceState);
         File base = getExternalFilesDir(null);
         if (base != null) base.mkdirs();
-        if (installed()) showMain();
-        else showImport();
+        launcher = new LauncherView(this, new LauncherView.Actions() {
+            public void select(int row) { activate(row); }
+            public void back() { onBackPressed(); }
+        });
+        setContentView(launcher);
+        showMain();
+        launcher.requestFocus();
     }
 
     private File gameDir() {
@@ -92,97 +79,82 @@ public class SetupActivity extends Activity {
 
     // ------------------------------------------------------------------ launcher
 
-    private LinearLayout page(String heading) {
-        LinearLayout root = new LinearLayout(this);
-        root.setOrientation(LinearLayout.VERTICAL);
-        root.setGravity(Gravity.CENTER);
-        root.setBackgroundColor(Color.rgb(14, 20, 40));
-        int pad = dp(32);
-        root.setPadding(pad, pad, pad, pad);
-        TextView title = new TextView(this);
-        title.setText(heading);
-        title.setTextColor(Color.rgb(255, 210, 90));
-        title.setTextSize(26);
-        title.setTypeface(Typeface.DEFAULT_BOLD);
-        title.setGravity(Gravity.CENTER);
-        title.setPadding(0, 0, 0, dp(20));
-        root.addView(title, wrap());
-        return root;
-    }
-
-    private Button button(LinearLayout root, String text, View.OnClickListener l) {
-        Button b = new Button(this);
-        b.setText(text);
-        b.setTextSize(18);
-        b.setOnClickListener(l);
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(360), ViewGroup.LayoutParams.WRAP_CONTENT);
-        lp.bottomMargin = dp(8);
-        root.addView(b, lp);
-        return b;
-    }
-
     private void showMain() {
         mPage = "main";
-        LinearLayout root = page("SpongeBob EOTM");
-        Button play = button(root, "Play", v -> play(false));
-        final Button panel = button(root, panelLabel(), null);
-        panel.setOnClickListener(v -> { setPanelOn(!panelOn()); panel.setText(panelLabel()); });
-        final String[] labels = { "Fill (pan)", "Side panels", "Stretch" };
-        int selected = getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen", 0);
-        final Button widescreen = button(root, "Widescreen: " + labels[selected % 3], null);
-        widescreen.setOnClickListener(v -> {
-            int next = (getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen", 0) + 1) % 3;
-            getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("widescreen", next).apply();
-            widescreen.setText("Widescreen: " + labels[next]);
-        });
-        // Right stick moves the game cursor, its click (R3) is the left mouse button. Touch always works.
-        final Button padCursor = button(root, padCursorLabel(), null);
-        padCursor.setOnClickListener(v -> {
-            boolean on = !getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor", true);
-            getSharedPreferences("settings", MODE_PRIVATE).edit().putBoolean("pad_cursor", on).apply();
-            padCursor.setText(padCursorLabel());
-        });
-        button(root, "Test", v -> showTest());
-        button(root, "Quit", v -> finish());
-        setContentView(root);
-        play.requestFocus();                                // so the Thor's A button works without touching the screen
+        launcher.page("Welcome aboard", installed() ? "Ready to set sail" : "Your adventure awaits",
+            installed() ? "Game files installed.\nChoose Play to begin." : "Import your own CD image\nto begin your adventure.",
+            "Play", "Import game", "Settings", "Test", "About", "Quit");
     }
 
-    private String padCursorLabel() {
-        return "Right-stick cursor: " + (getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor", true) ? "On" : "Off");
+    private boolean hasSave() {
+        File[] files = new File(gameDir(), "saved").listFiles();
+        if (files != null) for (File f : files) if (f.isFile() && f.length() > 0) return true;
+        return false;
     }
 
-    // port: the bottom-screen companion panel (docs/companion.md). On by default; the choice is remembered.
+    private void showPlay() {
+        mPage = "play";
+        launcher.page("Set sail", hasSave() ? "Welcome back, captain" : "Adventure on the horizon",
+            hasSave() ? "A save was found in saved/.\nResume from the game's menu." : "Start the game and choose\na new adventure.",
+            installed() ? "Start game" : "Import game files first", "Back");
+    }
+
     private boolean panelOn() {
         return CompanionPanel.wanted(getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE), true);
     }
-
-    private void setPanelOn(boolean on) {
-        getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE).edit().putBoolean(CompanionPanel.KEY_ON, on).apply();
+    private void showSettings() {
+        mPage = "settings";
+        int mode = Math.floorMod(getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen", 0), 4);
+        launcher.page("Captain's settings", "Make yourself at home", "Choices apply on next launch.\nTouch always controls the cursor.",
+            "Widescreen: " + new String[]{"Fill", "Side panels", "Stretch", "Off"}[mode],
+            "Bottom-screen panel: " + (panelOn() ? "On" : "Off"),
+            "Right-stick cursor: " + (getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor", true) ? "On" : "Off"), "Back");
     }
-
-    private String panelLabel() {
-        return "Bottom screen panel: " + (panelOn() ? "ON" : "OFF");
-    }
-
     private void showTest() {
         mPage = "test";
-        LinearLayout root = page("Test");
-        Button share = button(root, "Share log (current + previous run)", v -> shareLog());
-        final Button version = button(root, "App version: " + versionText(), null);
-        version.setFocusable(true);
-        button(root, "Reset settings", v -> resetSettings());
-        button(root, "Crash test (writes a backtrace to the log)", v -> play(true));
-        button(root, "Reinstall from the CD image", v -> showImport());
-        button(root, "Back", v -> showMain());
-        setContentView(root);
-        share.requestFocus();
+        launcher.page("Engine room", "Tools & diagnostics", "Logs include the current\nand previous run.",
+            "Share log", "App version: " + versionText(), "Reset settings", "Crash test", "Reinstall from CD image", "Back");
     }
-
-    @Override
-    public void onBackPressed() {
-        if (installed() && !mPage.equals("main")) showMain();
-        else super.onBackPressed();
+    private void showAbout() {
+        mPage = "about";
+        launcher.page("About this voyage", "An independent engine port", "Original launcher shapes.\nBring your own game files.",
+            "Version: " + versionText(), "Open-source licences", "Back");
+    }
+    private void showLicences() {
+        final String[] names = {"SDL2-zlib.txt", "gl4es-MIT.txt", "unshield-MIT.txt", "OMT-LGPL-2.1.txt", "HIDAPI-BSD.txt"};
+        new android.app.AlertDialog.Builder(this).setTitle("Open-source licences")
+            .setItems(names, (dialog, which) -> {
+                try (InputStream in = getAssets().open("licenses/" + names[which])) {
+                    java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+                    byte[] buffer = new byte[4096]; int n;
+                    while ((n = in.read(buffer)) > 0) out.write(buffer, 0, n);
+                    TextView text = new TextView(this); text.setText(out.toString("UTF-8")); text.setPadding(24,24,24,24);
+                    android.widget.ScrollView scroll = new android.widget.ScrollView(this); scroll.addView(text);
+                    new android.app.AlertDialog.Builder(this).setTitle(names[which]).setView(scroll).setPositiveButton("Close", null).show();
+                } catch (IOException e) { Toast.makeText(this, e.getMessage(), Toast.LENGTH_LONG).show(); }
+            }).setNegativeButton("Back", null).show();
+    }
+    private void activate(int row) {
+        if (importing) return;
+        switch (mPage) {
+        case "main":
+            switch(row) { case 0: showPlay(); break; case 1: showImport(); break; case 2: showSettings(); break; case 3: showTest(); break; case 4: showAbout(); break; default: finish(); } break;
+        case "play": if(row==1)showMain(); else if(installed())play(false); else showImport(); break;
+        case "import": if(row==0)pickIso(); else showMain(); break;
+        case "settings":
+            if(row==3) {showMain();break;}
+            if(row==0) getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("widescreen", Math.floorMod(getSharedPreferences("settings", MODE_PRIVATE).getInt("widescreen",0)+1,4)).apply();
+            if(row==1) getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE).edit().putBoolean(CompanionPanel.KEY_ON,!panelOn()).apply();
+            if(row==2) getSharedPreferences("settings", MODE_PRIVATE).edit().putBoolean("pad_cursor",!getSharedPreferences("settings", MODE_PRIVATE).getBoolean("pad_cursor",true)).apply();
+            showSettings(); launcher.focusRow(row); break;
+        case "test":
+            switch(row) {case 0:shareLog();break;case 1:break;case 2:resetSettings();break;case 3:if(installed())play(true);else showImport();break;case 4:showImport();break;default:showMain();} break;
+        case "about": if(row==1)showLicences(); else if(row==2)showMain(); break;
+        }
+    }
+    @Override public void onBackPressed() {
+        if(importing)return;
+        if(!mPage.equals("main"))showMain(); else super.onBackPressed();
     }
 
     /** versionName + git commit the build embedded (res/values git_commit, from build.gradle). */
@@ -237,37 +209,8 @@ public class SetupActivity extends Activity {
 
     private void showImport() {
         mPage = "import";
-        LinearLayout root = page("SpongeBob EOTM");
-        message = new TextView(this);
-        message.setTextColor(Color.rgb(220, 225, 235));
-        message.setTextSize(17);
-        message.setGravity(Gravity.CENTER);
-        message.setPadding(0, 0, 0, dp(24));
-        message.setText("Game files needed.\n\nChoose the game's CD image (.iso): the game is installed "
-                + "from it, about 1 GB, like the CD's own setup does.");
-        root.addView(message, wrap());
-
-        progress = new ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal);
-        progress.setMax(1000);
-        progress.setVisibility(View.GONE);
-        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(dp(420), ViewGroup.LayoutParams.WRAP_CONTENT);
-        pl.bottomMargin = dp(20);
-        root.addView(progress, pl);
-
-        choose = new Button(this);
-        choose.setText("Choose the game's .iso…");
-        choose.setTextSize(18);
-        choose.setOnClickListener(v -> pickIso());
-        root.addView(choose, wrap());
-
-        setContentView(root);
-        choose.requestFocus();
-    }
-
-    private int dp(int v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
-
-    private static LinearLayout.LayoutParams wrap() {
-        return new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        launcher.page("Import game", "Bring your own CD image", "Choose a game CD image (.iso).\nAbout 1 GB of space is needed.\nReinstall replaces game files.",
+            "Choose CD image (.iso)", "Back");
     }
 
     private void pickIso() {
@@ -289,10 +232,9 @@ public class SetupActivity extends Activity {
     // ------------------------------------------------------------------ import from the CD image
 
     private void importIso(final Uri uri) {
-        choose.setEnabled(false);
-        progress.setVisibility(View.VISIBLE);
-        progress.setProgress(0);
-        message.setText("Installing from the CD image…");
+        importing = true;
+        showImport();
+        launcher.status("Installing from the CD image…", true);
 
         new Thread(() -> {
             String error;
@@ -310,7 +252,7 @@ public class SetupActivity extends Activity {
                     if (p != last[0]) {
                         last[0] = p;
                         final String what = stage == 0 ? "Copying the installer off the CD image…" : "Unpacking the game files…";
-                        ui.post(() -> { progress.setProgress(p); message.setText(what); });
+                        ui.post(() -> launcher.status(what + "\n" + (p / 10) + "%", true));
                     }
                     return false;
                 });
@@ -331,23 +273,16 @@ public class SetupActivity extends Activity {
             }
             final String err = error;
             ui.post(() -> {
+                importing = false;
+                launcher.status("", false);
                 if (err == null) {
                     showMain();
                 } else {
-                    progress.setVisibility(View.GONE);
-                    message.setText(err + "\n\nChoose another file to try again.");
-                    choose.setEnabled(true);
-                    choose.requestFocus();
+                    launcher.status("Import failed. Choose another CD image.", false);
+                    new android.app.AlertDialog.Builder(this).setTitle("Import failed").setMessage(err).setPositiveButton("OK", null).show();
                 }
             });
         }).start();
-    }
-
-    private long querySize(Uri uri) {
-        try (Cursor c = getContentResolver().query(uri, new String[] { OpenableColumns.SIZE }, null, null, null)) {
-            if (c != null && c.moveToFirst() && !c.isNull(0)) return c.getLong(0);
-        } catch (RuntimeException ignored) { }
-        return -1;
     }
 
     private static void deleteTree(File f) {

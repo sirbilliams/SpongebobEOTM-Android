@@ -24,6 +24,7 @@ namespace sbscript { class ScriptHost; }
 
 namespace sbgame {
 
+class MiniGame;
 class SceneScriptHost;
 class World3D;
 class Hud;      // port: hud
@@ -60,6 +61,8 @@ public:
     void update(float dtMs);
 
     // ---- accessors ----
+    MiniGame* miniGame() { return mini_; } // chapter 2 mini-games
+    void createMiniGame();
     GameState& state() { return state_; }
     // game vt+0xb8 (0x40a6b0): is the condition expression true ("", "0" and " " are true)
     bool cond(const char* expr, bool touching = false) { return sbscript::evalCondition(expr, touching, state_); }
@@ -87,6 +90,7 @@ public:
     int mouseX() const { return mx_; }
     int mouseY() const { return my_; }
     std::string chained;                            // game+0x186: the target to go to after a movie / script
+    bool blending;                                  // game+0x251 (set by the `blending on/off` script command, 1 at start): animations ease in / out over 0.4 s (0x4046d0)
     int optText, optShadows;                        // port: the Options Text / Shadows values (exe +0x270 / +0x274 of the app object); set by the app
     void previewSound(bool voice);                  // 0x4256b0: the Options sample of the Sound / Voice volume
     bool suspended;                                 // port (saves): the game sits behind the menu; mouse and key messages are ignored
@@ -105,6 +109,9 @@ public:
     // Sound helpers (OMT sound manager, 15 channels like the exe)
     OMediaSound* findSound(const char* name, bool* shared);
     OMediaSound* soundCI(OMediaDataBase* db, const std::string& name);
+    OMediaSound* chapterSound(const char* name) { return soundCI(sharedBank_.db, name); }   // sounds\c<chapter>.omt only (game+0x5c)
+    // 0x419210: the hint voice, "%ssounds\help.omt" (the CD) else "sounds\help.omt"; opened on first use (a 34 MB bank)
+    OMediaSound* helpVoice(const std::string& id);
     // sound manager channels: 4 = dialogue voice, 5 = script 'sound', 9 = idle scripts (as the exe)
     bool playOnChannel(int ch, OMediaSound* s, int pan);
     bool channelBusy(int ch);
@@ -137,7 +144,7 @@ private:
     OMediaViewPort* vp_;
     OmtFile skies_;                         // game+0x64: sceneart/c%dskies.omt
     OMediaCanvas* skyCache_[10];            // game+0x70 + index*4
-    OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_, globalCommentBank_;
+    OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_, helpBank_, globalCommentBank_;
     RetailData* retail_;
     GameFont* font_;
     World3D* w3_;
@@ -158,6 +165,7 @@ private:
     bool commentVoice_;
     std::string hoverText_;
     Hud* hud_;                    // port: hud
+    MiniGame* mini_; // persistent across scenes (game+0x12c)
     Cursor* cursor_;              // port: cursor
 };
 

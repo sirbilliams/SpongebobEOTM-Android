@@ -252,3 +252,62 @@ The custom script test in ignored `.shots/testdata` symlinks the installed asset
 * Checked c1l2s6, c1l4s1, c1l5s2 (sky visible), c1l2s1/c1l3s3 (no sky, unchanged).
 * Save/load position: see docs/saves.md. Verified walk sequence `.shots/walk-seq.png` (click-to-walk at 1920x1080, fill mode), `.shots/load.png` (Resume lands at the saved spot), ASan/UBSan clean on a walk run.
 * Still not reconstructed: `checkgrid` (0x434450/0x434520: scene vt+0x144 finds the object at the cell, walks to its +0x310/+0x318, runs its `0x128` check then queues the connector walk), cross-height connectors, 0x42c450 path post-processing.
+
+## Lane f: character idle scripts and shadows (2026-10-28)
+
+Code is marked `lane f` in `World3D.{h,cpp}` (Actor3D fields, `updateIdle`, `suspendIdle` / `resumeIdle`, `updateShadow`), `SceneScriptHost`
+(`own_`) and one line each in `GameScene::click`, `ScriptRunner::backUp` and the GL rasterizer.
+
+**Idle scripts (character update 0x42f1a0, ctor 0x42e150).** The ctor sets char `+0x2c4` (`idleWanted`). On the first update with `+0x32c` (the
+idle runner) empty: clear `+0x2c4`, make a runner (0x43d550, `+0x1962` = 1: sound channel 9), load `s<name>_idle` (0x43dae0, actor = the character),
+else `s<name>_idle%d%d%d` with the scene id's nibbles `id & 0xf`, `(id >> 8) & 0xf`, `(id >> 16) & 0xf` (c2l4s2 -> `sjojo_idle242`). A failed load or a
+script that ends at once frees the runner; `+0x2c4` stays 0, so a character gets exactly one try per scene. There is no random delay and no timer at
+the start: the script itself paces (`idle N`, `walk`, `rotate`, `anim`, `sound`, `loop`). A finished runner is freed the same way. Idle scripts run
+alongside the scene script (the exe has no exclusion); `exitif` lines in them (sdude4: `141AAA`) end them. `idle N` (vt+0x168 = 0x42f170) also
+plays idle1 and arms the char timer `+0x400`, which wakes the script (vt+0xf4 = 0x406050: the scene runner wakes if it runs on this character, else
+the idle runner). Port: each idle runner has its own `SceneScriptHost` (the exe's runner object holds its own wait state); `World3D::finished`
+routes an actor's end-of-walk / animation to the scene host if the scene runner's actor is that character, else to its idle host.
+Sound waits poll `soundDone` (channel 9) per frame (0x43d6e0).
+**Interruption.** 0x435080 (suspend, from the click handlers 0x433a60 / 0x433f00 and the bump check 0x431610): idle1, walk / rotate stopped, `+0x330` = 1;
+the timer stops counting. 0x42f498 resumes (0x4350d0) when the player exists, no dialogue is busy, no scene runner exists and the player's target is not
+this character: idle1, and if the last line was not an `anim` the runner steps back one line (`ScriptRunner::backUp`), then it runs. Port hooks: a
+click on the character (`GameScene::click`) and `World3D::approach` call `suspendIdle`; the bump check (0x431610) is not reconstructed.
+**No script: random idle2 / idle3.** Timer `+0x38c` accumulates seconds while the animation is idle1 and the model has `idle1..idleN` (N >= 2); at
+`+0x390` (first and next values `7 + rand() % 8` s) it plays `idle2`, or `idle3` with chance 1/3 when N >= 3.
+**Per-animation sound (lane i, char vt+0xf8 = 0x405040, vt+0xfc = 0x404fe0).** Starting `idle2` / `idle3` (and the `idlet2/3` variants) plays the wave
+`<char name><anim>` (`"%s%s"`, e.g. `dameidle3`, `krabsnudeidle2`, `rayidle2`) of the **chapter** bank `sounds\c<N>.omt` (game+0x5c; `items.omt` is +0x68) on the
+char's channel +0x334 (= 0, never set); any other animation start stops it (0x404fe0); returning to `idle1` plays `<char>idle1` only if the channel is free. Skipped
+while a dialogue runs and the char has an idle runner. `World3D::animSound` / `stopAnimSound`, called from `World3D::setAnim`. Verified in c1l5s5 (log
+`anim sound dameidle3`, channel 0 plays 2.09 s).
+**Not done, and why.** (a) `idlet1..3`: in the exe the speaker plays `idlet1` as its base animation while a line runs (0x413bf0) and the lip `talk`
+animation is a **second controlled animation** layered on top (vt+0xc0 `("talk", name)`; char +0x2b0); the timer in 0x42f1a0 then plays `idlet2` or, 1/5 of
+the time with M >= 3, `idlet3` as that overlay (chance and branches in the decomp). `OMedia3DGrannyModel` has a single control, so a layered talk cannot be
+made without extending granny_compat; the port keeps its `talk` animation (the `idlet` files are unused). (b) The bump check 0x431610 (char vt+0x120) is the
+contact callback of OMT's 3D collision: another CHAR touches this one: it adds it to the contact list (+0x368); if a jelly (`jelly`, `jelly2`, `jelly3`, none in
+the installed chapters) is touched it runs `sshock`; if the player touches a char that has an idle runner it calls suspend (0x435080). The port has no 3D
+contact events; faking them with a radius test would not be faithful, so it stays unreconstructed.
+
+**Shadows.** The `shadow on/off` flag is char `+0x30c`'s visibility (0x434430 / 0x434410: vt+0x30 hide). `+0x30c` is a second 0x354-byte model object that
+0x422070 (the CHAR record's setup) makes from the record's "Shadow Name" (`o0204`, e.g. `shadow`, `shadow2`) as `models\items\%s_model`, only when the
+Options 3D Shadows value (game+0x274) is set, and links to the character as a child at (0,0,0) (it follows position and heading). The model is a flat
+quad (about 120 x 130 units at y = 0 of the character) with a 64x64 grey / alpha texture and a material with alpha 0.47. `World3D` loads it into the same
+Granny/OMedia3D world, places it with the character each frame and hides it with `shadow off` or when the character is hidden. The GL rasterizer's
+cut-out test (alpha > 0.5) dropped every fragment of a blended material, so a blended polygon now skips it (`OMedia3DGLRasterizer.cpp`). Not verified against
+the exe: the D3D blend mode; the port alpha-blends the grey texture (light patch on dark floors).
+
+Verified (1920x1080, in the box): c1l3s5 (`sgran_idle`: walks between points with no input), c2l4s2 (`sjojo_idle242`), c2l4s4 (`sgaryg_idle`); shadows under
+SpongeBob and NPCs in all three; c2l2s3 `sflush` (`shadow off` -> no shadow, `shadow on` -> back), logs and PNGs in `.shots/lf/`.
+
+## Lane i: walking leftovers analysed, not reconstructed (2026-10-28)
+* **`checkgrid` (script command 0x43e23c -> char vt+0x178 = 0x434450; 0x434520 is the same with an object id).** No installed script uses the command (docs/script.md).
+  0x434450(x, z): stores the target (+0x3c4/+0x3c8), asks the scene vt+0x144 (**0x43a7a0**) for the nearest TRIG object named `up` / `down` (+0x20) on the
+  character's current plane (`+0x314`, grid height) to that world point (squared distance; a connector with object +0x4c set is skipped), then: if the character's
+  vt+0x128 (**0x4318c0**: the object is in the character's contact list +0x368, or a SPOT-class object that vt+0x4c accepts) holds, it fires the connector
+  (`obj vt+0x40(1,1)`) and returns 1; else it walks (0x434650 via vt+0x144) to the connector's x/z (+0x310 / +0x318) with the connector as target. The contact
+  list is filled by the 3D collision callback 0x431610 (see the lane f section), which the port does not have; the up/down triggers exist only in c4l2s1, c4l2s3,
+  c4l3s1, c4l4s2, c4l4s4, c4l5s1. So both belong to one missing piece (3D contact events) and nothing in chapters 1 and 2 reaches them.
+* **Path post-processing 0x42c450** (from the A* wrapper 0x42acd0 when pathfinder `+0x39c` is set; the ctor 0x42a680 sets `+0x398` and `+0x39c` to 1, so retail always
+  runs it): builds a 24-byte node list (x, z, ... doubles) from the cell path, then per segment picks a curve with 0x42cc50 / 0x42cd70 / 0x42cbb0 (turn arcs with
+  radius `+0x398`), optionally 0x42d090 (`+0x39a`), validates each with 0x42c920 (clearance against the grid) and drops nodes that fail, finally reverses the list.
+  That is a steering-arc generator of five more functions; the port still walks cell-centre waypoints. Not reconstructed (needs an arc geometry reading of
+  0x42cbb0..0x42d090 and a visual comparison with retail paths, which cannot be made here).

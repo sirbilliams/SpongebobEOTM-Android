@@ -617,6 +617,7 @@ bool ScriptRunner::step()
     if (is(c, "kickit")) {                                       // 0x440213
         A_OR_RETURN;
         host_->actorKick(actor_);
+        lastCmd_ = "walk"; // lane d: 0x44022a uses the movement completion/click path
         return true;
     }
     if (is(c, "goal")) {                                         // 0x44027b

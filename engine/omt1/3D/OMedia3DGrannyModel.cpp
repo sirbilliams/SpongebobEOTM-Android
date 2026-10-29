@@ -11,9 +11,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <fstream>
-#include <iterator>
-#include <algorithm>
 
 static granny_uint32 omv_version = 0;
 
@@ -41,31 +38,6 @@ static std::string omf_find_case(const std::string &path)
 		closedir(d);
 		if (hit.empty()) return "";
 		out += (out.empty() || out[out.size() - 1] == '/') ? hit : "/" + hit;
-	}
-	return out;
-}
-
-// port: the texture names. granny.dll tells sb2.exe the 3D Studio material of each new texture; granny_compat does
-// not carry it, but the .grn names the bitmaps ("...\sponge.bmp"): their base names, in file order, are the
-// material names of the .omt (3DMa objects "sponge", ...).
-static std::vector<std::string> omf_bitmap_names(const std::string &grn)
-{
-	std::vector<std::string> out;
-	std::ifstream f(grn.c_str(), std::ios::binary);
-	std::vector<char> d((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
-	static const char *ext[] = {".bmp", ".tga", ".jpg", ".BMP", ".TGA", ".JPG"};
-	for (size_t i = 0; i + 4 <= d.size(); i++)
-	{
-		bool hit = false;
-		for (int e = 0; e < 6 && !hit; e++) hit = !memcmp(&d[i], ext[e], 4);
-		if (!hit) continue;
-		size_t s = i;
-		while (s > 0 && d[s - 1] >= 32 && d[s - 1] < 127) s--;
-		std::string name(&d[s], i - s);
-		size_t sl = name.find_last_of("\\/");
-		if (sl != std::string::npos) name = name.substr(sl + 1);
-		for (size_t k = 0; k < name.size(); k++) name[k] = (char)tolower((unsigned char)name[k]);
-		if (!name.empty() && std::find(out.begin(), out.end(), name) == out.end()) out.push_back(name);
 	}
 	return out;
 }
@@ -144,14 +116,14 @@ bool OMedia3DGrannyModel::load(const std::string &base)
 		}
 		catch (OMediaError &e) {printf("OMedia3DGrannyModel: %s: OMT error %d\n", omt.c_str(), (int)e.errorcode); db = NULL;}
 	}
-	bind_textures(grn);
+	bind_textures();
 	build_shape();
 	loaded = true;
 	return true;
 }
 
 // 0x403e10 BindTextures: every new texture of the model gets the material named like it as its cookie.
-void OMedia3DGrannyModel::bind_textures(const std::string &grn)
+void OMedia3DGrannyModel::bind_textures(void)
 {
 	// the textures are delivered after the first render lock
 	granny_uint32 lock[2];
@@ -159,7 +131,6 @@ void OMedia3DGrannyModel::bind_textures(const std::string &grn)
 	granny_uint32 n = 0;
 	GrannyUnlockRendering(lock[0], lock[1]);
 	if (GrannyGetNewTexturesLeft(omv_version, &n)) return;
-	std::vector<std::string> names = omf_bitmap_names(grn);
 	for (granny_uint32 i = 0; i < n; i++)
 	{
 		granny_new_texture tex;
@@ -167,8 +138,9 @@ void OMedia3DGrannyModel::bind_textures(const std::string &grn)
 		OMedia3DMaterial *m = NULL;
 		if (db)
 		{
-			std::string nm = i < names.size() ? names[i] : "";
-			if (!nm.empty()) m = (OMedia3DMaterial*)db->get_object(OMedia3DMaterial::db_type, nm);
+			std::string nm = GrannyCompatTextureMaterialName(&tex);
+			if (!nm.empty() && db->object_exists(OMedia3DMaterial::db_type, nm))
+				m = (OMedia3DMaterial*)db->get_object(OMedia3DMaterial::db_type, nm);
 			if (!m)		// port: a name the file does not give -> the database's first material
 			{
 				omt_DBIterator it;

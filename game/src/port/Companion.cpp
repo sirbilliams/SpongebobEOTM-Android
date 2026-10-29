@@ -7,6 +7,7 @@
 #include <string.h>
 #include <time.h>
 #include <deque>
+#include <SDL.h>
 
 namespace sbport {
 
@@ -15,6 +16,8 @@ pthread_mutex_t g_lock = PTHREAD_MUTEX_INITIALIZER;
 bool g_enabled = false, g_envChecked = false;
 std::string g_json, g_dumpFile;
 std::deque<std::string> g_cmds;
+std::deque<double> g_cmdTime;
+bool g_movie = false;
 double g_last = -1;
 
 double nowSec()
@@ -84,7 +87,7 @@ void CompanionSetEnabled(bool on)
 {
     pthread_mutex_lock(&g_lock);
     g_enabled = on;
-    if (!on) { g_json.clear(); g_cmds.clear(); }
+    if (!on) { g_json.clear(); g_cmds.clear(); g_cmdTime.clear(); }
     pthread_mutex_unlock(&g_lock);
 }
 
@@ -124,15 +127,47 @@ std::string CompanionJson()
 void CompanionPush(const std::string& cmd)
 {
     pthread_mutex_lock(&g_lock);
-    if (g_enabled && g_cmds.size() < 32) g_cmds.push_back(cmd);
+    bool movie = g_movie;
+    if (g_enabled && !movie && g_cmds.size() < 32) { g_cmds.push_back(cmd); g_cmdTime.push_back(nowSec()); }
     pthread_mutex_unlock(&g_lock);
+    // The movie loop (StartupMain play_movie) does not run the game, so nothing pops the queue: any key ends the movie
+    // (0x40bcc0), so SKIP is that key.  MENU during a movie does nothing.
+    if (movie && cmd == "skip") CompanionKey(SDLK_RETURN);
+}
+
+void CompanionMovie(bool playing)
+{
+    pthread_mutex_lock(&g_lock);
+    g_movie = playing;
+    if (playing) {                                  // the panel sees "cut":1 while the movie holds the game loop
+        size_t k = g_json.find("\"cut\":0");
+        if (k != std::string::npos) g_json[k + 6] = '1';
+        g_cmds.clear(); g_cmdTime.clear();
+    }
+    pthread_mutex_unlock(&g_lock);
+}
+
+void CompanionKey(int sym)
+{
+    SDL_Event e;
+    SDL_zero(e);
+    e.type = SDL_KEYDOWN;
+    e.key.state = SDL_PRESSED;
+    e.key.keysym.sym = (SDL_Keycode)sym;
+    e.key.keysym.scancode = SDL_GetScancodeFromKey((SDL_Keycode)sym);
+    SDL_PushEvent(&e);
+    e.type = SDL_KEYUP;
+    e.key.state = SDL_RELEASED;
+    SDL_PushEvent(&e);
 }
 
 bool CompanionPop(std::string* cmd)
 {
     pthread_mutex_lock(&g_lock);
+    double t = nowSec();
+    while (!g_cmds.empty() && t - g_cmdTime.front() > 1.5) { g_cmds.pop_front(); g_cmdTime.pop_front(); }   // stale (the game was paused / busy)
     bool got = !g_cmds.empty();
-    if (got) { *cmd = g_cmds.front(); g_cmds.pop_front(); }
+    if (got) { *cmd = g_cmds.front(); g_cmds.pop_front(); g_cmdTime.pop_front(); }
     pthread_mutex_unlock(&g_lock);
     return got;
 }

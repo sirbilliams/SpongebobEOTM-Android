@@ -333,12 +333,18 @@ struct GMesh                      /* 0602 > 0601 */
 	std::vector<u32> tris;        /* 0901: per triangle { u32 pos[3], u32 normal[3] } */
 };
 
-struct GTexMap                    /* 0e01 > 0e00 { u32 material } > 0e07 > 0e02 { u32 mesh, u32 ? }, */
+struct GMeshMap                   /* 0e01 > 0e00 { u32 model } > 0e07 > 0e02 { u32 mesh_slot, u32 material }, */
 {                                 /*   0e03 > { 0e05 f32 rgb[3], 0e04 { u32 layer } ... },          */
-	u32 material;                 /*   0e06 { u32 n, n x { u32 triangle, per corner per layer u32 index } } */
-	u32 mesh;
+                                  /*   0e06 { u32 n, n x { u32 triangle, per corner per layer u32 index } } */
+	u32 mesh, material, texture;    /* mesh is a model slot, not a 0601 geometry index */
 	std::vector<u32> layers;
 	std::map<u32, std::vector<u32> > tri_uv;   /* triangle -> 3 x nlayers indices (corner-major) */
+};
+
+struct GTexMap
+{
+	u32 model;
+	std::vector<GMeshMap> meshes;
 };
 
 struct GMaterial { bool has_color; float color[4]; u32 texture; };   /* 0d00: 0d02 f32 rgba, 0d03 { ?, u32 texture, ? } */
@@ -408,24 +414,35 @@ static void read_texmaps(const Grn &g, std::vector<GTexMap> &out)
 	for (size_t i = 0; i < ts.size(); i++)
 	{
 		GTexMap t;
-		t.material = g.own(ts[i]) >= 4 ? g.u(g.nodes[ts[i]].off) : 0;
-		int e2 = g.walk_first(ts[i], 0x0e02);
-		t.mesh = e2 >= 0 ? g.u(g.nodes[e2].off) : 0;
-		std::vector<int> ls;
-		g.walk_all(ts[i], 0x0e04, ls);
-		for (size_t k = 0; k < ls.size(); k++) t.layers.push_back(g.u(g.nodes[ls[k]].off));
-		int e6 = g.walk_first(ts[i], 0x0e06);
-		if (e6 >= 0)
+		t.model = g.own(ts[i]) >= 4 ? g.u(g.nodes[ts[i]].off) : 0;
+		// Each 0e02 owns its layer list and triangle UV indices. A material can cover
+		// several meshes (Marlin and his book); these are not extra UV layers.
+		std::vector<int> entries;
+		g.walk_all(ts[i], 0x0e02, entries);
+		for (size_t e = 0; e < entries.size(); e++)
 		{
-			size_t p = g.nodes[e6].off;
-			u32 n = g.u(p), stride = 1 + 3 * (u32)t.layers.size();
-			p += 4;
-			for (u32 k = 0; k < n && p + 4 * stride <= g.nodes[e6].end; k++, p += 4 * stride)
+			int e2 = entries[e];
+			GMeshMap m;
+			m.mesh = g.u(g.nodes[e2].off);
+			m.material = g.u(g.nodes[e2].off + 4);
+			m.texture = 0xffffffffu;
+			std::vector<int> ls;
+			g.walk_all(e2, 0x0e04, ls);
+			for (size_t k = 0; k < ls.size(); k++) m.layers.push_back(g.u(g.nodes[ls[k]].off));
+			int e6 = g.walk_first(e2, 0x0e06);
+			if (e6 >= 0)
 			{
-				std::vector<u32> idx;
-				for (u32 j = 1; j < stride; j++) idx.push_back(g.u(p + 4 * j));
-				t.tri_uv[g.u(p)] = idx;
+				size_t p = g.nodes[e6].off;
+				u32 n = g.u(p), stride = 1 + 3 * (u32)m.layers.size();
+				p += 4;
+				for (u32 k = 0; k < n && p + 4 * stride <= g.nodes[e6].end; k++, p += 4 * stride)
+				{
+					std::vector<u32> idx;
+					for (u32 j = 1; j < stride; j++) idx.push_back(g.u(p + 4 * j));
+					m.tri_uv[g.u(p)] = idx;
+				}
 			}
+			t.meshes.push_back(m);
 		}
 		out.push_back(t);
 	}
@@ -534,7 +551,7 @@ static bool same_corner(const Corner &x, const Corner &y)
    and texture layer values of the first triangle corner that uses it; a later corner of the same position
    with a different normal or layer value (compared as floats) reuses an earlier duplicate with the same
    values or appends a new render vertex.  Triangles in file order, corners in order. */
-static void build_mesh(const GMesh &gm, const GTexMap *tm, const float base_color[3], Mesh &m,
+static void build_mesh(const GMesh &gm, const GMeshMap *tm, const float base_color[3], Mesh &m,
                        std::vector<std::string> *warn, const std::string &what)
 {
 	size_t npos = gm.pos.size() / 3, nnrm = gm.nrm.size() / 3, ntri = gm.tris.size() / 6;
@@ -788,18 +805,27 @@ FileData *grn_load(const std::string &path, granny_result *err, std::vector<std:
 		std::vector<int> texs;
 		g.items(0x0304, 0x0301, texs);
 
-		/* 0e00 texture maps: each is one "new texture" of the model; its image is the texture of its
-		   material (0d03, 1-based) - 0301 > 0305 > 0303 { u32 w, h, format, Bink file }, decoded to RGB24 */
+		/* 0e00 selects the model; each 0e02 selects a slot in its 0c03 list and a material.
+		   Queue each referenced material once, in first-use order. 0d03 selects its image
+		   (1-based): 0301 > 0305 > 0303 { u32 w, h, format, Bink file }. */
 		const BinkTables *bt = 0;
+		std::map<u32, u32> material_textures;
 		for (size_t i = 0; i < maps.size(); i++)
+		for (size_t j = 0; j < maps[i].meshes.size(); j++)
 		{
-			if (maps[i].material < 1 || maps[i].material > mats.size()) continue;   /* no such material: not queued */
+			GMeshMap &mm = maps[i].meshes[j];
+			if (maps[i].model != 1) continue;
+			std::map<u32, u32>::const_iterator found = material_textures.find(mm.material);
+			if (found != material_textures.end()) { mm.texture = found->second; continue; }
+			if (mm.material < 1 || mm.material > mats.size()) continue;   /* no such material: not queued */
 			TextureData td;
 			td.w = td.h = td.format = td.bpp = td.pitch = 0;
-			const GMaterial *mat = maps[i].material >= 1 && maps[i].material <= mats.size() ? &mats[maps[i].material - 1] : 0;
+			td.name = "";
+			const GMaterial *mat = mm.material >= 1 && mm.material <= mats.size() ? &mats[mm.material - 1] : 0;
 			u32 ti = mat ? mat->texture : 0;
 			if (ti >= 1 && ti <= texs.size())
 			{
+				td.name = g.name_of(texs[ti - 1]);
 				int d = g.walk_first(texs[ti - 1], 0x0303);
 				if (d >= 0 && g.nodes[d].end >= g.nodes[d].off + 12)
 				{
@@ -820,14 +846,13 @@ FileData *grn_load(const std::string &path, granny_result *err, std::vector<std:
 					else if (warn) warn->push_back(path + ": texture not decoded");
 				}
 			}
+			mm.texture = (u32)f->textures.size();
+			material_textures[mm.material] = mm.texture;
 			f->textures.push_back(td);
 		}
 
 		std::vector<GMesh> gms;
 		read_meshes(g, gms);
-		float base_color[3] = { 1.0f, 1.0f, 1.0f };
-		if (!maps.empty() && maps[0].material >= 1 && maps[0].material <= mats.size() && mats[maps[0].material - 1].has_color)
-			memcpy(base_color, mats[maps[0].material - 1].color, 12);
 
 		/* bind pose: composed rest transforms */
 		std::vector<World> rest(f->bones.size());
@@ -841,8 +866,14 @@ FileData *grn_load(const std::string &path, granny_result *err, std::vector<std:
 			u32 mi = model_meshes[k].first;
 			Mesh m;
 			if (mi < 1 || mi > gms.size()) { if (warn) warn->push_back(path + ": bad mesh reference"); continue; }
-			const GTexMap *tm = 0;
-			for (size_t i = 0; i < maps.size(); i++) if (maps[i].mesh == mi - 1) { tm = &maps[i]; break; }
+			const GMeshMap *tm = 0;
+			u32 texture = 0xffffffffu;
+			for (size_t i = 0; i < maps.size() && !tm; i++)
+				for (size_t j = 0; j < maps[i].meshes.size(); j++)
+					if (maps[i].model == 1 && maps[i].meshes[j].mesh == k) { tm = &maps[i].meshes[j]; texture = tm->texture; break; }
+			float base_color[3] = {1, 1, 1};
+			if (tm && tm->material >= 1 && tm->material <= mats.size() && mats[tm->material - 1].has_color)
+				memcpy(base_color, mats[tm->material - 1].color, 12);
 			build_mesh(gms[mi - 1], tm, base_color, m, warn, path);
 			const std::vector<u32> &bones = model_meshes[k].second;
 			for (size_t j = 0; j < bones.size(); j++)
@@ -853,10 +884,10 @@ FileData *grn_load(const std::string &path, granny_result *err, std::vector<std:
 				else { memset(b.bt, 0, sizeof b.bt); memset(b.B, 0, sizeof b.B); }
 				m.bindings.push_back(b);
 			}
-			if (!maps.empty())
+			if (texture < f->textures.size())
 			{
-				m.states[0].texture = 0;
-				if (f->textures[0].pixels.empty()) { m.states[0].src_blend = 6; m.states[0].dst_blend = 7; }
+				m.states[0].texture = (u32)texture;
+				if (f->textures[texture].pixels.empty()) { m.states[0].src_blend = 6; m.states[0].dst_blend = 7; }
 			}
 			f->meshes.push_back(m);
 		}

@@ -46,8 +46,17 @@ stand-in pictures drawn by `shim/.../SampleIcons.java` (the sample's `"icons":"@
 ## Stubs / missing game state
 * Item in hand: `item:<id>` goes to `Hud::holdFromPanel` (the game's HUD, docs/scene-runtime.md "HUD and cursor"); the next click in the scene uses it
   (`GameScene::useItem`) exactly like an item taken from the bar; `noitem` puts it back. `sel` is the HUD's held item.
-* Scene and chapter names: no name table known; shows "Chapter N" / "Level L, Scene S".
-* Hint: first `help.sb2` entry of the chapter whose condition holds (`Hud::hintText`, an entry whose text is another entry's id follows it); how the exe picks one is unknown.
-* `skip`: goes to `Game::switchTo("skip")` -> `SceneScriptHost::gameSkip` (itself a stub). `menu`: logs only (no menu).
-* `cut` (cutscene flag) and `caption` (comment text) are never set: `Game` has no getters yet.
-* Map: only the list of scenes visited (no scene-name table, no layout); chips are not tappable.
+* Scene names: the game files name no scene, so `CompanionFeed.h` has a short hand-written place table (`companionPrettyName`, `// port:`), made from the
+  scenes' own clickable labels ("The Krusty Krab - Kitchen", "Goo Lagoon - Lifeguard Station"; unknown rooms are "<place> - Area N"). `scene_title` and `visited[]` carry
+  these names (no ids). Chapter stays "Chapter N".
+* Hint: first `help.sb2` entry of the chapter whose condition holds (`Hud::hintText`); its text may be another line's id (`F121A` -> `F000D`), which lives in the
+  chapter-0 lines. `HelpTable` now keeps those apart (`common_`, `// port:`) so `find` resolves them; before, the panel showed the raw id `F000D`. The hint has no
+  speaker. The voice bank `cd/sounds/help.omt` (the CD folder; also tried: `sounds/help.omt`) is played by the game itself: `Hud::hint` (hint button, and the panel command `hint`) plays the read line's voice on channel 4 (0x419210). The panel has no play button.
+* `menu`: sends the F10 key (`CompanionKey`, SDL_PushEvent): the same path as F10 / Android Back, the game is paused behind the main menu (Resume Game).
+* `skip`: a dialogue line -> `DialogueUI::onKey(' ')` (the click that closes a line); else in a cutscene (`GameScene::letterboxed()`: the cinematic bars are in,
+  also `cut`:1) the exe's click handler 0x41ae00 -> `ScriptRunner::skipToLetterboxClose` (0x43df30) + `Game::wake` (scene vt+0xe0); during a Bink movie the game loop is
+  blocked, so `CompanionPush("skip")` sends a key press, which ends the movie like any key (0x40bcc0). `StartupMain::game_movie` brackets the movie with
+  `CompanionMovie`. The panel's SKIP porthole is lit only in a cutscene or on a dialogue line. `SceneScriptHost::gameSkip` (the script command) is still a stub.
+  Taps older than 1.5 s are dropped (a tap made while paused or in a movie must not fire later).
+* Test hook: `SB_TEST_COMPANION="60:switch=smeanwhile1,200:skip"` (tick:command list; `switch=` runs `Game::switchTo`).
+* Map: the trail shows the names of the scenes visited; the chips are not tappable (the game's map is a go-to-hub button, no travel list).

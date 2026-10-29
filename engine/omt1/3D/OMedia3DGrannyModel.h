@@ -54,7 +54,7 @@ class OMedia3DGrannyModel
 
 	protected:
 	void build_shape(void);
-	void bind_textures(const std::string &grn_path);
+	void bind_textures(void);
 	void clear_control(void);
 
 	unsigned int	model[2], sequence[2];

@@ -57,6 +57,8 @@ public:
 
     // script 'add' (0x41f2d0): the item appears and flies into its slot
     void addItem(const char* name, const char* desc);
+    // script 'sparkle x y' (0x41ebe0): sparkles around (x, y) for three seconds (0x41e3d0 / 0x41ec90 / 0x41ec20)
+    void sparkle(int x, int y);
 
     bool visible() const { return shownNow_; }
     bool holding() const { return held_ != 0; }
@@ -65,7 +67,9 @@ public:
     bool overHotspot(int x, int y);                 // a button of the bar, or something clickable in the scene
     // the hover caption (0x4201c0) that replaces the scene's; false: none
     bool caption(std::string* out);
-    std::string hintText();                         // the current help line ("" none)
+    void hint();                                    // game vt+0x100: the hint button (text + voice)
+    std::string hintText();
+    std::string hintId();                           // the id of the help line that is read (an alias resolved), "" none                         // the current help line ("" none)
     // the inventory as it is now (the companion panel)
     struct Entry { std::string name, desc; };
     std::vector<Entry> items() const;
@@ -95,7 +99,6 @@ private:
     void showItem(HudItem* it, bool on);
     bool ensure3D(HudItem* it);
     void placeItem(HudItem* it, float x, float y);
-    void hint();
     void build();
     void relink();
     OMediaCanvasElement* mk(const char* name, float x, float y);
@@ -118,9 +121,17 @@ private:
     Spot hover_; int hoverSlot_;
     TextBlock* hintBlock_;
     float hintMs_;
+    bool hintVoice_;                                // the hint plays its voice (channel 4): the text stays until it ends
     int iconFrame_;
     bool testItemsDone_, built_, testHoldDone_;
     GameScene* lastScene_;
+    // the sparkle effect: +0x124 time left, +0x128/+0x12c centre, +0xf4 spawn timer, up to 10 canvases (+0x90) aged in +0xf8
+    float sparkleMs_, sparkleX_, sparkleY_, sparkleAcc_;
+    OMediaCanvasElement* sparkles_[10];
+    float sparkleAge_[10];
+    void updateSparkle(float dtMs);
+    void spawnSparkle();
+    void clearSparkles();
 };
 
 }  // namespace sbgame

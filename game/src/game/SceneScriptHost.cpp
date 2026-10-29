@@ -1,4 +1,6 @@
 #include "SceneScriptHost.h"
+#include "Kick.h" // lane d
+#include "MiniGame.h" // chapter 2 mini-games
 #include "DialogueUI.h"
 #include "World3D.h"
 #include "Hud.h"                   // port: hud
@@ -13,7 +15,7 @@ using sbscript::ScriptActor;
 using sbscript::ScriptSound;
 
 SceneScriptHost::SceneScriptHost(Game* g)
-    : sim3dMs(700.0f), g_(g), wait3dMs_(0), wait3d_(false), waitAnim_(false), stubCalls_(0), active_(0), uiMs_(0)
+    : sim3dMs(700.0f), g_(g), wait3dMs_(0), wait3d_(false), waitAnim_(false), stubCalls_(0), active_(0), uiMs_(0), own_(0)
 {
 }
 
@@ -87,7 +89,7 @@ void SceneScriptHost::speakerStarted(SceneObject* a, const char* name)
 
 void SceneScriptHost::actorDone()
 {
-    if (wait3d_) { wait3d_ = false; g_->wake(); }
+    if (wait3d_) { wait3d_ = false; wakeNow(); }
 }
 
 void SceneScriptHost::speakersIdle() { if (g_->world3d()) g_->world3d()->talkAll(false); }
@@ -96,11 +98,11 @@ void SceneScriptHost::update(float dt)
 {
     if (wait3dMs_ > 0) {
         wait3dMs_ -= dt;
-        if (wait3dMs_ <= 0) { wait3dMs_ = 0; g_->wake(); }
+        if (wait3dMs_ <= 0) { wait3dMs_ = 0; wakeNow(); }
     }
     if (uiMs_ > 0) {
         uiMs_ -= dt;
-        if (uiMs_ <= 0) { uiMs_ = 0; if (g_->runner() && g_->runner()->waitingUi()) g_->wake(); }
+        if (uiMs_ <= 0) { uiMs_ = 0; if (runnerNow() && runnerNow()->waitingUi()) wakeNow(); }
     }
 }
 
@@ -179,7 +181,7 @@ void SceneScriptHost::actorMove(ScriptActor* a, float x, float y)
 }
 void SceneScriptHost::actorMoveY(ScriptActor* a, float y) { Actor3D* actor = a && g_->world3d() ? g_->world3d()->actorFor(a->obj) : 0; if (actor) { actor->y = y; g_->world3d()->place(actor); } else if (a) a->obj->py = y; }
 void SceneScriptHost::actorMoveGrid(ScriptActor* a, int gx, int gy) { if (a && g_->world3d()) g_->world3d()->moveGrid(a->obj,gx,gy); }
-void SceneScriptHost::actorClimb(ScriptActor* a, float h) { stub("%s climb %g (vt+0x154)", an(a), h); }
+void SceneScriptHost::actorClimb(ScriptActor* a, float h) { if (a && a->obj && g_->world3d()) g_->world3d()->climb(a->obj, h); }    // vt+0x154
 bool SceneScriptHost::actorRotate(ScriptActor* a, int angle, int time)
 {
     if (!a || !g_->world3d() || !g_->world3d()->hasModel(a->obj)) return false;
@@ -187,11 +189,15 @@ bool SceneScriptHost::actorRotate(ScriptActor* a, int angle, int time)
     if (wait) wait3d_ = true;
     return wait;
 }
-void SceneScriptHost::actorIdle(ScriptActor* a, float seconds) { (void)a; arm3d(seconds * 1000.0f); }      // vt+0x168: the actor idles for `seconds`
 void SceneScriptHost::actorAttach(ScriptActor* a, const char* o, const char* b1, const char* b2) { if (a && g_->world3d()) g_->world3d()->attach(a->obj, o, b1, b2); }   // vt+0x12c
 void SceneScriptHost::actorDetach(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->detach(a->obj); }       // vt+0x130
 void SceneScriptHost::actorHideAttach(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->hideAttach(a->obj, true); }
 void SceneScriptHost::actorShowAttach(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->hideAttach(a->obj, false); }
+void SceneScriptHost::actorIdle(ScriptActor* a, float seconds)      // vt+0x168 (0x42f170): the actor plays idle1 and idles for `seconds`
+{
+    if (a && g_->world3d()) g_->world3d()->loopAnim(a->obj, "idle1");     // lane f
+    arm3d(seconds * 1000.0f);
+}
 bool SceneScriptHost::actorPlayAnim(ScriptActor* a, const char* name, bool wait, double speed)
 {
     World3D* w = g_->world3d();
@@ -204,11 +210,20 @@ bool SceneScriptHost::actorPlayAnim(ScriptActor* a, const char* name, bool wait,
 void SceneScriptHost::actorLoopAnim(ScriptActor* a, const char* name) { if (a && g_->world3d()) g_->world3d()->loopAnim(a->obj, name); }
 void SceneScriptHost::actorTalkAnim(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->talk(a->obj, true); }
 void SceneScriptHost::actorOneShotAnim(ScriptActor* a, const char* name) { if (a && g_->world3d()) g_->world3d()->oneShotAnim(a->obj, name); }
-void SceneScriptHost::actorKick(ScriptActor* a) { stub("%s kick (vt+0x16c)", an(a)); arm3d(sim3dMs); }
-bool SceneScriptHost::actorGoal(ScriptActor* a) { stub("%s goal? (vt+0x174)", an(a)); return false; }
-bool SceneScriptHost::actorGoalMissed(ScriptActor* a) { stub("%s goal missed? (vt+0x188)", an(a)); return false; }
+// lane d: character vtable slots 0x16c / 0x174 / 0x188 (not the shared mini-game object).
+void SceneScriptHost::actorKick(ScriptActor* a) {
+    World3D* w=g_->world3d();
+    if (a && w && Kick::start(*w,w->actorFor(a->obj))) wait3d_=true;
+    else arm3d(1); // port: allow a missing model to release the script.
+}
+bool SceneScriptHost::actorGoal(ScriptActor* a) {
+    World3D* w=g_->world3d(); return a && w && Kick::goal(*w,w->actorFor(a->obj));
+}
+bool SceneScriptHost::actorGoalMissed(ScriptActor* a) {
+    World3D* w=g_->world3d(); return a && w && Kick::missed(*w,w->actorFor(a->obj));
+}
 void SceneScriptHost::actorStopWalk(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->stopWalk(a->obj); }
-void SceneScriptHost::actorShadow(ScriptActor* a, bool on) { (void)a; (void)on; }      // port: no blob shadows yet
+void SceneScriptHost::actorShadow(ScriptActor* a, bool on) { if (a && g_->world3d()) g_->world3d()->setShadow(a->obj, on); }      // the shadow model is hidden / shown (World3D)
 void SceneScriptHost::actorSetTexture(ScriptActor* a, const char* t) { stub("%s texture %s (vt+0xf0)", an(a), t); }
 void SceneScriptHost::swapPlayerHelmet() { stub("swapchar: sb <-> sbhelm"); }
 void SceneScriptHost::shockEffect() { stub("shock: 2D object \"elec\" at the player's screen position"); }
@@ -249,16 +264,16 @@ void SceneScriptHost::sceneSpeak(const char* key)
     if (ok) dialogueStarted();
     else {
         g_->switchTo("H000F");
-        g_->wake();                              // port: the exe would wait for a dialogue that never starts
+        wakeNow();                               // port: the exe would wait for a dialogue that never starts
     }
 }
 void SceneScriptHost::sceneBlock(int x, int y, bool b) { g_->state().setBlocked(sceneId(), x, y, b); if (g_->world3d()) g_->world3d()->blockCell(x,y,b); }
-void SceneScriptHost::sceneSparkle(int x, int y) { stub("sparkle at %d,%d (HUD object 0x457334, 0x41ebe0)", x, y); }
+void SceneScriptHost::sceneSparkle(int x, int y) { if (g_->hud()) g_->hud()->sparkle(x, y); }      // HUD object 0x457334, 0x41ebe0
 
 // ------------------------------------------------------------------------------------------ game
 void SceneScriptHost::gameSwitch(const char* t) { g_->switchTo(t); }
 void SceneScriptHost::gameSkip() { stub("skip: scene vt+0x10c cutscene skip"); }
-void SceneScriptHost::gameSetBlending(bool on) { stub("blending %d (game+0x251)", on ? 1 : 0); }
+void SceneScriptHost::gameSetBlending(bool on) { g_->blending = on; }      // game+0x251
 void SceneScriptHost::gameComment(const char* id) { g_->showComment(id); }
 void SceneScriptHost::setChainedTarget(const char* n) { g_->chained = n; }
 void SceneScriptHost::progressSave(ScriptActor* a) { stub("save: %s position + scene id into the progress object", an(a)); }
@@ -315,13 +330,13 @@ void SceneScriptHost::playObjectSound(SceneObject* o)           // 0x415710
 }
 
 // ---------------------------------------------------------------------------------- mini games
-bool SceneScriptHost::miniGameExists() { return false; }
-void SceneScriptHost::miniGameCreate() { stub("mini game object (0x5c bytes, ctor 0x4354d0)"); }
-void SceneScriptHost::miniSlotsInit() { stub("slots init 0x436030"); }
-void SceneScriptHost::miniSlotsSpin() { stub("slots spin 0x436090"); arm3d(sim3dMs); }
-void SceneScriptHost::miniMaze(int n) { stub("maze %d 0x436510", n); }
-void SceneScriptHost::miniPhoneKey(int n) { stub("phone key %d 0x436640", n); }
-void SceneScriptHost::miniPhoneReset() { stub("phone reset 0x436610"); }
-void SceneScriptHost::miniDarts(int op) { stub("darts %d (0x436990 / 0x4369c0)", op); }
+bool SceneScriptHost::miniGameExists() { return g_->miniGame() != 0; }
+void SceneScriptHost::miniGameCreate() { g_->createMiniGame(); }
+void SceneScriptHost::miniSlotsInit() { g_->miniGame()->slotsInit(); }
+void SceneScriptHost::miniSlotsSpin() { g_->miniGame()->slotsSpin(); }
+void SceneScriptHost::miniMaze(int n) { g_->miniGame()->maze(n); }
+void SceneScriptHost::miniPhoneKey(int n) { g_->miniGame()->phone().key(n); } // chapter 4 phone (Phone.cpp)
+void SceneScriptHost::miniPhoneReset() { g_->miniGame()->phone().reset(); } // chapter 4 phone (Phone.cpp)
+void SceneScriptHost::miniDarts(int op) { if(g_->miniGame()) g_->miniGame()->darts(op); } // lane c: 0x436990 / 0x4369c0
 
 }  // namespace sbgame
