@@ -6,6 +6,7 @@ import android.database.Cursor;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -18,6 +19,7 @@ import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -166,7 +168,10 @@ public class SetupActivity extends Activity {
     private void showTest() {
         mPage = "test";
         LinearLayout root = page("Test");
-        Button share = button(root, "Share log (omt-log.txt)", v -> shareLog());
+        Button share = button(root, "Share log (current + previous run)", v -> shareLog());
+        final Button version = button(root, "App version: " + versionText(), null);
+        version.setFocusable(true);
+        button(root, "Reset settings", v -> resetSettings());
         button(root, "Crash test (writes a backtrace to the log)", v -> play(true));
         button(root, "Reinstall from the CD image", v -> showImport());
         button(root, "Back", v -> showMain());
@@ -180,24 +185,51 @@ public class SetupActivity extends Activity {
         else super.onBackPressed();
     }
 
-    /** Sends the last run's omt-log.txt (written by the engine next to the game folder) as text. */
-    private void shareLog() {
-        File f = new File(getExternalFilesDir(null), "omt-log.txt");
-        String text;
+    /** versionName + git commit the build embedded (res/values git_commit, from build.gradle). */
+    private String versionText() {
+        String name = "?";
+        try {
+            name = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Exception ignored) { }
+        return name + " (" + getString(R.string.git_commit) + ")";
+    }
+
+    /** Back to defaults for the launcher's options (widescreen, cursor, panel). The game's saves are not touched. */
+    private void resetSettings() {
+        getSharedPreferences("settings", MODE_PRIVATE).edit().clear().apply();
+        getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE).edit().clear().apply();
+        showTest();
+        Toast.makeText(this, "Settings reset (saves kept)", Toast.LENGTH_SHORT).show();
+    }
+
+    /** The end of a log file as text (the end of a long log matters most). */
+    private static String tail(File f, long max) {
         try (FileInputStream in = new FileInputStream(f)) {
-            long len = f.length(), max = 200 * 1024;
-            if (len > max) in.skip(len - max);              // the end of a long log matters most
+            long len = f.length();
+            if (len > max) in.skip(len - max);
             byte[] b = new byte[(int) Math.min(len, max)];
             int n = 0, r;
             while (n < b.length && (r = in.read(b, n, b.length - n)) > 0) n += r;
-            text = new String(b, 0, n, "UTF-8");
+            return new String(b, 0, n, "UTF-8");
         } catch (IOException e) {
-            text = "No log yet (" + e.getMessage() + "). Run Play first.";
+            return "(none: " + e.getMessage() + ")";
         }
+    }
+
+    /** Sends device + app info and the current and previous run's logs as text (no FileProvider needed). */
+    private void shareLog() {
+        File base = getExternalFilesDir(null);
+        StringBuilder sb = new StringBuilder();
+        sb.append("SpongeBob EOTM ").append(versionText()).append('\n');
+        sb.append(Build.MANUFACTURER).append(' ').append(Build.MODEL).append(", Android ")
+          .append(Build.VERSION.RELEASE).append(" (API ").append(Build.VERSION.SDK_INT).append("), ")
+          .append(Build.SUPPORTED_ABIS.length > 0 ? Build.SUPPORTED_ABIS[0] : "?").append('\n');
+        sb.append("\n===== omt-log.txt (last run) =====\n").append(tail(new File(base, "omt-log.txt"), 120 * 1024));
+        sb.append("\n\n===== omt-log.prev.txt (run before) =====\n").append(tail(new File(base, "omt-log.prev.txt"), 60 * 1024));
         Intent i = new Intent(Intent.ACTION_SEND);
         i.setType("text/plain");
-        i.putExtra(Intent.EXTRA_SUBJECT, "SpongeBob EOTM log");
-        i.putExtra(Intent.EXTRA_TEXT, text);
+        i.putExtra(Intent.EXTRA_SUBJECT, "SpongeBob EOTM log " + versionText());
+        i.putExtra(Intent.EXTRA_TEXT, sb.toString());
         startActivity(Intent.createChooser(i, "Share log"));
     }
 

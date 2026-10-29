@@ -30,3 +30,13 @@ Touch is the main control on the AYN Thor; the gamepad is a pointer. Code: `engi
   `OMT_PAD_LOG=1` logs the generated pointer events. With these hooks the pad tick is a fixed 1/60 s.
 - Verified: `SB_TEST_NEWGAME=1 SB_SKIP_MOVIES=1 SB_TEST_SCENE=c1l5s4 SB_TEST_ITEMS=...` fill mode 1280x540: R3 click on Larry starts his dialogue; A held while
   moving drags the Urchin Chip Pie from the bar onto Larry ("accepted"); a finger tap on Larry starts the dialogue; ASan/UBSan clean (fill, panels).
+
+## Reporting a problem (AYN Thor)
+
+1. Reproduce it, then quit the game (back to the launcher). The game writes `omt-log.txt` (SDL_Log output plus
+   a native crash backtrace) in `Android/data/com.sirbilliams.spongebob/files/`; the run before is kept as
+   `omt-log.prev.txt`.
+2. Launcher: Test > "Share log". The share sheet gets the app version (versionName + git commit), device and
+   Android info, and the current and previous log as text. Send it to Bill.
+3. Test > "App version" shows the version/commit; Test > "Reset settings" restores the launcher options
+   (widescreen, cursor, panel) without touching saves or the installed game.

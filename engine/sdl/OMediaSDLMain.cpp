@@ -160,7 +160,13 @@ int main(int argc, char **argv)
 	string data = omf_find_data_dir();
 #ifdef __ANDROID__
 	const char *ext = SDL_AndroidGetExternalStoragePath();
-	if (ext) omg_logfile = fopen((string(ext) + "/omt-log.txt").c_str(), "w");
+	if (ext)
+	{
+		// port: keep the previous run's log as omt-log.prev.txt (the launcher's "Share log" sends both)
+		string log = string(ext) + "/omt-log.txt";
+		rename(log.c_str(), (string(ext) + "/omt-log.prev.txt").c_str());
+		omg_logfile = fopen(log.c_str(), "w");
+	}
 #endif
 	if (!data.empty() && chdir(data.c_str()) != 0) SDL_Log("OMT: cannot open data folder %s", data.c_str());
 	SDL_Log("OMT: data folder %s (%s)", data.empty() ? "." : data.c_str(),
