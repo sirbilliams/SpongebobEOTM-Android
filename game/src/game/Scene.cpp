@@ -1,5 +1,6 @@
 #include "Scene.h"
 #include "Game.h"
+#include "World3D.h"
 #include "DialogueUI.h"
 #include "SceneScriptHost.h"
 #include <ctype.h>
@@ -232,7 +233,7 @@ SceneObject* GameScene::find(const char* name, int kindMask)
 void GameScene::enter(int startPoint)
 {
     game_->state().sceneId = sceneId_;
-    (void)startPoint;   // 3D: the player is placed at data().startPoints[startPoint] (0x437cf0 "here 1"..3)
+    if (game_->world3d()) game_->world3d()->enter(startPoint);       // 0x437cf0 "here 1".."3": the player to the start point
     refreshVisibility();                                // vt+0x100 at "here 4"
     game_->log("scene %s entered (start point %d)\n", name_.c_str(), startPoint);
     // "here 10a": the scene's own enter event, or the event left by the last movie / script (game+0x186)
@@ -269,7 +270,7 @@ void GameScene::show(const char* name)          // 0x438fa0
                 }
             }
         } else if (o->is3D() && strcmp(o->art.c_str(), name) == 0) {
-            game_->log("      3D: show %s -> element hide(false) on the 3D world's character\n", name);
+            if (game_->world3d()) game_->world3d()->setHidden(o, false);
         }
     }
 }
@@ -282,13 +283,14 @@ void GameScene::hide(const char* name)          // 0x439110
             if (o->elem && o->elem->get_hide_count() == 0) setHidden(o, true);
             if (o->kind == SceneObject::Anim2D) o->playing = false;      // vt+0xb4 also stops its sound
         } else if (o->is3D() && strcmp(o->art.c_str(), name) == 0) {
-            game_->log("      3D: hide %s -> element hide(true) on the 3D world's character\n", name);
+            if (game_->world3d()) game_->world3d()->setHidden(o, true);
         }
     }
 }
 
-void GameScene::refreshVisibility()             // 0x438ad0: the 2D part (CHAR / ITEM cases are the 3D world's)
+void GameScene::refreshVisibility()             // 0x438ad0
 {
+    if (game_->world3d()) game_->world3d()->refreshVisibility();      // the CHAR / ITEM cases
     for (size_t i = 0; i < objects_.size(); ++i) {
         SceneObject* o = objects_[i];
         if (!o->elem || o->visibleCond.empty()) continue;
@@ -388,7 +390,11 @@ SceneObject* GameScene::pick(int x, int y)      // 0x43a310, third pass
     return 0;
 }
 
-SceneObject* GameScene::hover(int x, int y) { return pick(x, y); }
+SceneObject* GameScene::hover(int x, int y)
+{
+    SceneObject* o = game_->world3d() ? game_->world3d()->pick(x, y) : 0;      // the 3D passes come first (0x43a310)
+    return o ? o : pick(x, y);
+}
 
 bool GameScene::pickEvent(SceneObject* o, bool fromClick)    // 0x415a70
 {
@@ -437,13 +443,14 @@ void GameScene::click(int x, int y)    // 0x4398f0 for 2D objects (the 3D passes
     // "if (runner != 0 && !runner->control) || shaking -> ignore"
     if ((r && !r->keepControl()) || lock_ > 0) return;
     game_->inputConsumed = false;
-    SceneObject* o = pick(x, y);
+    SceneObject* o = game_->world3d() ? game_->world3d()->pick(x, y) : 0;
+    if (!o) o = pick(x, y);
     if (!o) {
         game_->log("click %d,%d: nothing\n", x, y);
         return;
     }
     lastClicked_ = o;
-    game_->log("click %d,%d: %s '%s'\n", x, y, o->kind == SceneObject::Obj2D ? "2DOB" : o->kind == SceneObject::Anim2D ? "ANIM" : "SPOT", o->description.c_str());
+    game_->log("click %d,%d: %s '%s'\n", x, y, o->kind == SceneObject::Obj2D ? "2DOB" : o->kind == SceneObject::Anim2D ? "ANIM" : o->kind == SceneObject::Char ? "CHAR" : o->kind == SceneObject::Item ? "ITEM" : "SPOT", o->description.c_str());
     if (o->gridX && o->gridY && !game_->state().debugAll())
         game_->log("      3D: walk the player to grid %d,%d before the event (character vt+0x144)\n", o->gridX, o->gridY);
     if (o->kind == SceneObject::Anim2D) {

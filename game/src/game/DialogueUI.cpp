@@ -224,6 +224,7 @@ void DialogueUI::playLine()
 void DialogueUI::lineDone()
 {
     stopVoice();
+    game_->host()->speakersIdle();
     advance();
 }
 

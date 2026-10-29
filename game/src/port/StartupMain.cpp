@@ -11,6 +11,8 @@
 #include "OMediaSDLRetarget.h"
 #include "../ui/MainMenu.h"
 #include "../scene/SceneData.h"
+#include "../game/Game.h"
+#include "../game/SceneScriptHost.h"
 #include <stdexcept>
 #include "CrashLog.h"
 #include <stdio.h>
@@ -41,8 +43,10 @@ class StartupApp : public MenuHost
     OMediaDataBase *font_database;
     GameFont *font;
     RetailData retail;
+    bool start_game;          // New Game was chosen: the menu loop ends and the scene runtime starts
+    bool skip_movies;         // port: SB_SKIP_MOVIES=1, tests only
 
-	StartupApp()
+	StartupApp() : start_game(false), skip_movies(getenv("SB_SKIP_MOVIES") != NULL)
 	{
 		SDL_Log("0x4097d0: application constructor");
 		// register_object and cache=0 match OMT.dll; the shared implementation checks
@@ -129,17 +133,9 @@ class StartupApp : public MenuHost
         GrannyClose(granny_version);
         OMediaScreenDevice::setdefaultdevice(NULL);
     }
-    virtual bool menu_movie(const char *name) { return play_movie(SDL_GL_GetCurrentWindow(),name); }
-    virtual bool menu_new_game() {
-        if(!menu_movie("mintro")) return false;
-        sb::scene::Scene scene; std::string error;
-        if(sb::scene::load("scenes/c1l0s1.scn",scene,error))
-            SDL_Log("0x437210: c1l0s1 parsed (%lu bytes, %lu objects)",
-                (unsigned long)scene.bytesConsumed,(unsigned long)scene.elements.size());
-        else SDL_Log("0x437210: %s",error.c_str());
-        SDL_Log("TODO(0x40a230): instantiate c1l0s1 3D scene and script VM");
-        return true;
-    }
+    virtual bool menu_movie(const char *name) { return skip_movies ? true : play_movie(SDL_GL_GetCurrentWindow(),name); }
+    // 0x4248b0 -> 0x41c1c0 -> 0x40a090: New Game. The menu ends, then run_game() starts chapter 1 (intro movie, c1l0s1, its script).
+    virtual bool menu_new_game() { start_game = true; return true; }
     virtual void menu_settings_changed() {
         // port: persist 0x409ed0's registry settings under SDL's per-user directory.
         char *pref=SDL_GetPrefPath("THQ","SpongeBob 2");
@@ -213,6 +209,9 @@ class StartupApp : public MenuHost
 
 	void present(SDL_Window *win, GLuint texture)
 	{
+		// Scenes and the menu are drawn into the 640x480 screen canvas and scaled to the drawable by omgl_present
+		// (engine/sdl/OMediaSDLGfx.cpp, 4:3 centred); the mouse goes back through OMediaEventManager::window_to_logical.
+		// A widescreen mode is added in those two places.
 		// port: the movie is 640x480; scale it to the real drawable (1920x1080 on the Thor), 4:3 centred
 		// with black bars. A fixed 640x480 viewport drew it in the bottom-left corner.
 		int dw = 640, dh = 480;
@@ -272,7 +271,36 @@ class StartupApp : public MenuHost
 		return running;
 	}
 
+    // port: tests only. SB_TEST_CLICKS (menu loop) / SB_TEST_GAME_CLICKS (game loop) ="frame:x:y,..." send a click at logical 640x480 coordinates (as SDL window events, through
+    // the real event path) at that frame of the running loop.
+    void test_clicks(unsigned frame, const char *var) {
+        const char *replay=getenv(var);
+        SDL_Window *win=SDL_GL_GetCurrentWindow();
+        for(const char *p=replay;p && *p && win;) {
+            unsigned at; int x,y;
+            if(sscanf(p,"%u:%d:%d",&at,&x,&y)==3 && at==frame) {
+                int ww,wh; SDL_GetWindowSize(win,&ww,&wh);
+                float sc=(float)ww/640.0f<(float)wh/480.0f?(float)ww/640.0f:(float)wh/480.0f;
+                int px=(int)((ww-640*sc)*0.5f+(x+0.5f)*sc), py=(int)((wh-480*sc)*0.5f+(y+0.5f)*sc);
+                SDL_WarpMouseInWindow(win,px,py);
+                SDL_Event e; SDL_zero(e); e.type=SDL_MOUSEMOTION; e.motion.x=px; e.motion.y=py; SDL_PushEvent(&e);
+                e.type=SDL_MOUSEBUTTONDOWN; e.button.button=SDL_BUTTON_LEFT; e.button.x=px; e.button.y=py; SDL_PushEvent(&e);
+                e.type=SDL_MOUSEBUTTONUP; SDL_PushEvent(&e);
+            }
+            p=strchr(p,','); if(p) ++p;
+        }
+    }
+
     void main_menu(SDL_Window *win) {
+        for(;;) {
+            start_game=false;
+            if(!menu_loop(win) || !start_game) return;
+            if(!run_game(win)) return;
+        }
+    }
+
+    // false: quit the application
+    bool menu_loop(SDL_Window *win) {
         (void)win;
         OMediaFileStream stream;
         OMediaFilePath path("sb2.omt"); stream.setpath(&path); stream.open(omcfp_Read);
@@ -281,11 +309,13 @@ class StartupApp : public MenuHost
         click_dispatcher->get_click_broadcaster()->addlistener(&menu);
         SDL_ShowCursor(SDL_ENABLE);
         unsigned frame=0;
-        while(!menu.quit && !event_manager->quit_requested()) {
+        bool quit_app=false;
+        while(!menu.quit && !start_game) {
+            if(event_manager->quit_requested()) { quit_app=true; break; }
             SDL_Event ev;
             while(SDL_PollEvent(&ev)) {
                 event_manager->handle_sdl_event(&ev);
-                if(ev.type==SDL_MOUSEMOTION) menu.hover(ev.motion.x,ev.motion.y);
+                if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); menu.hover(x,y); }
                 if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE) menu.back();
             }
 #ifndef __ANDROID__
@@ -301,11 +331,69 @@ class StartupApp : public MenuHost
                 }
                 p=strchr(p,','); if(p) ++p;
             }
+            test_clicks(frame,"SB_TEST_CLICKS");
+            if(getenv("SB_TEST_NEWGAME") && frame==20) start_game=true;      // port: tests only
 #endif
             world->update(); ++frame; SDL_Delay(16);
         }
         click_dispatcher->get_click_broadcaster()->removelistener(&menu);
         SDL_Log("main menu: clean exit");
+        return !quit_app && !(menu.quit);
+    }
+
+    // The scene runtime (game/src/game): chapter 1 starts with the intro movie, then scene c1l0s1 and its script (sload1).
+    static void game_movie(const char *name, void *data) {
+        StartupApp *app=(StartupApp*)data;
+        char buf[64]; size_t n=0; while(name[n] && name[n]!=' ' && n<sizeof buf-1) { buf[n]=name[n]; ++n; } buf[n]=0;
+        if(!app->skip_movies) app->movie_ok=app->play_movie(SDL_GL_GetCurrentWindow(),buf) && app->movie_ok;
+        app->movie_done=true;      // the classifier continues with game->chained after the movie (game+0x186)
+    }
+    bool movie_ok, movie_done;
+
+    // false: quit the application; true: back to the menu
+    bool run_game(SDL_Window *win) {
+        (void)win;
+        sbgame::Game *game=new sbgame::Game;
+        bool result=true;
+        try {
+            if(!game->init(".",screen)) { SDL_Log("game: init failed"); delete game; return true; }
+            game->attachInput();
+            movie_ok=true; movie_done=false;
+            game->movieHook=game_movie; game->movieHookData=this;
+            game->logFile=getenv("SB_GAME_LOG")?stdout:NULL;
+            SDL_ShowCursor(SDL_ENABLE);
+            const char *first=getenv("SB_TEST_SCENE");
+            game->switchTo(first?first:"mintro c1l0s1");           // 0x40a230: movie, then the scene (game+0x186)
+            unsigned frame=0, last=0;
+            for(;;) {
+                if(event_manager->quit_requested()) { result=false; break; }
+                SDL_Event ev; bool leave=false;
+                while(SDL_PollEvent(&ev)) {
+                    event_manager->handle_sdl_event(&ev);
+                    if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); game->mouseMove(x,y); }
+                    if(ev.type==SDL_KEYDOWN && (ev.key.keysym.sym==SDLK_F10 || ev.key.keysym.sym==SDLK_AC_BACK)) leave=true;   // port: back to the menu
+                }
+                if(leave) break;
+                test_clicks(frame,"SB_TEST_GAME_CLICKS");
+                if(movie_done) {
+                    movie_done=false;
+                    if(!movie_ok) { result=false; break; }
+                    std::string c=game->chained; game->chained.clear();
+                    if(!c.empty()) game->switchTo(c.c_str());
+                }
+                unsigned now=SDL_GetTicks();
+                float dt=last?(float)(now-last):16.0f; last=now;
+                if(dt>66.0f) dt=66.0f;       // a slow frame must not skip a script
+                game->update(dt);
+                // port: no OMediaPeriodical::devote_time(): it updates the worlds a second time per frame (a black frame every few frames)
+                game->world()->update();
+                ++frame; SDL_Delay(10);
+            }
+        } catch(OMediaError &e) {
+            SDL_Log("game: OMT error %d at %s:%d",(int)e.errorcode,e.file.c_str(),e.line);
+        }
+        delete game;
+        return result;
     }
 
 	void run(void)
@@ -314,7 +402,7 @@ class StartupApp : public MenuHost
 		if (!win) return;
 
 		const char *chain[] = {"mlegal", "mthq", "mawe", "mnick", "mspongebob"};
-		for (unsigned i = 0; i < sizeof chain / sizeof chain[0]; ++i)
+		for (unsigned i = 0; i < sizeof chain / sizeof chain[0] && !skip_movies; ++i)
 			if (!play_movie(win, chain[i])) return;
 		main_menu(win);
 	}

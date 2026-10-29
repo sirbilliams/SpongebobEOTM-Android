@@ -6,8 +6,9 @@ manager (`omt1/OMediaSoundManager`, built here as library `omt1_sound`). Test: `
 (see the end). All addresses are in the retail `sb2.exe` (image base 0x400000). Nothing from the exe is stored here, every value comes from the
 player's files at run time. `// 3D:` marks every place that waits for lane A's 3D world and Granny characters.
 
-`game/src/game` is **not** part of the `spongebob` target (`list(FILTER SB_SRC ...)` in `engine/CMakeLists.txt`): `spongebob` still links the OMT 2.5
-`omt` library whose world/graphics headers clash with `omt1`'s. Merge the two engines, then drop the filter.
+`game/src/game` is part of the `spongebob` target (desktop and Android). One engine serves the game binary: the OMT 1.x layer
+(`omt1` + `omt1_sound`; the OMT 2.5 `omt` library is no longer linked by `spongebob`, the old `sb_audio` library is gone, its role is
+`omt1_sound`). See "Game binary" at the end.
 
 ## The classes of the exe and where they are
 | exe | here | notes |
@@ -84,7 +85,7 @@ the 3D stubs (a script waiting for a walk, rotate or character animation is woke
   a list or skips a line (0x413e90).
 * Playing a line (0x412d00): the voice is the Wave `%d%d%d%c%c%c` (chapter, level, scene, key letters) from the scene bank, tried in 7 case
   combinations (lower, UL U... order as in the exe); no voice: the line is shown for `max(1, len/14)` s and waits for a click. When the voice
-  ends the scene notify (0x439890) advances. The speaker plays "talk" (`// 3D:`).
+  ends the scene notify (0x439890) advances. The speaker plays "talk" (`World3D::talk`).
 * Advance (0x413c40): last line of a node: run its `action` (not `ANIM...`, longer than 3 chars) through `switchTo`; `n2` = 1 or an opening node:
   restart at the first line, 2: back to the last line with `n1 != 0`, else the node is finished (`stateB = 1`); progress is stored (0x416d30: group key,
   current key, two shorts, scene id); `n3 == 0` and not an exit: back to the list (a lone choice is taken, none left ends it), else the
@@ -111,3 +112,31 @@ runs (letterbox, transition open, 3D waits simulated, sounds, `show loading`, `s
 the customer (`event AAA` stands in for 3D character picking): opening statement, choice list, hover, click, lines with voice, Escape. Frames go to
 `.shots/f<frame>.bmp`. `SBT_STEPS="frame:click X Y,frame:move X Y,frame:key N,frame:scene NAME,frame:event NAME,frame:shot"` and `SBT_SCENE` replace
 the default run. ASan/UBSan: clean (only the known shared-core `OMediaRLEPacker.cpp:81` misaligned load).
+
+
+## 3D side (`World3D`, `game/src/game/World3D.{h,cpp}`)
+`World3D` is made by `Game::doSwitch` for every scene (before `GameScene::enter`) and holds what the exe's scene init (0x4033f0) builds: an
+`OMedia3DWorld` (camera focal / ambient / far / near from the camera record, no background, one GL rasterizer per process as 0x40ceb0), an
+`OMediaViewPort` at the camera position and angles, an `OMediaVPElement` linking it into the 2D world at z 100, the LITE lights, and for every CHAR /
+ITEM record an `OMedia3DGrannyModel` (`models/people|items/<name>_model`) + `OMedia3DShapeElement` at the record's x y z and rotation (`0x240`, units
+0x4000 = 360). Characters start with `<name>_idle1`. `World3D::update` (from `Game::update`): Granny clock, walks, rotations, pose copy, 3D render.
+* The scene's player start point (`pN`) moves the `User Controlled` character when the point is not all zero (c1l0s1's are zero: the CHAR position).
+* SceneScriptHost: `play` (one-shot `<name>_<anim>.grn`, waits until the Granny control expires, then back to idle1), `loop`, `talk` anim, `walk` / `run`
+  (straight line, 220 / 380 units per second, walk anim, facing from the direction), `move`, `rotate` (absolute heading, shortest way, 500 ms), `show` /
+  `hide` / Visible Condition on characters. The dialogue speaker loops `<name>_talk` while a line plays (`speakersIdle` on line end).
+* Picking: `OMedia3DVPModel` records the screen rectangle of each element's visible polygons in the last render (`get_element_bounds`); `World3D::pick`
+  returns the nearest clickable CHAR / ITEM whose rectangle holds the pointer. `GameScene::click` / `hover` ask it before the 2D objects (the exe's
+  3D passes come first, 0x43a310). A click on a character runs its `Event` through the classifier: the dialogue starts (no `event AAA` stand-in).
+* Simplified (port): walking is a straight line without the terrain grid (`walkgrid` finishes at once, grid cells are not decoded), no player walk
+  input / click-to-walk (a click on an object with a grid cell runs its event at once), walk speed is fixed instead of root motion, `moveY` / `climb` /
+  `attach` / `kick` / shadows / camera shake are not done (`attach`, `kick` only log), headings of walks assume heading 0 = facing -z.
+* Fonts: `Game` uses lane C's `GameFont` (0x414820..0x414fe0; `GlyphFont` is deleted).
+
+## Game binary
+* `StartupMain.cpp` `menu_new_game()` ends the menu loop; `run_game` makes a `Game` on the 640x480 screen canvas, `switchTo("mintro c1l0s1")` (movie, then
+  the chained scene: `Game::movieHook` plays the Bink movie and the loop then sends `game->chained`), runs `Game::update` + the 2D world update per frame (no `OMediaPeriodical::devote_time`: it updates the worlds a second time and shows black frames). F10 / Android Back return to the menu. Movies named by scripts (`M...`) go through the same hook.
+* **One place for scaling:** scenes and menu are drawn into the 640x480 canvas; `omgl_present` (engine/sdl/OMediaSDLGfx.cpp) scales it to the
+  drawable, 4:3 centred (the Thor's 1920x1080 gets bars); the pointer goes back through `OMediaEventManager::window_to_logical` (omt1/Input). A
+  widescreen mode is added in those two functions (and the 640x480 canvas / viewports' size), nowhere else. Bink movies scale in `StartupApp::present`.
+* Test env (desktop only): `SB_SKIP_MOVIES=1` (logos, menu movies, intro), `SB_TEST_NEWGAME=1` (New Game at menu frame 20), `SB_TEST_SCENE=<scene or
+  event>` (first target instead of the intro), `SB_TEST_CLICKS` / `SB_TEST_GAME_CLICKS="frame:x:y,..."` (logical-coordinate clicks sent as window events, frame numbers of the menu / game loop), `SB_GAME_LOG=1` (the runtime's log on stdout).

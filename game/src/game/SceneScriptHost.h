@@ -30,6 +30,8 @@ public:
     bool waitingOn3d() const { return wait3dMs_ > 0; }
     bool waitingAnim2d() const { return waitAnim_; }
     void anim2dFinished();               // an ANIM the script waits on has run to its end
+    void actorDone();                    // a walk / rotation / animation the script waits on has finished (World3D)
+    void speakersIdle();                 // the dialogue line ended: the speaker stops talking
     void talkFinished();                 // dialogue ended: wakes a script waiting in talk / narrate
     unsigned stubCalls() const { return stubCalls_; }
     // Game hooks
@@ -130,6 +132,7 @@ private:
     void arm3d(float ms) { wait3dMs_ = ms; }
     Game* g_;
     float wait3dMs_;
+    bool wait3d_;
     bool waitAnim_;
     unsigned stubCalls_;
     std::map<SceneObject*, sbscript::ScriptActor*> actors_;

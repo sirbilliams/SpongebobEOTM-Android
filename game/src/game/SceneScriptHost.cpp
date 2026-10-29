@@ -1,5 +1,6 @@
 #include "SceneScriptHost.h"
 #include "DialogueUI.h"
+#include "World3D.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -11,7 +12,7 @@ using sbscript::ScriptActor;
 using sbscript::ScriptSound;
 
 SceneScriptHost::SceneScriptHost(Game* g)
-    : sim3dMs(700.0f), g_(g), wait3dMs_(0), waitAnim_(false), stubCalls_(0), active_(0), uiMs_(0)
+    : sim3dMs(700.0f), g_(g), wait3dMs_(0), wait3d_(false), waitAnim_(false), stubCalls_(0), active_(0), uiMs_(0)
 {
 }
 
@@ -53,6 +54,7 @@ void SceneScriptHost::resetForScene()
     actors_.clear();
     active_ = 0;
     wait3dMs_ = 0;
+    wait3d_ = false;
     waitAnim_ = false;
     uiMs_ = 0;
 }
@@ -71,13 +73,23 @@ void SceneScriptHost::sceneLoaded()
     }
 }
 
-void SceneScriptHost::commentTalk() { if (active_) stub("character %s vt+0xc0(\"talk\") for the comment", an(active_)); }
-void SceneScriptHost::dialogueStarted() { if (active_) stub("character %s control off (char+0x32a = 0)", an(active_)); }
-void SceneScriptHost::controlLostToScript(const char* name) { if (active_) stub("script %s: character %s control off", name, an(active_)); }
+void SceneScriptHost::commentTalk() { if (active_ && g_->world3d()) g_->world3d()->oneShotAnim(active_->obj, "talk"); }    // vt+0xc0("talk")
+void SceneScriptHost::dialogueStarted() {}      // char+0x32a = 0: the player has no walk input in this port yet
+void SceneScriptHost::controlLostToScript(const char* name) { (void)name; }
 void SceneScriptHost::speakerStarted(SceneObject* a, const char* name)
 {
-    stub("speaker %s plays \"talk\" (character vt+0xc0)%s", name, a ? "" : " [no such character]");
+    (void)name;
+    if (!g_->world3d()) return;
+    g_->world3d()->talkAll(false);               // the previous speaker stops
+    if (a) g_->world3d()->talk(a, true);
 }
+
+void SceneScriptHost::actorDone()
+{
+    if (wait3d_) { wait3d_ = false; g_->wake(); }
+}
+
+void SceneScriptHost::speakersIdle() { if (g_->world3d()) g_->world3d()->talkAll(false); }
 
 void SceneScriptHost::update(float dt)
 {
@@ -98,6 +110,7 @@ void SceneScriptHost::anim2dFinished()
 
 void SceneScriptHost::talkFinished()
 {
+    speakersIdle();
     sbscript::ScriptRunner* r = g_->runner();
     if (r && r->waitingTalk()) g_->wake();       // 0x411ba0
 }
@@ -133,47 +146,68 @@ ScriptActor* SceneScriptHost::findActor(const char* name)
 {
     return g_->scene() ? actorFor(g_->scene()->find(name, 1 << SceneObject::Char)) : 0;
 }
-void SceneScriptHost::actorBeginScript(ScriptActor* a) { stub("actorBeginScript(%s): char+0x37c=0 +0x3cc=0 +0x358=0", an(a)); }
-void SceneScriptHost::actorSetControl(ScriptActor* a, bool on) { stub("%s control %s", an(a), on ? "on" : "off"); }
+void SceneScriptHost::actorBeginScript(ScriptActor* a) { (void)a; }      // char+0x37c = 0, +0x3cc = 0, +0x358 = 0: no walk state to reset
+void SceneScriptHost::actorSetControl(ScriptActor* a, bool on) { (void)a; (void)on; }   // char+0x32a: player walk input is not in this port yet
 bool SceneScriptHost::actorWalk(ScriptActor* a, float x, float y, int flag, int gx, int gy)
 {
-    stub("%s walk to %g,%g (flag %d grid %d,%d): character vt+0x144", an(a), x, y, flag, gx, gy);
-    if (a && a->obj) { a->obj->px = x; a->obj->pz = y; }
-    arm3d(sim3dMs);
-    return true;
+    (void)flag;
+    if (!a || !a->obj) return false;
+    if (gx >= 0 && gy >= 0) { stub("%s walkgrid %d,%d: simplified, the grid is not reconstructed (stays)", an(a), gx, gy); return false; }
+    World3D* w = g_->world3d();
+    if (w && w->hasModel(a->obj)) {
+        bool wait = w->walk(a->obj, x, y, false);
+        if (wait) wait3d_ = true;
+        return wait;
+    }
+    a->obj->px = x; a->obj->pz = y;
+    return false;
 }
-void SceneScriptHost::actorPrepareWalkGrid(ScriptActor* a) { stub("%s prepare walk grid (vt+0xfc)", an(a)); }
-void SceneScriptHost::actorSetRunning(ScriptActor* a) { stub("%s running", an(a)); }
+void SceneScriptHost::actorPrepareWalkGrid(ScriptActor* a) { (void)a; }
+void SceneScriptHost::actorSetRunning(ScriptActor* a) { (void)a; }      // port: walk() above has no run flag; the speed stays the walk speed
 void SceneScriptHost::actorPosition(ScriptActor* a, float* x, float* y, float* z)
 {
     if (a && a->obj) { *x = a->obj->px; *y = a->obj->py; *z = a->obj->pz; }
     else *x = *y = *z = 0;
 }
-void SceneScriptHost::actorReposition(ScriptActor* a, float x, float z) { stub("%s reposition %g,%g (vt+0x178)", an(a), x, z); }
-void SceneScriptHost::actorMove(ScriptActor* a, float x, float y) { stub("%s move %g,%g (vt+0x148)", an(a), x, y); if (a && a->obj) { a->obj->px = x; a->obj->pz = y; } }
-void SceneScriptHost::actorMoveY(ScriptActor* a, float y) { stub("%s moveY %g (vt+0x14c)", an(a), y); }
+void SceneScriptHost::actorReposition(ScriptActor* a, float x, float z) { actorMove(a, x, z); }
+void SceneScriptHost::actorMove(ScriptActor* a, float x, float y)
+{
+    if (!a || !a->obj) return;
+    if (g_->world3d() && g_->world3d()->hasModel(a->obj)) g_->world3d()->moveTo(a->obj, x, y);
+    else { a->obj->px = x; a->obj->pz = y; }
+}
+void SceneScriptHost::actorMoveY(ScriptActor* a, float y) { (void)a; (void)y; stub("moveY (vt+0x14c): not done"); }
 void SceneScriptHost::actorMoveGrid(ScriptActor* a, int gx, int gy) { stub("%s moveGrid %d,%d (vt+0x150)", an(a), gx, gy); }
 void SceneScriptHost::actorClimb(ScriptActor* a, float h) { stub("%s climb %g (vt+0x154)", an(a), h); }
-bool SceneScriptHost::actorRotate(ScriptActor* a, int angle, int time) { stub("%s rotate %d in %d (vt+0x13c)", an(a), angle, time); arm3d(sim3dMs); return true; }
-void SceneScriptHost::actorIdle(ScriptActor* a, float seconds) { stub("%s idle %g s (vt+0x168)", an(a), seconds); arm3d(seconds * 1000.0f); }
+bool SceneScriptHost::actorRotate(ScriptActor* a, int angle, int time)
+{
+    if (!a || !g_->world3d() || !g_->world3d()->hasModel(a->obj)) return false;
+    bool wait = g_->world3d()->rotate(a->obj, angle, time);
+    if (wait) wait3d_ = true;
+    return wait;
+}
+void SceneScriptHost::actorIdle(ScriptActor* a, float seconds) { (void)a; arm3d(seconds * 1000.0f); }      // vt+0x168: the actor idles for `seconds`
 void SceneScriptHost::actorAttach(ScriptActor* a, const char* o, const char* b1, const char* b2) { stub("%s attach %s %s %s (vt+0x12c)", an(a), o, b1, b2); }
 void SceneScriptHost::actorDetach(ScriptActor* a) { stub("%s detach (vt+0x130)", an(a)); }
 void SceneScriptHost::actorHideAttach(ScriptActor* a) { stub("%s hide attached object", an(a)); }
 void SceneScriptHost::actorShowAttach(ScriptActor* a) { stub("%s show attached object", an(a)); }
 bool SceneScriptHost::actorPlayAnim(ScriptActor* a, const char* name, bool wait, double speed)
 {
-    stub("%s play anim %s wait=%d speed=%g (character vt+0xb8)", an(a), name, wait ? 1 : 0, speed);
-    if (wait) arm3d(sim3dMs);
-    return wait;
+    World3D* w = g_->world3d();
+    if (!a || !w) return false;
+    bool r = w->playAnim(a->obj, name, wait, speed);
+    if (r) wait3d_ = true;
+    else if (!w->hasModel(a->obj) || !w->exists(w->actorFor(a->obj), name)) stub("%s play anim %s: no such animation / model", an(a), name);
+    return r;
 }
-void SceneScriptHost::actorLoopAnim(ScriptActor* a, const char* name) { stub("%s loop anim %s (vt+0xb4)", an(a), name); }
-void SceneScriptHost::actorTalkAnim(ScriptActor* a) { stub("%s talk anim (vt+0xc0)", an(a)); }
-void SceneScriptHost::actorOneShotAnim(ScriptActor* a, const char* name) { stub("%s one-shot anim %s (vt+0xb4)", an(a), name); }
+void SceneScriptHost::actorLoopAnim(ScriptActor* a, const char* name) { if (a && g_->world3d()) g_->world3d()->loopAnim(a->obj, name); }
+void SceneScriptHost::actorTalkAnim(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->talk(a->obj, true); }
+void SceneScriptHost::actorOneShotAnim(ScriptActor* a, const char* name) { if (a && g_->world3d()) g_->world3d()->oneShotAnim(a->obj, name); }
 void SceneScriptHost::actorKick(ScriptActor* a) { stub("%s kick (vt+0x16c)", an(a)); arm3d(sim3dMs); }
 bool SceneScriptHost::actorGoal(ScriptActor* a) { stub("%s goal? (vt+0x174)", an(a)); return false; }
 bool SceneScriptHost::actorGoalMissed(ScriptActor* a) { stub("%s goal missed? (vt+0x188)", an(a)); return false; }
-void SceneScriptHost::actorStopWalk(ScriptActor* a) { stub("%s stop walking (vt+0x184)", an(a)); }
-void SceneScriptHost::actorShadow(ScriptActor* a, bool on) { stub("%s shadow %d", an(a), on ? 1 : 0); }
+void SceneScriptHost::actorStopWalk(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->stopWalk(a->obj); }
+void SceneScriptHost::actorShadow(ScriptActor* a, bool on) { (void)a; (void)on; }      // port: no blob shadows yet
 void SceneScriptHost::actorSetTexture(ScriptActor* a, const char* t) { stub("%s texture %s (vt+0xf0)", an(a), t); }
 void SceneScriptHost::swapPlayerHelmet() { stub("swapchar: sb <-> sbhelm"); }
 void SceneScriptHost::shockEffect() { stub("shock: 2D object \"elec\" at the player's screen position"); }

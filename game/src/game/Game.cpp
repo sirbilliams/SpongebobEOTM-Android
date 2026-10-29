@@ -1,6 +1,8 @@
 #include "Game.h"
 #include "DialogueUI.h"
 #include "SceneScriptHost.h"
+#include "World3D.h"
+#include "../port/CompanionFeed.h"
 #include "OMediaFilePath.h"
 #include "OMediaSoundManager.h"
 #include "OMediaEventManager.h"
@@ -8,6 +10,7 @@
 #include "OMediaRGBColor.h"
 #include "OMediaCanvas.h"
 #include "OMediaError.h"
+#include <exception>
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -49,7 +52,7 @@ bool OmtFile::open(const std::string& file)
 
 // ------------------------------------------------------------------------------------------- Game
 Game::Game()
-    : movieHook(0), movieHookData(0), inputConsumed(false), letterboxIn(false), logFile(stdout), world_(0), vp_(0), font_(0), scene_(0), pending_(0),
+    : movieHook(0), movieHookData(0), inputConsumed(false), letterboxIn(false), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
       pendingId_(0), pendingStart_(0), runner_(0), host_(0), hoverCap_(0), commentCap_(0), commentMs_(0), mx_(320), my_(240),
       inputAttached_(false), commentBlock_(0), commentVoice_(false)
 {
@@ -66,12 +69,15 @@ Game::~Game()
     delete commentBlock_;
     delete hoverCap_;
     delete commentCap_;
+    delete w3_;
+    w3_ = 0;
     delete scene_;
     scene_ = 0;
     delete host_;
     delete vp_;
     delete world_;
     delete font_;
+    delete retail_;
 }
 
 void Game::log(const char* fmt, ...)
@@ -90,7 +96,8 @@ bool Game::init(const std::string& root, OMediaCanvas* canvas)
     omd_REGISTERCLASS(OMediaSound);
     if (!sb2_.open(root + "/sb2.omt")) { log("cannot open sb2.omt\n"); return false; }
     if (!fontDb_.open(root + "/Font.omt")) { log("cannot open Font.omt\n"); return false; }
-    font_ = new GlyphFont(fontDb_.db);
+    try { retail_ = new RetailData(root + "/sb2.exe"); } catch (std::exception&) { log("cannot read sb2.exe\n"); return false; }
+    font_ = new GameFont(fontDb_.db, *retail_);          // lane C's font class (0x414820..0x414fe0)
     world_ = new OMedia2DWorld;
     world_->set_framerate_mode(omfrc_Max);        // port: the headless test draws at every update
     OMediaRGBColor black(0, 0, 0);
@@ -200,6 +207,8 @@ void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without 
     pendingId_ = 0;
     delete runner_; runner_ = 0;                // the runner belongs to the scene (scene+0x1c7c)
     host_->resetForScene();
+    delete w3_;
+    w3_ = 0;
     delete scene_;
     scene_ = 0;
     int chapter = (int)(id & 0xf);
@@ -207,6 +216,8 @@ void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without 
     state_.sceneId = id;
     if (!s->load(id)) { log("Couldn't find scene in DoSwitch ()\n"); delete s; return; }
     scene_ = s;
+    w3_ = new World3D(this, s);                 // 0x4033f0: the scene's 3D world and characters
+    if (!w3_->ok() || getenv("SB_NO3D")) { delete w3_; w3_ = 0; }
     state_.chapter = chapter;
     loadSceneBanks(id);
     std::string err;
@@ -374,11 +385,13 @@ void Game::update(float dt)
     scene_->update(dt);
     if (scene_->dialogue()) scene_->dialogue()->update(dt);
     host_->update(dt);
+    if (w3_) w3_->update(dt);
     if (runner_) {
         if (runner_->idleElapsed(dt)) wake();                 // idle without an actor (0x43d650)
         else if (runner_ && runner_->soundDone()) wake();     // sound wait (0x43d6e0)
     }
     updateComment(dt);
+    sbport::companionTick(this, dt);   // port: companion
     // the hover description follows the cursor (game cursor object +0x88, vt+0x30)
     std::string h;
     if (!(scene_->dialogue() && scene_->dialogue()->busy()) && !runner_) {

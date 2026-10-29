@@ -44,6 +44,7 @@ public:
     void enter(int startPoint);                  // 0x437cf0: the player goes to the scene's start point
 
     Actor3D* actorFor(SceneObject* o);
+    bool exists(Actor3D* a, const char* name);
     bool hasModel(SceneObject* o) { return actorFor(o) != 0; }
     // character commands (the char object's vtable slots named in ScriptHost.h); true = the script waits (wakeFinished())
     bool playAnim(SceneObject* o, const char* name, bool wait, double speed);   // vt+0xb8
@@ -65,7 +66,6 @@ public:
 private:
     friend class SceneScriptHost;
     void setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m);
-    bool exists(Actor3D* a, const char* name);
     void place(Actor3D* a);
     void finished(Actor3D* a);
     std::string animPath(Actor3D* a, const char* name);

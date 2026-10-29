@@ -7,8 +7,10 @@ static unsigned long le(const std::vector<unsigned char>& b, size_t p, size_t n)
     for(size_t i=0;i<n;++i) v |= (unsigned long)b[p+i] << (8*i);
     return v;
 }
-RetailData::RetailData() {
-    FILE *f=fopen("sb2.exe","rb");
+RetailData::RetailData() { load("sb2.exe"); }
+RetailData::RetailData(const std::string &path) { load(path.c_str()); }
+void RetailData::load(const char *path) {
+    FILE *f=fopen(path,"rb");
     if(!f) throw std::runtime_error("sb2.exe: required retail data tables missing");
     unsigned char b[4096]; size_t n;
     while((n=fread(b,1,sizeof b,f))!=0) file.insert(file.end(),b,b+n);

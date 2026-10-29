@@ -3,7 +3,7 @@
     caption and the mouse input of the scene.  The interpreter itself is game/src/script.  */
 #pragma once
 #include "GameState.h"
-#include "GlyphFont.h"
+#include "../ui/GameFont.h"
 #include "DialogueUI.h"
 #include "Scene.h"
 #include "../script/ScriptRunner.h"
@@ -25,6 +25,7 @@ namespace sbscript { class ScriptHost; }
 namespace sbgame {
 
 class SceneScriptHost;
+class World3D;
 
 // A file-backed OMT database kept open (the exe keeps them for the whole scene).
 struct OmtFile {
@@ -63,6 +64,7 @@ public:
     // wake the scene's script after a wait (scene vt+0xe0 = 0x43aa80: do step() while no wait; delete when finished)
     void wake();
     GameScene* scene() { return scene_; }
+    World3D* world3d() { return w3_; }
     OMedia2DWorld* world() { return world_; }
     OMediaViewPort* viewport() { return vp_; }
     OMediaDataBase* sb2Db() { return sb2_.db; }
@@ -116,7 +118,9 @@ private:
     OMedia2DWorld* world_;
     OMediaViewPort* vp_;
     OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_;
-    GlyphFont* font_;
+    RetailData* retail_;
+    GameFont* font_;
+    World3D* w3_;
     GameScene* scene_;
     GameScene* pending_;
     unsigned pendingId_;          // game+0x158: scene requested (nonzero: a switch is pending)

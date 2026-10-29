@@ -6,9 +6,11 @@
 class RetailData {
 public:
     RetailData();
+    explicit RetailData(const std::string &path);   // port: the player's sb2.exe at `path`
     unsigned long word(unsigned long address) const;
     std::string text(unsigned long address) const;
 private:
+    void load(const char *path);
     std::vector<unsigned char> file;
     size_t offset(unsigned long address) const;
 };

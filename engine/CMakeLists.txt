@@ -207,7 +207,7 @@ else()
 
   # The 2D scene runtime (game/src/game: scene, dialogue UI, ScriptHost) on the OMT 1.x layer, headless
   file(GLOB SB_GAME_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/game/*.cpp)
-  add_executable(sb_scenetest tests/sb_scenetest.cpp ${SB_GAME_SRC}
+  add_executable(sb_scenetest tests/sb_scenetest.cpp ${SB_GAME_SRC} ../game/src/ui/GameFont.cpp ../game/src/ui/RetailData.cpp ../game/src/port/Companion.cpp
     ../game/src/script/Sb2File.cpp ../game/src/script/ScriptRunner.cpp ../game/src/script/ScriptCondition.cpp ../game/src/script/Dialogue.cpp
     ../game/src/scene/SceneData.cpp ../game/src/scene/SceneReader.cpp ${OMT_MAIN})
   target_include_directories(sb_scenetest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/game)
