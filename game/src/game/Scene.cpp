@@ -301,8 +301,10 @@ void GameScene::enter(int startPoint)
         game_->chained.clear();
     }
     game_->state().markScene(sceneId_);                 // 0x416a60(scene id): "cXlYsZ" conditions see it from now on
-    // "here 12": scenes without a level (and the loading kind) hide the "loading" object
-    if ((sceneId_ & 0xf00) == 0) hide("loading");
+    // "here 11": after a script's `letterbox in` (game+0x25c) every scene opens with the transition (vt+0x138)
+    if (game_->letterboxIn) transitionOpen();
+    // "here 12": the map (level 1, vt+0xd0 0x437140) and the scenes without a level hide the "loading" object
+    if ((sceneId_ & 0xf00) == 0x100 || (sceneId_ & 0xf00) == 0) hide("loading");
     lock_ = 500.0f;     // 0x437cf0 "here 16": param_1[0x735] = 500.0
 }
 
