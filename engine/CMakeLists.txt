@@ -95,7 +95,7 @@ add_library(omt1 STATIC ${OMT1_LAYER_SRC} ${OMT1_SHARED_SRC} sdl/OMediaSDLCore.c
 target_include_directories(omt1 PUBLIC ${OMT1_INC} sdl ${SDL2_INCLUDE_DIRS} ${OMT_GL_INC})
 target_compile_definitions(omt1 PUBLIC OMT1_ENGINE OMD_SDL_NO_GL_WRAP GL_GLEXT_PROTOTYPES)
 target_compile_options(omt1 PRIVATE -Wno-deprecated -Wno-write-strings -Wno-multichar -Werror=int-to-pointer-cast -fno-strict-aliasing)
-target_link_libraries(omt1 PUBLIC ${OMT_SDL} ${OMT_GL_LIBS} ZLIB::ZLIB)
+target_link_libraries(omt1 PUBLIC ${OMT_SDL} ${OMT_GL_LIBS} ZLIB::ZLIB granny_compat)   # granny_compat: omt1/3D/OMedia3DGrannyModel
 if(OMT_GL4ES)
   target_compile_definitions(omt1 PUBLIC OMT_USE_GL4ES)
 endif()
@@ -179,6 +179,11 @@ else()
   target_compile_options(omt1_view PRIVATE -Wno-multichar)
 
   # OMT.dll's 2D UI elements (box, caption, string field, viewport element), event manager and click dispatcher
+  # 3D path + Granny characters over a scene's 2D background (omt1_3d_test <game dir> [scene] [shot dir])
+  add_executable(omt1_3d_test tests/omt1_3d_test.cpp ../game/src/scene/SceneData.cpp ../game/src/scene/SceneReader.cpp ${OMT_MAIN})
+  target_link_libraries(omt1_3d_test omt1)
+  target_compile_options(omt1_3d_test PRIVATE -Wno-multichar)
+
   add_executable(omt1_ui_test tests/omt1_ui_test.cpp ${OMT_MAIN})
   target_link_libraries(omt1_ui_test omt1)
   target_compile_options(omt1_ui_test PRIVATE -Wno-multichar)

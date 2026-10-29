@@ -13,6 +13,9 @@ OMediaGfxWorldFactory::OMediaGfxWorldFactory()
 	forced_builder = NULL;
 	register_gfxworld(OMediaPixBlitterWorld::builder, 0x22f, -1);
 	register_gfxworld(OMediaPixmapWorld::builder, 0x2ad, -2);
+	// port: the textures of the 3D materials (attributes 0x100c) are memory worlds too; the GL rasterizer (engine 1,
+	// 3D/OMedia3DRasterizerDesc.cpp) uploads their pixels. OMT.dll registers its software/D3D texture worlds per engine.
+	register_texture(OMediaPixmapWorld::builder, 1);
 }
 
 OMediaGfxWorldFactory::~OMediaGfxWorldFactory() {}		// 0x10068ed0
