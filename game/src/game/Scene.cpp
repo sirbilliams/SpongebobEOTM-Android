@@ -284,6 +284,15 @@ void GameScene::enter(int startPoint)
     if (game_->world3d()) game_->world3d()->enter(startPoint);       // 0x437cf0 "here 1".."3": the player to the start point
     refreshVisibility();                                // vt+0x100 at "here 4"
     game_->log("scene %s entered (start point %d)\n", name_.c_str(), startPoint);
+    if (getenv("SB_TEST_DUMPOBJS")) {        // port: tests only: every object of the scene with its events (route planning)
+        static const char* kn[] = { "2DOB", "ANIM", "SPOT", "ITEM", "CHAR", "TRIG" };
+        for (size_t i = 0; i < objects_.size(); ++i) {
+            SceneObject* o = objects_[i];
+            game_->log("OBJ %s '%s' desc='%s' rect=%d,%d,%d,%d grid=%d,%d ev='%s' cond='%s' alt='%s' acc='%s' iev='%s' wrong='%s' have='%s' vis='%s' click=%d pick=%d addinv=%d rad=%g xyz=%g,%g,%g\n",
+                       kn[o->kind], o->art.c_str(), o->description.c_str(), o->x1, o->y1, o->x2, o->y2, o->gridX, o->gridY, o->event.c_str(), o->condition.c_str(),
+                       o->altEvent.c_str(), o->itemAccept.c_str(), o->itemEvent.c_str(), o->wrongItemEvent.c_str(), o->haveItemEvent.c_str(), o->visibleCond.c_str(), o->clickable, o->pickup, o->addInv, o->radius, o->px, o->py, o->pz);
+        }
+    }
     // "here 10a": the scene's own enter event, or the event left by the last movie / script (game+0x186)
     if (game_->chained.empty()) {
         if (!enterEvent_.empty()) {

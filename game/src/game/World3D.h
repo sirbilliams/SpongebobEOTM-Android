@@ -91,7 +91,6 @@ public:
     void blockCell(int x, int z, bool blocked);
     bool clickFloor(int x, int y, SceneObject* target = 0);      // 0x4398f0 tail: walk to the floor point under x,y
     bool turnToward(SceneObject* o, Actor3D* to);                // o's vt+0x13c toward `to` (500)
-    bool approach(SceneObject* target);
     void setRunning(SceneObject* o);
     void stopWalk(SceneObject* o);                                              // vt+0x184
     void moveTo(SceneObject* o, float x, float z);                              // vt+0x148 (no animation)

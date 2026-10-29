@@ -1,0 +1,252 @@
+# Chapter 2 route (docs/chapter2.md), for SB_TEST_PLAYTHROUGH
+scene c2l2s7
+idle
+shot 00-c2l2s7-start
+click "Enter The Bus Station"
+scene c2l2s1
+idle
+shot 01-c2l2s1-station
+click "Walk to Window"
+scene c2l2s2
+idle
+shot 02-c2l2s2-window
+talk teller AAA ADA AEA AXA
+idle
+expect 222ADA
+click "Walk to Waiting Area"
+scene c2l2s1
+click "Exit The Bus Station"
+scene c2l2s7
+idle
+click "Walk Up Road"
+scene c2l2s4
+idle
+shot 03-c2l2s4-road
+click "Walk to The Bus Stop"
+scene c2l2s5
+idle
+shot 04-c2l2s5-leon
+talk leon AAA ABA ACA AXA
+grab ikc1
+idle
+shot 05-c2l2s5-after
+have ikc1
+click "Walk Down Road"
+scene c2l2s4
+idle
+click "Walk Down Road"
+scene c2l2s3
+idle
+shot 06-c2l2s3-storm
+click "Enter Restrooms"
+idle
+have iqu1
+shot 07-c2l2s3-quarter
+click "Walk Up Road"
+scene c2l2s4
+idle
+click "Walk to Machine"
+scene c2l2s6
+idle
+shot 08-c2l2s6-machine
+use iqu1 "Candy Machine"
+idle
+have ikb1
+shot 09-c2l2s6-kelpbar
+click "Walk Down Road"
+scene c2l2s4
+idle
+click "Walk to The Bus Station"
+scene c2l2s7
+idle
+click "Enter The Bus Station"
+scene c2l2s1
+idle
+click "Walk to Window"
+scene c2l2s2
+idle
+use ikb1 teller
+idle
+expect 222BAA
+shot 10-c2l2s2-unlock
+map
+scene c2l1s1
+idle
+shot 11-c2l1s1-map
+click chap202
+scene c2l4s1
+idle
+shot 12-c2l4s1-wsea
+click "Walk Behind the Scenes"
+scene c2l4s9
+idle
+shot 13-c2l4s9-meanwhile
+scene c2l4s2
+idle
+shot 14-c2l4s2-jojo
+talk jojo AAA ACA ACA AXA
+idle
+expect 242ACA
+map
+scene c2l1s1
+idle
+shot 15-c2l1s1-map2
+click chap203
+scene c2l3s1
+idle
+shot 16-c2l3s1-rusty
+click "Walk to Parking Lot"
+scene c2l3s2
+idle
+shot 17-c2l3s2-parking
+talk bb AAA ABA ACA AXA
+idle
+talk mm BAA BBA BXA
+idle
+click "Walk to The Rusty Anchor"
+scene c2l3s1
+idle
+click "Enter The Rusty Anchor"
+scene c2l3s3
+idle
+shot 18-c2l3s3-bar
+talk mack AAA ABA ACA ADA
+idle
+click "Walk to Pictures"
+scene c2l3s4
+idle
+shot 19-c2l3s4-pictures
+click iem1
+idle
+have iem1
+click "Walk to Cola Bar"
+scene c2l3s3
+idle
+click "Walk to Kegs"
+scene c2l3s5
+idle
+shot 20-c2l3s5-kegs
+use iem1 "Diet Coral-Cola Spout"
+idle
+have ifm1
+combine ifm1 ikc1
+idle
+have ikc2
+shot 21-c2l3s5-fullcan
+click "Exit Kegs"
+scene c2l3s3
+idle
+click "Exit The Rusty Anchor"
+scene c2l3s1
+idle
+map
+scene c2l1s1
+idle
+click chap202
+scene c2l4s1
+idle
+click "Walk Behind the Scenes"
+scene c2l4s2
+idle
+use ikc2 jojo
+idle
+shot 22-c2l4s2-jojo-drink
+expect 242CAA
+click itb1
+idle
+have itb1
+shot 23-toolbox
+click "Walk to WSEA Entrance"
+scene c2l4s1
+idle
+click "Enter WSEA TV"
+scene c2l4s3
+idle
+shot 24-reception
+use itb1 tiff
+idle
+shot 25-tiff
+expect BAA
+click "Enter News Room"
+scene c2l4s4
+idle
+shot 26-newsroom
+talk garyg AAA ACA AXA
+idle
+shot 27-gary
+click "Mega Screen 2000 Controls"
+idle
+shot 28-megascreen
+expect smegascreen
+save 0
+map
+scene c2l1s1
+idle
+shot 30-c2l1s1-map3
+click chap204
+scene c2l5s8
+idle
+shot 31-c2l5s8-skull
+click "Walk to Other Side"
+scene c2l5s1
+idle
+click "Enter Magic Hat"
+scene c2l5s2
+idle
+shot 32-c2l5s2-hat
+click "Walk to Slot Machine"
+scene c2l5s3
+idle
+shot 33-c2l5s3-slots
+spin
+scene c2l5s2
+shot 34-c2l5s2-drapes
+scene c2l5s3
+idle
+shot 34b-c2l5s3-return
+click "Exit Slot Machine"
+scene c2l5s2
+idle
+click "Walk through Curtain"
+scene c2l5s4
+idle
+shot 35-c2l5s4-maze
+maze
+maze
+maze
+scene c2l5s5
+idle
+shot 36-c2l5s5-patrick
+save 0
+click "Walk Up Stairs"
+idle
+shot 37-c2l5s5-upstairs
+click "Walk to Marlin"
+scene c2l5s6
+idle
+shot 38-c2l5s6-marlin
+talk marlin AAA ABA ACA ADA AXA
+idle
+have imw1
+shot 39-c2l5s6-wand
+save 0
+map
+scene c2l1s1
+idle
+click chap202
+scene c2l4s1
+idle
+click "Enter WSEA TV"
+scene c2l4s3
+idle
+shot 40-c2l4s3-reception
+use imw1 "Control Room"
+idle
+scene c2l4s6
+idle
+shot 41-c2l4s6-control
+click "Fiddle With Weather Controls"
+scene c3l0s1
+idle
+shot 42-c3l0s1-chapter3
+end

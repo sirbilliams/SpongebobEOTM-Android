@@ -2,6 +2,7 @@
 #include <strings.h>
 #include "Game.h"
 #include "SceneScriptHost.h"
+#include "Hud.h"
 #include "OMediaEventManager.h"
 #include <ctype.h>
 #include <stdlib.h>
@@ -301,6 +302,7 @@ void DialogueUI::storeProgress(DialogueGroup& g)
 void DialogueUI::stop()
 {
     bool wasActive = active_;
+    const std::string selKey = (cur_ >= 0 && cur_ < (int)groups_.size()) ? groups_[cur_].key : std::string();   // +0x0c: the group the exe still points at
     stopVoice();
     active_ = false; choice_ = false; exiting_ = false; zOpen_ = false; cur_ = -1;
     curText_.clear(); curSpeaker_.clear();
@@ -309,6 +311,19 @@ void DialogueUI::stop()
     if (wasActive) {
         game_->log("dialogue ended\n");
         game_->host()->talkFinished();
+    }
+    // 0x411ba0 tail: the conversations the game itself finishes (scene id = scene<<16 | level<<8 | chapter, the group key compared
+    // case-insensitively, 0x44b2d0)
+    if (selKey.empty() || !game_->scene()) return;
+    unsigned id = game_->state().sceneId;
+    if (id == 0x30302 && strcasecmp(selKey.c_str(), "ADA") == 0) game_->switchTo("smack");              // c2l3s3: Mack leaves the bar
+    if (id == 0x40203 && strcasecmp(selKey.c_str(), "AAA") == 0) game_->switchTo("sstellawalk");        // c3l2s4
+    if (id == 0x80404 && strcasecmp(selKey.c_str(), "ABA") == 0) game_->switchTo("stransition2");       // c4l4s8
+    if (id == 0x60502 && strcasecmp(selKey.c_str(), "ADA") == 0 && game_->hud()) {                       // c2l5s6: Marlin gives the Magic Wand
+        if (!game_->state().hasItem("imw1")) {
+            game_->hud()->addItem("imw1", "Magic Wand");
+            game_->state().giveItem("imw1");                                                          // 0x4169a0
+        }
     }
 }
 

@@ -565,6 +565,7 @@ bool World3D::walkTo(SceneObject* target, float x, float z)
     a->waited = false;
     a->interaction = target;
     a->arrive = r;
+    if (target) suspendIdle(target);      // lane f: 0x433bca
     return true;
 }
 
@@ -815,6 +816,7 @@ void World3D::setHidden(SceneObject* o, bool hide)
 {
     Actor3D* a = actorFor(o);
     if (!a) return;
+    game_->log("3D: %s %s\n", hide ? "hide" : "show", o->art.c_str());
     if (hide) { if (a->elem->get_hide_count() == 0) a->elem->hide(true); }
     else while (a->elem->get_hide_count() > 0) a->elem->hide(false);
 }
@@ -1113,22 +1115,23 @@ bool World3D::screenBounds(SceneObject* o, int& x1, int& y1, int& x2, int& y2)
     return true;
 }
 
-// scene vt+0xc4 (0x43a310), the passes over the 3D objects: the nearest clickable character / item under the pointer
+// scene vt+0xc4 (0x43a310), second pass: the scene's objects in list order; a CHAR / ITEM (not a TRIG) that is clickable (+0x326), not
+// hidden (+0x4c) and whose authored click rectangle (+0x14..+0x1a, 0x415e00: an empty one is never hit) holds the point is the hit.
+// The first object of the list wins (not the nearest to the camera).  (The older port picked by the drawn model bounds.)
 SceneObject* World3D::pick(int x, int y)
 {
-    OMedia3DVPModel* m = vp_ ? dynamic_cast<OMedia3DVPModel*>(vp_->get_vpmodel()) : 0;
-    if (!m) return 0;
-    SceneObject* best = 0;
-    float bz = 0;
-    for (size_t i = 0; i < actors_.size(); i++) {
-        Actor3D* a = actors_[i];
-        if (!a->obj->clickable || a->elem->get_hide_count() != 0) continue;
-        float l, t, r, b, z;
-        if (!m->get_element_bounds(a->elem, l, t, r, b, z)) continue;
-        if (x < l || x > r || y < t || y > b) continue;
-        if (!best || z < bz) { best = a->obj; bz = z; }
+    GameScene* sc = game_->scene();
+    if (!sc) return 0;
+    std::vector<SceneObject*>& objs = sc->objects();
+    for (size_t i = 0; i < objs.size(); i++) {
+        SceneObject* o = objs[i];
+        if (!o->is3D() || o->kind == SceneObject::Trigger || !o->clickable) continue;
+        Actor3D* a = actorFor(o);
+        if (!a || a->elem->get_hide_count() != 0) continue;
+        if (o->x2 == o->x1 || o->y2 == o->y1) continue;
+        if (o->x1 <= x && o->y1 <= y && x <= o->x2 && y <= o->y2) return o;
     }
-    return best;
+    return 0;
 }
 
 }  // namespace sbgame

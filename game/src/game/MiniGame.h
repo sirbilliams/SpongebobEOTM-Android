@@ -18,6 +18,7 @@ public:
     SceneObject* pickMazeDoor(int x, int y);
     void sceneEntered();
     void update(float dtMs);
+    bool flag() const { return armed_ && !failed_; }   // lane f: the condition term "xxxx" (shorts +0x14 != 0, +0x12 == 0)
     Phone& phone() { return phone_; } // chapter 4 phone (Phone.cpp)
 private:
     void pickSymbols();
