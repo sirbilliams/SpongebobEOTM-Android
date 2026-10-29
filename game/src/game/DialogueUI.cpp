@@ -195,7 +195,8 @@ bool DialogueUI::startVoice(const std::string& key)
                 combos[c][2] ? toupper((unsigned char)ch[2]) : tolower((unsigned char)ch[2]));
         if (!bank->object_exists(OMediaSound::db_type, std::string(n))) continue;      // the bank's vt+0x18
         OMediaSound* s = (OMediaSound*)bank->get_object(OMediaSound::db_type, std::string(n));
-        if (s) { voice_ = s; game_->log("voice %s (%.2f s)\n", n, s->get_sound_secs()); return true; }
+        if (s) { voice_ = s; game_->state().markVoiceHeard(sceneId_, key);   // port: voice gallery
+            game_->log("voice %s (%.2f s)\n", n, s->get_sound_secs()); return true; }
     }
     return false;
 }

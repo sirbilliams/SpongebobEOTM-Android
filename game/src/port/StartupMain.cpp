@@ -17,6 +17,7 @@
 #include "../game/SceneScriptHost.h"
 #include "../game/SaveGame.h"
 #include "../game/Hud.h"
+#include "../game/Reveal.h"
 #include "Playthrough.h"
 #include "Companion.h"
 #include <stdexcept>
@@ -175,6 +176,15 @@ class StartupApp : public MenuHost
             for (size_t i = 0; i < f.scrp.size(); ++i) { std::string s = f.scrp[i]; for (size_t k = 0; k < s.size(); ++k) s[k] = (char)tolower((unsigned char)s[k]); if (s == n) return true; }
         }
         return false;
+    }
+    // port: voice gallery (View Movies > Voices): the progress behind the menu, like menu_script_seen
+    sbgame::GameState vstate;
+    virtual const sbgame::GameState* menu_progress() {
+        if (paused) return &paused->state();
+        if (completed) return &completed_state;
+        sbgame::SaveFile f;
+        if (save >= 0 && sbgame::SaveGame::exists(save) && sbgame::SaveGame::read(sbgame::SaveGame::slotPath(save), f)) { vstate.clearProgress(); sbgame::SaveGame::apply(f, vstate); return &vstate; }
+        return NULL;
     }
     virtual bool menu_save(int slot, const char *name) {     // 0x428740 -> 0x41db50
         if (!paused) return false;
@@ -558,6 +568,7 @@ class StartupApp : public MenuHost
                 }
                 while(OMediaEventManager::poll(&ev)) {
                     event_manager->handle_sdl_event(&ev);
+                    sbgame::revealEvent(game,ev);      // port: hotspot reveal (L1 / Tab held)
                     if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); game->mouseMove(x,y); }
                     if(ev.type==SDL_KEYDOWN && (ev.key.keysym.sym==SDLK_F10 || ev.key.keysym.sym==SDLK_AC_BACK)) leave=true;   // port: back to the menu
                 }

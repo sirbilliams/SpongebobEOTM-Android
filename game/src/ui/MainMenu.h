@@ -9,6 +9,7 @@
 class OMedia2DWorld;
 class OMediaDataBase;
 class MenuCaption;
+namespace sbgame { class GameState; class VoiceGallery; }   // port: voice gallery
 class OMediaCanvasElement;
 class MenuHost {
 public:
@@ -24,6 +25,7 @@ public:
     virtual void menu_resume() {}                                   // 0x4248b0 / 0x41c1c0: leave the menu, back to the game
     virtual bool menu_script_seen(const char *name) { (void)name; return false; }               // 0x416690: a script of the game's progress was seen (View Movies unlocks)
     virtual bool menu_save(int slot, const char *name) { (void)slot; (void)name; return false; }   // 0x428740 -> 0x41db50
+    virtual const sbgame::GameState* menu_progress() { return 0; }                                 // port: the progress the View Movies pages read (null: none)
     virtual bool menu_load(int slot) { (void)slot; return false; }                                 // 0x429120 (game vt+0xd8)
 };
 class MainMenu : public OMediaListener {
@@ -49,6 +51,12 @@ private:
     std::vector<OMediaElement*> elements;
     std::vector<OMediaCanvas*> controller_art;
     std::vector<Button> buttons;
+    // port: View Movies page 2, 'Voices' (page 5): vlevel 0 chapters, 1 speakers of vchap, 2 the clips of vspk (vpage: 10 per page)
+    sbgame::VoiceGallery *gallery;
+    int vlevel, vchap, vpage;
+    std::string vspk;
+    std::vector<int> vclips;
+    void voicesPage();
     int page, confirm, selected, help_page, focus;   // focus: the Options row of 0x425aa0 (+8): 0 Music 1 Sound 2 Voice 3 Text 4 Shadows 5 Ok
     void adjust(int dir);
     // save / load screens (0x427ef0 / 0x428bb0 / 0x4295d0): +0xa0 slot, +0x80 name

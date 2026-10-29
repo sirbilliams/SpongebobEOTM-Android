@@ -7,6 +7,7 @@
 #include "OMediaBoxElement.h"
 #include "OMediaDefMessages.h"
 #include "../game/SaveGame.h"
+#include "VoiceGallery.h"
 #include <SDL.h>
 #include <stdio.h>
 #include <sys/stat.h>
@@ -26,6 +27,7 @@ public:
 };
 MainMenu::MainMenu(OMedia2DWorld *w,OMediaDataBase *a,GameFont *f,const RetailData &d,MenuHost *h)
  : quit(false),world(w),art(a),font(f),data(d),host(h),page(-1),confirm(-1),selected(0),help_page(1),focus(0),slot(-1) {
+    gallery=NULL; vlevel=0; vchap=1; vpage=0;     // port: voice gallery
     SDL_Log("0x41bbb0 -> 0x41f6a0 -> 0x41c1c0 -> 0x4242b0: sb2.omt menu dialog");
     // 0x41f6a0 creates these toolbar elements for the controller before the dialog.
     // The modal dialog draws its own bamboo4 panel instead of this toolbar.
@@ -37,6 +39,7 @@ MainMenu::MainMenu(OMedia2DWorld *w,OMediaDataBase *a,GameFont *f,const RetailDa
 }
 MainMenu::~MainMenu() {
     clear();
+    delete gallery;
     for(size_t i=0;i<controller_art.size();++i) controller_art[i]->db_unlock();
 }
 void MainMenu::clear() {
@@ -156,12 +159,60 @@ void MainMenu::rebuild() {
             if(movieUnlocked(i)) center(data.text(data.word(0x455720+4*i)),91+23*i,300+i);
             else image("locked",-1,91+23*i,10301);
         }
-        center(data.text(0x455904),380,90);
+        // port: the second page, Voices (0x4246a0 has only Cancel here); same two-button row as the Save Game screen
+        { string v="Voices",c=data.text(0x455904);
+          caption(v,225+(95-font->get_text_length(v))/2,380,500);
+          caption(c,320+(95-font->get_text_length(c))/2,380,90); }
+    } else if(page==5) {
+        voicesPage();
     }
     for(size_t i=0;i<buttons.size();++i)
         if(buttons[i].caption) ((MenuCaption*)buttons[i].caption)->highlighted=buttons[i].id==selected;
     // port: the keyboard (Android: the on-screen one) is only wanted while a name is typed
     if(page==2 && confirm<0) SDL_StartTextInput(); else SDL_StopTextInput();
+}
+// port: the Voices page of View Movies (docs/reveal-and-gallery.md): chapters -> speakers -> clips; a clip not heard yet is '???'
+static string fit(GameFont *font,const string &in,int maxw) {
+    string s; for(size_t i=0;i<in.size();++i) { unsigned char c=(unsigned char)in[i]; if(c>=0x20 && c<0x7f) s+=(char)c; }
+    if(font->get_text_length(s)<=maxw) return s;
+    while(!s.empty() && font->get_text_length(s+"...")>maxw) s.erase(s.size()-1);
+    return s+"...";
+}
+void MainMenu::voicesPage() {
+    if(!gallery) { gallery=new sbgame::VoiceGallery; gallery->build(host->menu_progress()); }
+    char b[96];
+    string back=vlevel==0?"Movies":"Back",c=data.text(0x455904);
+    if(vlevel==0) {
+        center("Voices",91,-1)->forced=true;
+        for(int ch=1;ch<=4;++ch) {
+            int h,t; gallery->count(ch,"",&h,&t);
+            sprintf(b,"Chapter %d   %d of %d",ch,h,t);
+            if(t>0) center(b,91+34*ch,400+ch); else center(b,91+34*ch,-1);
+        }
+    } else if(vlevel==1) {
+        std::vector<string> sp=gallery->speakers(vchap);
+        sprintf(b,"Chapter %d",vchap); center(b,91,-1)->forced=true;
+        for(size_t i=0;i<sp.size() && i<10;++i) {
+            int h,t; gallery->count(vchap,sp[i],&h,&t);
+            sprintf(b,"   %d of %d",h,t);
+            center(sp[i]+b,114+21*(int)i,410+(int)i);
+        }
+    } else {
+        vclips=gallery->select(vchap,vspk);
+        int pages=((int)vclips.size()+9)/10; if(pages<1) pages=1;
+        if(vpage>=pages) vpage=pages-1;
+        sprintf(b,"%s   Page %d of %d",vspk.c_str(),vpage+1,pages); center(b,91,-1)->forced=true;
+        for(int r=0;r<10;++r) {
+            int k=vpage*10+r; if(k>=(int)vclips.size()) break;
+            const sbgame::VoiceClip &cl=gallery->clips()[vclips[k]];
+            if(cl.heard) center(fit(font,cl.text,330),114+21*r,430+r);
+            else center("???",114+21*r,-1);
+        }
+        if(vpage>0) arrow(true,344,502);
+        if(vpage<pages-1) arrow(false,344,503);
+    }
+    caption(back,225+(95-font->get_text_length(back))/2,380,501);
+    caption(c,320+(95-font->get_text_length(c))/2,380,90);
 }
 bool MainMenu::hit(const Button &b,int x,int y) { return b.x<x && x<b.x+b.w && b.y<y && y<b.y+b.h; }
 void MainMenu::hover(int x,int y) {
@@ -192,7 +243,11 @@ bool MainMenu::movieUnlocked(int i) {       // 0x424d60: 0..2 and 11 always; 3..
     if(i>10) return false;
     return host->menu_script_seen(scripts[i-3]);
 }
-void MainMenu::back() { confirm=-1;page=-1;selected=-1;rebuild(); }
+void MainMenu::back() {
+    if(page==5 && confirm<0) { activate(501); return; }      // port: Voices steps up one level, then to the movies
+    if(gallery) { delete gallery; gallery=NULL; }      // port: rebuilt (with the current progress) the next time Voices opens
+    confirm=-1;page=-1;selected=-1;rebuild();
+}
 
 // ---- save / load screens ----
 void MainMenu::selectSlot(int s) {       // 0x4295d0: the slot's name and picture (a free slot has an empty name)
@@ -304,7 +359,7 @@ void MainMenu::activate(int id) {
     }
     if(id==101) { SDL_Log("0x425520: confirmation No"); if(confirm==2||confirm==3) { confirm=-1; rebuild(); } else back(); return; }
     if(id==94 || id==95) { stepSlot(id==94?-1:1); return; }
-    if(id==90) { SDL_Log("0x424890: return to main menu"); host->menu_settings_changed(); back(); return; }
+    if(id==90) { SDL_Log("0x424890: return to main menu"); host->menu_settings_changed(); page=-1; if(gallery) { delete gallery; gallery=NULL; } back(); return; }
     if(id==91 || id==92) { help_page+=id==91?-1:1; rebuild(); return; }
     if(id==93) { if(page==2) saveAction(); else loadAction(); return; }
     if(id>=200 && id<230) {
@@ -316,7 +371,16 @@ void MainMenu::activate(int id) {
         if(id<242) host->text=id==240; else host->shadows=id==242;
         SDL_Log("0x425aa0: option %d",id); host->menu_settings_changed(); rebuild(); return;
     }
-    if(id>=300) {
+    if(id==500) { SDL_Log("port: View Movies -> Voices"); page=5; vlevel=0; selected=-1; rebuild(); return; }
+    if(id==501) { if(vlevel>0) --vlevel; else { if(gallery) gallery->stop(); page=4; } selected=-1; rebuild(); return; }
+    if(id==502 || id==503) { vpage+=id==502?-1:1; if(vpage<0) vpage=0; selected=-1; rebuild(); return; }
+    if(id>=400 && id<500) {
+        if(id<410) { vchap=id-400; vlevel=1; }
+        else if(id<430) { std::vector<string> sp=gallery->speakers(vchap); if(id-410<(int)sp.size()) { vspk=sp[id-410]; vlevel=2; vpage=0; } }
+        else { int k=vpage*10+(id-430); if(k<(int)vclips.size()) gallery->play(vclips[k]); return; }
+        selected=-1; rebuild(); return;
+    }
+    if(id>=300 && id<400) {
         const char *names[]={"mthq","mspongebob","mintro","mchapter2","mchapter3","mchapter4",
             "mend","mmaking1","mmaking2","mmaking3","mmaking4","mcredits"};
         if(!movieUnlocked(id-300)) return;                 // 0x424bb0 checks 0x424d60 again

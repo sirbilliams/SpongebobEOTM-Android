@@ -96,6 +96,8 @@ public:
     // scene vt+0xc4 (0x43a310): what is under x,y (2D objects; the 3D passes are lane A's)
     SceneObject* pick(int x, int y);                                  // TRIG pass + 2D pass
     SceneObject* pick2D(int x, int y);
+    // port: hotspot reveal (Reveal.cpp): every object pickAll() could return somewhere, with the same visibility rules
+    void collectClickable(std::vector<SceneObject*>& out);
     SceneObject* pickAll(int x, int y);                               // all three passes (TRIG, CHAR / ITEM, 2D)
     // vt+0x40 of the object: TRIG 0x441cb0, CHAR 0x433a60, ITEM 0x4234d0, the others the base 0x415a70 (choose Event / Alt
     // Event by the Condition, `touching` is its extra argument, and send it to game vt+0xb0).  `touching`: the player touches

@@ -6,6 +6,7 @@
 #include "Companion.h"
 #include "../game/Game.h"
 #include "../game/Hud.h"
+#include "../game/Reveal.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <SDL.h>
@@ -107,6 +108,8 @@ inline void companionCommands(sbgame::Game* g)
             else if (companionCutscene(g) && g->runner()->skipToLetterboxClose()) g->wake();
         } else if (cmd == "hint") {
             if (g->hud()) g->hud()->hint();            // the HUD's hint button (Hud::hint): text and, if the help bank is installed, its voice
+        } else if (cmd == "reveal") {                  // port: hotspot reveal (game/src/game/Reveal.h): outline everything clickable for about 2 s
+            if (g->reveal()) g->reveal()->pulse();
         } else if (cmd == "menu") {
             CompanionKey(SDLK_F10);                    // exactly the F10 / Android Back key: StartupMain pauses the game behind the main menu
         }

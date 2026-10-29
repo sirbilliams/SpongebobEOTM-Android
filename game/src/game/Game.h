@@ -29,6 +29,7 @@ class SceneScriptHost;
 class World3D;
 class Hud;      // port: hud
 class Cursor;   // port: cursor
+class Reveal;   // port: hotspot reveal
 
 // A file-backed OMT database kept open (the exe keeps them for the whole scene).
 struct OmtFile {
@@ -73,6 +74,7 @@ public:
     World3D* world3d() { return w3_; }
     Hud* hud() { return hud_; }                    // port: hud
     Cursor* cursor() { return cursor_; }           // port: cursor
+    Reveal* reveal() { return reveal_; }           // port: hotspot reveal (Reveal.h)
     bool pendingScene() const { return pendingId_ != 0; }   // port: cursor (a scene switch is waiting: the wait cursor)
     OMedia2DWorld* world() { return world_; }
     OMediaViewPort* viewport() { return vp_; }
@@ -185,6 +187,7 @@ private:
     Hud* hud_;                    // port: hud
     MiniGame* mini_; // persistent across scenes (game+0x12c)
     Cursor* cursor_;              // port: cursor
+    Reveal* reveal_;              // port: hotspot reveal
 };
 
 }  // namespace sbgame

@@ -16,7 +16,7 @@ GameState::GameState() : hasPlayer(false), playerX(0), playerY(0), playerZ(0), p
 // 0x4163b0: every list emptied (and 0x41e160 the item bar); a save is loaded into a clean object.
 void GameState::clearProgress()
 {
-    seen_.clear(); flags_.clear(); items_.clear(); blocked_.clear(); dialogue_.clear(); textures_.clear();
+    seen_.clear(); flags_.clear(); heard_.clear(); items_.clear(); blocked_.clear(); dialogue_.clear(); textures_.clear();
     scen_.clear(); chars_.clear(); posi_.clear(); bar_.clear();
     hasPuzzle_ = false; high_ = 0; memset(puzzle_, 0, sizeof puzzle_);
     hasPlayer = false; playerX = playerY = playerZ = 0; playerFacing = 0; resumePos = false; lastScene = 0;
@@ -91,6 +91,23 @@ void GameState::storeDialogue(unsigned scene, const std::string& groupKey, const
     DEntry e;
     e.key = currentKey; e.a = a; e.b = b; e.group = groupKey;
     dialogue_[dkey(scene, groupKey)] = e;
+}
+
+void GameState::dialogueEntries(std::vector<DProg>& out) const    // port: voice gallery
+{
+    for (std::map<std::string, DEntry>::const_iterator it = dialogue_.begin(); it != dialogue_.end(); ++it) {
+        DProg d; d.scene = (unsigned)strtoul(it->first.c_str(), 0, 16); d.group = it->second.group; d.cur = it->second.key;
+        d.a = it->second.a; d.b = it->second.b;
+        out.push_back(d);
+    }
+}
+
+void GameState::markVoiceHeard(unsigned scene, const std::string& key)    // port: voice gallery
+{
+    char b[16]; sprintf(b, "%08x:", scene);
+    std::string k = b;
+    for (size_t i = 0; i < key.size(); ++i) k += (char)toupper((unsigned char)key[i]);
+    heard_.insert(k);
 }
 
 void GameState::markScriptSeen(const char* name) { seen_.insert(low(name)); }
