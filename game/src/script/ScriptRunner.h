@@ -66,6 +66,7 @@ public:
     float idleMs() const { return idleMs_; }                     // +0x195c
     void setIdleRunner(bool v) { idleRunner_ = v; }              // +0x1962: scene idle scripts use sound channel 9
     bool isIdleRunner() const { return idleRunner_; }
+    void backUp() { if (--cur_ < -1) cur_ = -1; }                // 0x4350d0: an interrupted idle script repeats its line (+0x190a - 1)
 
 private:
     void end();                                                  // 0x43dfd0

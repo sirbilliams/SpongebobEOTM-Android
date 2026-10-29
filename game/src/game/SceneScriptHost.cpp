@@ -13,7 +13,7 @@ using sbscript::ScriptActor;
 using sbscript::ScriptSound;
 
 SceneScriptHost::SceneScriptHost(Game* g)
-    : sim3dMs(700.0f), g_(g), wait3dMs_(0), wait3d_(false), waitAnim_(false), stubCalls_(0), active_(0), uiMs_(0)
+    : sim3dMs(700.0f), g_(g), wait3dMs_(0), wait3d_(false), waitAnim_(false), stubCalls_(0), active_(0), uiMs_(0), own_(0)
 {
 }
 
@@ -87,7 +87,7 @@ void SceneScriptHost::speakerStarted(SceneObject* a, const char* name)
 
 void SceneScriptHost::actorDone()
 {
-    if (wait3d_) { wait3d_ = false; g_->wake(); }
+    if (wait3d_) { wait3d_ = false; wakeNow(); }
 }
 
 void SceneScriptHost::speakersIdle() { if (g_->world3d()) g_->world3d()->talkAll(false); }
@@ -96,11 +96,11 @@ void SceneScriptHost::update(float dt)
 {
     if (wait3dMs_ > 0) {
         wait3dMs_ -= dt;
-        if (wait3dMs_ <= 0) { wait3dMs_ = 0; g_->wake(); }
+        if (wait3dMs_ <= 0) { wait3dMs_ = 0; wakeNow(); }
     }
     if (uiMs_ > 0) {
         uiMs_ -= dt;
-        if (uiMs_ <= 0) { uiMs_ = 0; if (g_->runner() && g_->runner()->waitingUi()) g_->wake(); }
+        if (uiMs_ <= 0) { uiMs_ = 0; if (runnerNow() && runnerNow()->waitingUi()) wakeNow(); }
     }
 }
 
@@ -187,7 +187,11 @@ bool SceneScriptHost::actorRotate(ScriptActor* a, int angle, int time)
     if (wait) wait3d_ = true;
     return wait;
 }
-void SceneScriptHost::actorIdle(ScriptActor* a, float seconds) { (void)a; arm3d(seconds * 1000.0f); }      // vt+0x168: the actor idles for `seconds`
+void SceneScriptHost::actorIdle(ScriptActor* a, float seconds)      // vt+0x168 (0x42f170): the actor plays idle1 and idles for `seconds`
+{
+    if (a && g_->world3d()) g_->world3d()->loopAnim(a->obj, "idle1");     // lane f
+    arm3d(seconds * 1000.0f);
+}
 void SceneScriptHost::actorAttach(ScriptActor* a, const char* o, const char* b1, const char* b2) { stub("%s attach %s %s %s (vt+0x12c)", an(a), o, b1, b2); }
 void SceneScriptHost::actorDetach(ScriptActor* a) { stub("%s detach (vt+0x130)", an(a)); }
 void SceneScriptHost::actorHideAttach(ScriptActor* a) { stub("%s hide attached object", an(a)); }
@@ -208,7 +212,7 @@ void SceneScriptHost::actorKick(ScriptActor* a) { stub("%s kick (vt+0x16c)", an(
 bool SceneScriptHost::actorGoal(ScriptActor* a) { stub("%s goal? (vt+0x174)", an(a)); return false; }
 bool SceneScriptHost::actorGoalMissed(ScriptActor* a) { stub("%s goal missed? (vt+0x188)", an(a)); return false; }
 void SceneScriptHost::actorStopWalk(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->stopWalk(a->obj); }
-void SceneScriptHost::actorShadow(ScriptActor* a, bool on) { if (a && g_->world3d()) g_->world3d()->setShadow(a->obj, on); }      // port: the flag is kept, no blob shadows drawn yet
+void SceneScriptHost::actorShadow(ScriptActor* a, bool on) { if (a && g_->world3d()) g_->world3d()->setShadow(a->obj, on); }      // the shadow model is hidden / shown (World3D)
 void SceneScriptHost::actorSetTexture(ScriptActor* a, const char* t) { stub("%s texture %s (vt+0xf0)", an(a), t); }
 void SceneScriptHost::swapPlayerHelmet() { stub("swapchar: sb <-> sbhelm"); }
 void SceneScriptHost::shockEffect() { stub("shock: 2D object \"elec\" at the player's screen position"); }
@@ -249,7 +253,7 @@ void SceneScriptHost::sceneSpeak(const char* key)
     if (ok) dialogueStarted();
     else {
         g_->switchTo("H000F");
-        g_->wake();                              // port: the exe would wait for a dialogue that never starts
+        wakeNow();                               // port: the exe would wait for a dialogue that never starts
     }
 }
 void SceneScriptHost::sceneBlock(int x, int y, bool b) { g_->state().setBlocked(sceneId(), x, y, b); if (g_->world3d()) g_->world3d()->blockCell(x,y,b); }

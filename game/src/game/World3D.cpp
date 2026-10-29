@@ -1,6 +1,7 @@
 #include "World3D.h"
 #include "Game.h"
 #include "SceneScriptHost.h"
+#include "DialogueUI.h"
 #include "OMedia3DRasterizerDesc.h"
 #include "OMediaDisplay.h"
 #include "OMediaViewPort.h"
@@ -9,6 +10,7 @@
 #include <limits.h>
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <strings.h>
 #include <sys/stat.h>
@@ -20,7 +22,9 @@ static const float kRunSpeed = 300.0f;
 
 Actor3D::Actor3D()
     : obj(0), model(0), elem(0), mode(Idle), x(0), y(0), z(0), heading(0), walking(false), tx(0), tz(0), speed(0), rotating(false),
-      rotTarget(0), rotTolerance(0), idling(false), idleLeft(0), waited(false), scheduled(false), climbing(false), climbTarget(0), climbPrev(0), shadowOn(true)
+      rotTarget(0), rotTolerance(0), idling(false), idleLeft(0), waited(false), scheduled(false), shadowOn(true), climbing(false), climbTarget(0), climbPrev(0),
+      idleWanted(true), idleSuspended(false), idleHost(0), idleRunner(0), wakeIdle(false), fidgetAcc(0), fidgetNext((float)(7 + rand() % 8)),   // lane f: ctor 0x42e150
+      shadowModel(0), shadowElem(0)
 {
     waypoint = 0; interaction = 0; radius = 50; control = true; useGrid = false;
 }
@@ -121,6 +125,22 @@ World3D::World3D(Game* game, GameScene* scene)
         a->elem = new OMedia3DShapeElement;
         a->elem->setshape(a->model->get_shape());
         a->elem->link(w3_);
+        // lane f, 0x422070: a CHAR with a "Shadow Name" gets that model (models/items/<name>_model) as a child, when the Shadows option is on (game+0x274)
+        if (rec && rec->tag == sb::scene::CharacterTag && game->optShadows) {
+            a->shadowName = rec->data.character.o0204.text();
+            if (a->shadowName.size() > 1) {
+                a->shadowModel = new OMedia3DGrannyModel;
+                if (a->shadowModel->load(dir_ + "/models/items/" + lower(a->shadowName) + "_model")) {
+                    a->shadowElem = new OMedia3DShapeElement;
+                    a->shadowElem->setshape(a->shadowModel->get_shape());
+                    a->shadowElem->link(w3_);
+                    game_->log("3D: shadow %s for %s\n", a->shadowName.c_str(), a->name.c_str());
+                } else {
+                    game_->log("3D: shadow %s of %s: %s\n", a->shadowName.c_str(), a->name.c_str(), a->shadowModel->get_error().c_str());
+                    delete a->shadowModel; a->shadowModel = 0;
+                }
+            }
+        }
         place(a);
         actors_.push_back(a);
         if (o->kind == SceneObject::Char) setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
@@ -130,8 +150,12 @@ World3D::World3D(Game* game, GameScene* scene)
 
 World3D::~World3D()
 {
-    for (size_t i = 0; i < actors_.size(); i++) delete actors_[i]->elem;
-    for (size_t i = 0; i < actors_.size(); i++) { delete actors_[i]->model; delete actors_[i]; }
+    for (size_t i = 0; i < actors_.size(); i++) {      // lane f: the idle runners first (they stop their sound channel), then their hosts
+        delete actors_[i]->idleRunner; actors_[i]->idleRunner = 0;
+        delete actors_[i]->idleHost; actors_[i]->idleHost = 0;
+    }
+    for (size_t i = 0; i < actors_.size(); i++) { delete actors_[i]->elem; delete actors_[i]->shadowElem; }
+    for (size_t i = 0; i < actors_.size(); i++) { delete actors_[i]->model; delete actors_[i]->shadowModel; delete actors_[i]; }
     for (size_t i = 0; i < lights_.size(); i++) delete lights_[i];
     delete vpe_;
     delete vp_;
@@ -143,6 +167,10 @@ void World3D::place(Actor3D* a)
     a->obj->px = a->x; a->obj->py = a->y; a->obj->pz = a->z;
     a->elem->place(a->x, a->y, a->z);
     a->elem->set_angle(0, (short)(a->heading & 0x3fff), 0);
+    if (a->shadowElem) {          // lane f: the shadow is a child of the character: same place and heading (0x422070 places it at 0,0,0)
+        a->shadowElem->place(a->x, a->y, a->z);
+        a->shadowElem->set_angle(0, (short)(a->heading & 0x3fff), 0);
+    }
 }
 
 Actor3D* World3D::actorFor(SceneObject* o)
@@ -181,7 +209,13 @@ void World3D::setAnim(Actor3D* a, const char* name, int loops, float speed, Acto
 
 void World3D::finished(Actor3D* a)
 {
-    if (a->waited) { a->waited = false; wake_ = true; }
+    if (a->waited) {
+        a->waited = false;
+        // lane f, 0x406050: the scene script wakes if it runs on this character, else the character's idle script does
+        SceneObject* ro = game_->runner() && game_->runner()->actor() ? game_->runner()->actor()->obj : 0;
+        if (a->idleHost && a->idleHost->waitingOn3dEvent() && ro != a->obj) a->wakeIdle = true;
+        else wake_ = true;
+    }
 }
 
 bool World3D::playAnim(SceneObject* o, const char* name, bool wait, double speed)
@@ -389,11 +423,11 @@ void World3D::climb(SceneObject* o, float h)
     a->climbTarget = a->y + h;
 }
 
-// 0x434410 / 0x434430: the blob shadow object (char +0x30c) is hidden / shown.  port: blob shadows are not drawn, the flag is kept.
+// 0x434410 / 0x434430: the shadow model (char +0x30c) is hidden / shown (updateShadow applies the flag).
 void World3D::setShadow(SceneObject* o, bool on)
 {
     Actor3D* a = actorFor(o);
-    if (a) a->shadowOn = on;
+    if (a) { a->shadowOn = on; game_->log("shadow %s: %s\n", a->name.c_str(), on ? "on" : "off"); }
 }
 
 void World3D::setRunning(SceneObject* o)
@@ -436,7 +470,7 @@ bool World3D::approach(SceneObject* target)
             started = walkGrid(a->obj, target->gridX-1, target->gridY-1);
         else if (target->kind == SceneObject::Char || target->kind == SceneObject::Item)
             started = walk(a->obj, target->px, target->pz, false);
-        if (started) { a->interaction = target; a->waited = false; return true; }
+        if (started) { a->interaction = target; a->waited = false; suspendIdle(target); return true; }   // lane f: 0x433bca
     }
     return false;
 }
@@ -532,6 +566,97 @@ void World3D::enter(int startPoint)
     }
 }
 
+// ---------------------------------------------------------------------------------------------------- lane f
+// char +0x30c (0x422070 made it from the CHAR record's "Shadow Name"): `shadow on/off` shows / hides it; it also follows the character's visibility
+void World3D::updateShadow(Actor3D* a)
+{
+    if (!a->shadowElem) return;
+    bool want = a->shadowOn && a->elem->get_hide_count() == 0;
+    bool shown = a->shadowElem->get_hide_count() == 0;
+    if (want && !shown) while (a->shadowElem->get_hide_count() > 0) a->shadowElem->hide(false);
+    else if (!want && shown) a->shadowElem->hide(true);
+}
+
+// 0x435080: the player deals with this character (a click on it, or it is the walk-up target): its idle script is put on hold
+void World3D::suspendIdle(SceneObject* o)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || !a->idleRunner || a->idleSuspended) return;
+    a->idleSuspended = true;
+    a->walking = false; a->rotating = false; a->route.clear(); a->waited = false; a->wakeIdle = false;   // 0x37e / 0xdf / 0xf3 = 0
+    a->idleHost->clearWaits();      // port: the exe keeps its char timer; the repeated line below arms it again
+    setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
+    game_->log("idle script of %s: suspended\n", a->name.c_str());
+}
+
+// 0x4350d0: the idle script goes on; a line that was not an `anim` is repeated
+void World3D::resumeIdle(Actor3D* a)
+{
+    a->idleSuspended = false;
+    setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
+    if (strcmp(a->idleRunner->lastCommand().c_str(), "anim") != 0) a->idleRunner->backUp();
+    game_->log("idle script of %s: resumed\n", a->name.c_str());
+    a->idleHost->clearWaits();
+    a->idleRunner->runUntilWait();  // vt+0xf4(0)
+}
+
+// The character part of 0x42f1a0 that starts and drives the idle script (char +0x2c4 / +0x32c / +0x330), or, with no script,
+// plays a random idle2 / idle3 every 7..14 seconds.
+void World3D::updateIdle(Actor3D* a, float dtMs)
+{
+    if (a->obj->kind != SceneObject::Char) return;
+    if (a->idleWanted && !a->idleRunner) {                    // 0x4308 block: first update after the ctor
+        a->idleWanted = false;
+        SceneScriptHost* h = new SceneScriptHost(game_);
+        sbscript::ScriptRunner* r = new sbscript::ScriptRunner(h);
+        h->setOwnRunner(r);
+        r->setIdleRunner(true);                                // +0x1962: sound channel 9
+        a->idleHost = h; a->idleRunner = r;
+        sbscript::ScriptActor* sa = h->actorFor(a->obj);
+        char nm[128];
+        snprintf(nm, sizeof nm, "s%s_idle", a->name.c_str());
+        bool ok = r->load(nm, sa);
+        if (!ok) {                                             // "s%s_idle%d%d%d": the scene id's nibbles 0, 2, 4
+            unsigned id = scene_->sceneId();
+            snprintf(nm, sizeof nm, "s%s_idle%d%d%d", a->name.c_str(), (int)(id & 0xf), (int)((id >> 8) & 0xf), (int)((id >> 16) & 0xf));
+            ok = r->load(nm, sa);
+        }
+        if (ok) game_->log("idle script %s of %s started\n", nm, a->name.c_str());
+        if (!ok || r->finished()) { delete a->idleRunner; delete a->idleHost; a->idleRunner = 0; a->idleHost = 0; }
+    }
+    if (a->idleRunner) {
+        sbscript::ScriptRunner* r = a->idleRunner;
+        if (a->idleSuspended) {                                // 0x42f498: back to work once the player is done and nothing else runs
+            Actor3D* p = 0;
+            for (size_t i = 0; i < actors_.size(); ++i) if (actors_[i]->obj->userCtl) { p = actors_[i]; break; }
+            DialogueUI* d = scene_->dialogue();
+            if (p && !(d && d->busy()) && !game_->runner() && p->interaction != a->obj) resumeIdle(a);
+        } else {
+            a->idleHost->update(dtMs);                         // `idle N` = the char timer (0x4309b3)
+            if (a->wakeIdle) { a->wakeIdle = false; a->idleHost->actorDone(); }
+            if (a->idleRunner && !a->idleSuspended && r->waitingSound() && r->soundDone()) r->runUntilWait();   // 0x43d6e0
+        }
+        if (a->idleRunner && a->idleRunner->finished()) {      // the script ended: the runner is freed, +0x2c4 stays 0
+            delete a->idleRunner; delete a->idleHost; a->idleRunner = 0; a->idleHost = 0;
+        }
+        return;
+    }
+    // no idle script (0x42f255): the random fidget
+    static const char* const names[5] = { "idle1", "idle2", "idle3", "idle4", "idle5" };
+    int n = 0;
+    while (n < 5 && exists(a, names[n])) ++n;
+    if (n >= 2 && !a->walking && !a->rotating && strcasecmp(a->anim.c_str(), "idle1") == 0) {
+        a->fidgetAcc += dtMs * 0.001f;
+        if (a->fidgetAcc > a->fidgetNext) {
+            a->fidgetAcc = 0;
+            a->fidgetNext = (float)(7 + rand() % 8);
+            const char* pick = (n < 3 || rand() % 3 != 1) ? "idle2" : "idle3";
+            setAnim(a, pick, 1, 1.0f, Actor3D::OneShot);
+            game_->log("fidget %s: %s\n", a->name.c_str(), pick);
+        }
+    }
+}
+
 void World3D::update(float dtMs)
 {
     if (!w3_) return;
@@ -588,7 +713,10 @@ void World3D::update(float dtMs)
             setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
             finished(a);
         }
+        updateIdle(a, dtMs);        // lane f
+        updateShadow(a);            // lane f
         a->model->update_pose();
+        if (a->shadowModel) a->shadowModel->update_pose();
     }
     w3_->update();
     if (wake_) { wake_ = false; game_->host()->actorDone(); }

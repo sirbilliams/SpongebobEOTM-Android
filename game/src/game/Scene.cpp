@@ -492,6 +492,7 @@ void GameScene::click(int x, int y)    // 0x4398f0 for 2D objects (the 3D passes
     if (o->userCtl) return;
     if (game_->world3d() && game_->world3d()->approach(o)) return;
     lastClicked_ = o;
+    if (game_->world3d()) game_->world3d()->suspendIdle(o);      // lane f: 0x433bca, the clicked character's idle script is put on hold
     game_->log("click %d,%d: %s '%s'\n", x, y, o->kind == SceneObject::Obj2D ? "2DOB" : o->kind == SceneObject::Anim2D ? "ANIM" : o->kind == SceneObject::Char ? "CHAR" : o->kind == SceneObject::Item ? "ITEM" : "SPOT", o->description.c_str());
     if (o->kind == SceneObject::Anim2D) {
         // click-to-play / frame-per-click / toggle (0x409570); the event at the begin or at the end of the run

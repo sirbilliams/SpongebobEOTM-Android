@@ -34,6 +34,10 @@ public:
     void speakersIdle();                 // the dialogue line ended: the speaker stops talking
     void talkFinished();                 // dialogue ended: wakes a script waiting in talk / narrate
     unsigned stubCalls() const { return stubCalls_; }
+    // lane f: a host that belongs to one character's idle runner (World3D); the scene's own host has none
+    void setOwnRunner(sbscript::ScriptRunner* r) { own_ = r; }
+    bool waitingOn3dEvent() const { return wait3d_; }
+    void clearWaits() { wait3d_ = false; wait3dMs_ = 0; }
     // Game hooks
     void resetForScene();                // the old scene is gone: forget its actors
     void sceneLoaded();                  // pick the active actor (scene+0x248)
@@ -130,6 +134,8 @@ public:
 private:
     void stub(const char* fmt, ...);
     void arm3d(float ms) { wait3dMs_ = ms; }
+    sbscript::ScriptRunner* runnerNow() { return own_ ? own_ : g_->runner(); }       // the runner this host serves
+    void wakeNow() { if (own_) own_->runUntilWait(); else g_->wake(); }               // vt+0xf4 / scene vt+0xe0
     Game* g_;
     float wait3dMs_;
     bool wait3d_;
@@ -139,6 +145,7 @@ private:
     sbscript::ScriptActor* active_;
     std::vector<sbscript::ScriptSound*> sounds_;
     float uiMs_;
+    sbscript::ScriptRunner* own_;   // lane f: the idle runner this host belongs to (0 = the scene host)
 };
 
 }  // namespace sbgame

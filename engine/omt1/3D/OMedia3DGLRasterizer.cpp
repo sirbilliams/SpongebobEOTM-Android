@@ -86,7 +86,7 @@ void OMedia3DGLRasterizer::rasterize(OMedia3DTranslatedPolygon *p)
 		glEnable(GL_TEXTURE_2D);
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 		glEnable(GL_ALPHA_TEST);
-		glAlphaFunc(GL_GREATER, 0.5f);
+		glAlphaFunc(GL_GREATER, p->alpha < 0.999f ? 0.0f : 0.5f);	// lane f: a blended material (the characters' shadow, alpha 0.47) would fail the 0.5 cut-out test everywhere
 	}
 	else glDisable(GL_TEXTURE_2D);
 	if (p->alpha < 0.999f)
