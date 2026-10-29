@@ -1,4 +1,6 @@
 # Chapter 4 route (docs/chapter4-play.md), for SB_TEST_PLAYTHROUGH: c4l0s1 -> the credits -> c1l2s6p1
+wait 120
+snap 000-c4l0s1-title
 scene c4l2s1
 idle
 shot 00-c4l2s1-start
@@ -26,6 +28,8 @@ idle
 shot 05-c4l2s3-landing
 click "Walk to Sandy's Rocket"
 scene c4l2s4
+wait 150
+snap 05b-c4l2s4-meanwhile
 scene c4l2s1
 idle
 shot 06-c4l2s1-return
@@ -84,6 +88,7 @@ idle
 click "Walk to Shack"
 scene c4l3s5
 idle
+shot 13b-c4l3s5-shack
 click "Enter Shack"
 scene c4l3s7
 idle
@@ -259,6 +264,9 @@ scene c4l4s8
 idle
 shot 34-c4l4s8-table
 talk fred AAA ABA
+scene c4l4s0
+wait 100
+snap 34b-c4l4s0-narration
 idle
 shot 35-c4l4s8-kicked
 scene c4l4s5
