@@ -213,8 +213,16 @@ class StartupApp : public MenuHost
 
 	void present(SDL_Window *win, GLuint texture)
 	{
-		glViewport(0, 0, 640, 480);
+		// port: the movie is 640x480; scale it to the real drawable (1920x1080 on the Thor), 4:3 centred
+		// with black bars. A fixed 640x480 viewport drew it in the bottom-left corner.
+		int dw = 640, dh = 480;
+		SDL_GL_GetDrawableSize(win, &dw, &dh);
+		glDisable(GL_SCISSOR_TEST);
+		glViewport(0, 0, dw, dh);
 		glClearColor(0, 0, 0, 1); glClear(GL_COLOR_BUFFER_BIT);
+		float k = (float)dw / 640.0f < (float)dh / 480.0f ? (float)dw / 640.0f : (float)dh / 480.0f;
+		int vw = (int)(640 * k + 0.5f), vh = (int)(480 * k + 0.5f);
+		glViewport((dw - vw) / 2, (dh - vh) / 2, vw, vh);
 		glMatrixMode(GL_PROJECTION); glLoadIdentity(); glOrtho(0, 640, 480, 0, -1, 1);
 		glMatrixMode(GL_MODELVIEW); glLoadIdentity();
 		glDisable(GL_DEPTH_TEST); glDisable(GL_LIGHTING); glDisable(GL_CULL_FACE);
