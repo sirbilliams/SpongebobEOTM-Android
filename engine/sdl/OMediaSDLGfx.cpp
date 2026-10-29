@@ -45,6 +45,9 @@ static void omf_start_gl4es(void)
 	started = true;
 	const char *libs[] = { "libGLESv2.so", "libGLESv2.so.2", NULL };
 	for (int i = 0; libs[i] && !omg_gles_lib; i++) omg_gles_lib = dlopen(libs[i], RTLD_NOW | RTLD_LOCAL);
+	// port: keep textures at 8 bits per channel (gl4es's PowerVR default would be 16-bit); set before initialize_gl4es reads them
+	setenv("LIBGL_AVOID16BITS", "1", 0);
+	setenv("LIBGL_FORCE16BITS", "0", 0);
 	set_getprocaddress(omf_gl4es_getproc);
 	set_getmainfbsize(omf_gl4es_fbsize);
 	initialize_gl4es();
@@ -84,14 +87,49 @@ bool omgl_open_window(const char *title, int width, int height)
 	const char *ws = getenv("OMT_WINDOW_SIZE");		// desktop testing, e.g. "1280x960"
 	if (ws) sscanf(ws, "%dx%d", &ww, &wh);
 #endif
+#ifdef __ANDROID__
+	// port: SDL's Android default (no colour sizes set) is an RGB565 surface, which shows as dither / banding. Ask for
+	// 8/8/8/8 first; if no such EGL config exists, retry once with SDL's defaults.
+	for (int pass = 0; pass < 2; pass++)
+	{
+		if (pass == 0)
+		{
+			SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+			SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+			SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+			SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+		}
+		else
+		{
+			SDL_Log("OMT: no 8888 surface (%s), using SDL's default", SDL_GetError());
+			SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 5);
+			SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 6);
+			SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 5);
+			SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 0);
+		}
+		omg_win = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, ww, wh, flags);
+		if (omg_win) omg_ctx = SDL_GL_CreateContext(omg_win);
+		if (omg_win && omg_ctx) break;
+		if (omg_win) { SDL_DestroyWindow(omg_win); omg_win = NULL; }
+	}
+	if (!omg_win || !omg_ctx) { SDL_Log("OMT: window / GL context: %s", SDL_GetError()); omg_win = NULL; omg_ctx = NULL; return false; }
+#else
 	omg_win = SDL_CreateWindow(title, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, ww, wh, flags);
 	if (!omg_win) { SDL_Log("OMT: SDL_CreateWindow: %s", SDL_GetError()); return false; }
 	omg_ctx = SDL_GL_CreateContext(omg_win);
 	if (!omg_ctx) { SDL_Log("OMT: SDL_GL_CreateContext: %s", SDL_GetError()); return false; }
+#endif
 	SDL_GL_MakeCurrent(omg_win, omg_ctx);
 #ifdef OMT_USE_GL4ES
 	omf_start_gl4es();
 #endif
+	glDisable(GL_DITHER);		// port: GL's default is on; with a 16-bit surface it was the checkerboard, and it does nothing useful on 8888
+	{
+		int r = 0, g = 0, b = 0, a = 0;
+		SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &r); SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &g);
+		SDL_GL_GetAttribute(SDL_GL_BLUE_SIZE, &b); SDL_GL_GetAttribute(SDL_GL_ALPHA_SIZE, &a);
+		SDL_Log("OMT: framebuffer %d/%d/%d/%d", r, g, b, a);
+	}
 	SDL_GL_SetSwapInterval(1);
 	SDL_Log("OMT: window %dx%d, logical %dx%d, GL %s", ww, wh, width, height, (const char*)glGetString(GL_RENDERER));
 	return true;

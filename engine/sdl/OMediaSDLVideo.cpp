@@ -42,6 +42,15 @@ static void omf_SDLInit(void)
 #endif
 	SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 	SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
+#ifdef __ANDROID__
+	// port: with no colour sizes requested SDL's Android EGL chooser settles on an RGB565 surface (and GL_DITHER is on by
+	// default), which shows as a dither pattern and banding. Ask for 8888 (EGL sizes are minimums, so this only fails where
+	// no such config exists; the window code in OMediaSDLGfx.cpp falls back to the defaults then).
+	SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+	SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+#endif
 }
 
 // ---------------------------------------------------------------------------
@@ -626,6 +635,9 @@ void omf_SDLStartGL4ES(void)
 	started = true;
 	const char *libs[] = { "libGLESv2.so", "libGLESv2.so.2", NULL };
 	for (int i = 0; libs[i] && !omg_gles_lib; i++) omg_gles_lib = dlopen(libs[i], RTLD_NOW | RTLD_LOCAL);
+	// port: keep textures at 8 bits per channel (gl4es's PowerVR default would be 16-bit); set before initialize_gl4es reads them
+	setenv("LIBGL_AVOID16BITS", "1", 0);
+	setenv("LIBGL_FORCE16BITS", "0", 0);
 	set_getprocaddress(omf_gl4es_getproc);
 	set_getmainfbsize(omf_gl4es_fbsize);
 	initialize_gl4es();

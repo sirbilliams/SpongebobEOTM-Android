@@ -533,6 +533,15 @@ void Hud::placeItem(HudItem* it, float x, float y)
 }
 
 // ------------------------------------------------------------------------------------------------ frame
+static bool touchHudWanted()
+{
+#ifdef __ANDROID__
+    return true;
+#else
+    const char* e = getenv("SB_TOUCH_HUD");
+    return e && e[0] == '1';
+#endif
+}
 static float smooth(float t) { t = t < 0 ? 0 : t > 1 ? 1 : t; return t * t * (3.0f - 2.0f * t); }
 
 void Hud::build()
@@ -656,6 +665,11 @@ void Hud::update(float dtMs)
 
     // buttons (0x4208f0 / 0x420990: the faint variant, the solid one under the pointer)
     bool hc = on && hover_ == Chest, hm = on && hover_ == Map, hh = on && open_ && hover_ == Hint, hn = on && open_ && hover_ == Menu;
+    // port: the exe draws the faint outline variants ('chest1t', 'mapt', ...) until the mouse pointer is over a button.  A touch
+    // screen has no hover (the Thor's chest and telescope showed as a few dotted pixels), so there the solid art is always drawn.
+    // SB_TOUCH_HUD=1 turns it on for desktop tests.
+    static const bool touchHud = touchHudWanted();
+    if (touchHud) { hc = on; hm = on; hh = on && open_; hn = on && open_; }
     show(inv_, on && !open_ && hc);   show(invT_, on && !open_ && !hc);
     show(inv2_, on && open_ && hc);   show(inv2T_, on && open_ && !hc);
     show(map_, hm);                   show(mapT_, on && !hm);
