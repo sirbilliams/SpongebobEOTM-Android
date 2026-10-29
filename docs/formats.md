@@ -57,17 +57,31 @@ script command such as `anim sb emoexplain`).
 
 ## .scn scenes (0x437210)
 
-An OMT file stream (`OMediaFileStream`), header `RMAC` (= FourCC `CAMR` stored little-endian),
-versions 22 and 23 occur. Read order:
+Little-endian primitive reads from an OMT file stream; there is no outer scene version or chunk length.
+The first record is `CAMR` (numeric `0x43414d52`, disk bytes `RMAC`), whose independent u16
+version is 22 or 23. All floats are IEEE binary32. Read order:
 
-1. the scene camera object (streamed in by `scene[0x9a]->vtbl+0x20`);
-2. up to 5 element records (`scene[0x13c + i*0x69]->vtbl+0x20`), FourCC `TILE`;
-3. optional `STPT` chunk: 10 start points of 16 bytes (`scene+0x6f7*4`);
-4. two optional `GRID` chunks (walk grid at `scene+0x367*4`, second grid at `+0x52f*4`): 5 floats
-   (size, ...), then a (2*size) x (2*size) byte grid stored with 30-byte rows;
-5. element records until end of file (0x42a480): FourCCs `CHAR` (characters), `2DOB` (2D objects), ...
+1. Camera: u32 tag, u16 version, fields in 0x40ea40 order. Version 22 is 306 bytes total;
+   version 23 adds a final u16 at original camera offset +0x284 (308 bytes total).
+2. Five **LITE lights**, not TILE records: numeric `0x4c495445`, disk bytes `ETIL`, each with
+   u16 version 12 and 52 payload bytes (58 total). The earlier extract/docs misidentified these.
+   The loop is capped at five and tests EOF before each read.
+3. Optional `STPT` (`0x53545054`, disk `TPTS`): exactly ten 16-byte records, each three f32
+   position coordinates, a u16 heading, and a final u16 of unresolved meaning/padding.
+4. Two optional `GRID` records (`0x47524944`, disk `DIRG`), in walk-grid then second-grid order.
+   Five f32 values are read into grid offsets +4, +8, +12, **+20, +16**, followed by bytes.
+   The first float is half the side length. Nested integer counters compare with twice that
+   float, so a nonintegral positive dimension rounds upward. Rows have a 30-byte memory stride;
+   the exe allocates a 0x720-byte grid object (24 header bytes and 1800 cell bytes).
+5. Object factory records to EOF: u32 tag consumed by 0x42a480, then a class-specific u16 version
+   and fields. Shipped types: CHAR, 2DOB, ANIM, SPOT, ITEM, TRIG. Their versions are independent
+   of the camera: CHAR 31/32, ANIM 27/28, 2DOB 17, SPOT 14, ITEM 24, TRIG 25.
 
-A chunk with an unexpected FourCC is skipped back (`seek(-4, cur)`).
+Only the three optional chunk probes rewind four bytes on a mismatched tag; an unknown factory
+record is an error, not a skippable chunk. Record readers compare version equality after each field:
+version N returns after field N. There is no alignment or padding inserted between disk fields.
+The complete field orders, offsets, sizes, unknown meanings, and all 123 parse results are in
+[scene-loader.md](scene-loader.md). C++98 data structs/readers are in `game/src/scene/`.
 
 ## Startup (0x40bcc0, 0x40e470)
 
