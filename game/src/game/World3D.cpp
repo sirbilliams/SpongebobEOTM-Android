@@ -744,23 +744,27 @@ void World3D::runPending()
     else scene_->useItem(o, item.c_str());
 }
 
+// item vt+0x104 (0x423710): the item is taken into the bar (Can Pickup), leaves the player's touch list and is hidden.  Called when the
+// player's pickup animation ends, or straight from the click (0x4234d0) in a scene without a player (c3l6s3).
+void World3D::takeItem(SceneObject* it, Actor3D* a)
+{
+    if (!it->pickup) return;
+    if (it->addInv) {
+        game_->state().giveItem(it->art.c_str());              // 0x4169a0
+        game_->hudAddFromScene(it);                            // 0x41f4d0: flies from the item's screen point
+    }
+    if (a) for (size_t i = 0; i < a->touches.size(); ++i) if (a->touches[i] == it) { a->touches.erase(a->touches.begin() + i); break; }
+    setHidden(it, true);                                       // vt+0x30(1)
+    game_->host()->playObjectSound(it);                        // base vt+0x50(1)
+}
+
 // 0x405620 tail: a one-shot animation ran out (+0x284 control expired)
 void World3D::animEnded(Actor3D* a)
 {
     std::string n = lower(a->anim);
     if (n == "pickup2" || n == "pickup") {                    // vt+0x104 (0x433980): the item is taken, then the rise
         SceneObject* it = a->pickupItem;
-        if (it) {                                             // item vt+0x104 (0x423710)
-            if (it->pickup) {
-                if (it->addInv) {
-                    game_->state().giveItem(it->art.c_str());              // 0x4169a0
-                    game_->hudAddFromScene(it);                            // 0x41f4d0: flies from the item's screen point
-                }
-                for (size_t i = 0; i < a->touches.size(); ++i) if (a->touches[i] == it) { a->touches.erase(a->touches.begin() + i); break; }
-                setHidden(it, true);                                       // vt+0x30(1)
-                game_->host()->playObjectSound(it);                        // base vt+0x50(1)
-            }
-        }
+        if (it) takeItem(it, a);                              // item vt+0x104 (0x423710)
         if (n == "pickup2" && exists(a, "pickup2b")) setAnim(a, "pickup2b", 1, 1.0f, Actor3D::OneShot);
         else if (n == "pickup" && exists(a, "pickupb")) setAnim(a, "pickupb", 1, 1.0f, Actor3D::OneShot);
         else { a->anim = n + "b"; animEnded(a); }

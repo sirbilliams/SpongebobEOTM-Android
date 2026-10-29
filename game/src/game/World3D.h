@@ -117,7 +117,8 @@ public:
     bool rotateToward(SceneObject* target);                  // vt+0x13c (heading toward target, 500): true = turning
     bool rotatePlayer(int heading);                          // vt+0x13c (heading, 500)
     bool touching(SceneObject* o);                           // vt+0x128 (0x4318c0)
-    void startPickup(SceneObject* item);                     // vt+0x100 (0x433910)
+    void startPickup(SceneObject* item);
+    void takeItem(SceneObject* it, Actor3D* a);
     void playerDoor();                                       // vt+0xb4 ("door", 0, 1.0)
     void walkIn();                                           // DoSwitch tail (0x40b720): the player walks into the scene
     bool doorBusy();                                         // DoSwitch head: the door / walk animation or a turn is running

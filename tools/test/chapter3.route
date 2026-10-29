@@ -159,4 +159,30 @@ idle
 shot 28-c3l6s1
 talk sandress AAA
 idle
+save 3
+click "Walk to Other Side"
+scene c3l6s2
+idle
+shot 29-c3l6s2
+click "Walk Behind Picnic Table"
+scene c3l6s3
+idle
+shot 30-c3l6s3-tanks
+grab iot1
+idle
+have iot1
+click "Exit Picnic Table"
+scene c3l6s2
+idle
+click "Walk to Sandy's Tree"
+scene c3l6s1
+idle
+click "Enter Sandy's Tree"
+scene c3l6s4
+idle
+shot 31-c3l6s4
+use iot1 sandress
+scene c4l0s1
+idle
+shot 32-c4l0s1
 end
