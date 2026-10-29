@@ -271,6 +271,18 @@ bool Hud::combine(HudItem* a, HudItem* b)
     return false;
 }
 
+bool Hud::combineFromPanel(const std::string& a, const std::string& b, bool* made)    // port: companion
+{
+    *made = false;
+    HudItem* x = find(a);
+    HudItem* y = find(b);
+    if (!x || !y || x == y || !active()) return false;
+    if (held_) release();
+    if (combine(x, y)) *made = true;
+    else g_->switchTo("H000F");                            // as dropAt: "that doesn't work"
+    return true;
+}
+
 // ------------------------------------------------------------------------------------------------ pointer
 void Hud::release()                     // 0x420f20
 {

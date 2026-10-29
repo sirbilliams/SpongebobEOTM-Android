@@ -48,6 +48,8 @@ public:
     bool choiceMode() const { return choice_; }           // byte +0x18
     const std::string& currentText() const { return curText_; }
     const std::string& currentSpeaker() const { return curSpeaker_; }
+    const std::string& currentKey() const { return curKey_; }          // port: companion: key of the line being said ("AAA")
+    unsigned lineSerial() const { return lineSerial_; }                 // port: companion: counts the lines played
     // port: companion (docs/companion.md): the open choice list as text, and picking the n-th eligible choice
     std::vector<std::string> choiceTexts();
     bool pickChoice(int n);
@@ -88,7 +90,8 @@ private:
     int cur_;                // +0x0c selected group, -1 none
     OMediaSound* voice_;     // +0x08 (owned by the bank)
     float timerMs_;          // +0x30 text-only duration
-    std::string curText_, curSpeaker_;
+    std::string curText_, curSpeaker_, curKey_;
+    unsigned lineSerial_;
     std::vector<TextBlock*> blocks_;
     bool dirty_;
 };

@@ -8,5 +8,6 @@ public class JSONArray {
     public String optString(int i, String d) { Object o = opt(i); return o instanceof String ? (String) o : d; }
     public int optInt(int i, int d) { Object o = opt(i); return o instanceof Number ? ((Number) o).intValue() : d; }
     public double optDouble(int i, double d) { Object o = opt(i); return o instanceof Number ? ((Number) o).doubleValue() : d; }
+    public JSONObject optJSONObject(int i) { Object o = opt(i); return o instanceof JSONObject ? (JSONObject) o : null; }
     public JSONArray optJSONArray(int i) { Object o = opt(i); return o instanceof JSONArray ? (JSONArray) o : null; }
 }

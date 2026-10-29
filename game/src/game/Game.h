@@ -168,6 +168,9 @@ private:
     int mx_, my_;
     bool inputAttached_;
     TextBlock* commentBlock_;
+public:
+    std::string lastCommentText; unsigned commentSerial;     // port: companion: the comment shown last (the refusal of a combine)
+private:
     bool commentVoice_;
     std::string hoverText_;
     Hud* hud_;                    // port: hud

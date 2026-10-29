@@ -25,7 +25,7 @@ and link `port/Companion.cpp` into any target that uses it (`spongebob` globs it
 ## Snapshot (JSON) and commands
 Fields: `game, chapter_title, scene_title, cut, hint, caption, sel, items[], names[], icons, visited[], dlg{choice, speaker, text, choices[]}`
 (see `Companion.h`). Taps go back as `item:<id>`, `noitem`, `choice:<n>`, `advance`, `menu`, `skip`
-(`Companion.command` -> queue -> `companionCommands` on the game thread).
+(`Companion.command` -> queue -> `companionCommands` on the game thread), plus `hint`, `reveal`, `travel:<target>`, `voice:<n>`, `combine:<a>:<b>`; the snapshot also has `map, mapbusy, talk, combine, goals` (see Pages).
 
 ## What the panel shows
 Header plank (chapter, scene, MENU and SKIP portholes); hint ticket (when there is one); while a dialogue is open
@@ -59,4 +59,33 @@ stand-in pictures drawn by `shim/.../SampleIcons.java` (the sample's `"icons":"@
   `CompanionMovie`. The panel's SKIP porthole is lit only in a cutscene or on a dialogue line. `SceneScriptHost::gameSkip` (the script command) is still a stub.
   Taps older than 1.5 s are dropped (a tap made while paused or in a movie must not fire later).
 * Test hook: `SB_TEST_COMPANION="60:switch=smeanwhile1,200:skip"` (tick:command list; `switch=` runs `Game::switchTo`).
-* Map: the trail shows the names of the scenes visited; the chips are not tappable (the game's map is a go-to-hub button, no travel list).
+* Map: the trail on the Pocket page shows the names of the scenes visited (not tappable); the real map is the Map page, below.
+
+## Pages (Pocket, Map, Talk, Goals)
+A tab row under the header plank (`tab:<n>`, panel-local) switches pages; it is there in Panel and in Touchpad mode (Touchpad: the Pocket tab is the pad with its slim pocket row,
+the other tabs show their page in full). A question to answer (dialogue choices) always shows the Pocket page. The row ends with a REVEAL button that sends `reveal` (the
+game side, which shows the hidden hot spots, is lane e's; until it lands the command is ignored). All pages are drawn in the same wood / rope / bubble style, no show art.
+* **Map** (`map[]`, `mapbusy`): the in-game map is the scene `c<N>l1s1` (the HUD's map button switches to `c<N>l1s1p1`). `companionMapAreas` (CompanionFeed.h) reads that scene
+  file from the player's folder (`sb::scene::load`) and takes every 2DOB / SPOT with a scene as its Event (`c1l6s1p1`), exactly the objects the map shows. Same rules as the game:
+  a 2DOB is clickable only when its Visible Condition holds (`121caa` etc., `Game::cond`); the base event (0x415a70) takes Event or Alt Event by the Condition; the CHEAT spots
+  (condition `debug`) are left out. The panel places each place at its click rectangle on the 640x480 map. Name = the map object's own Description ("Go to Downtown" ->
+  "Downtown"); a place that is not open and not visited stays a grey "?" (no spoilers). Visited = a scene of that level is in GameState's entered-scenes list (also kept in saves).
+  Tap an open place -> `travel:<target>`; the game re-checks the same rule (`companionTravel`) and refuses (log `companion: travel ... refused`) when the map would not offer it,
+  when the target is not on the map, or while a dialogue / cutscene / script runs or a scene switch waits (the map button is dead then); else `Game::switchTo(target)`, which is what clicking the
+  place on the map scene does. A not-open place only shows a note ("Not open yet").
+* **Talk** (`talk[]`): every spoken dialogue line of the session (speaker + text, oldest first, 60 kept, newest at the bottom; it keeps to the bottom unless scrolled up, drag to scroll).
+  `DialogueUI` has two small `// port: companion` getters (`currentKey`, `lineSerial`); `companionRecordTalk` records a line when it starts. The round button sends `voice:<serial>`:
+  `companionReplayVoice` finds the line's voice in the scene's sound bank with the same seven case-combinations as `DialogueUI::startVoice` (0x412d00; the bank of the line's scene is opened
+  for a line from another scene) and plays it on channel 4, the dialogue's own channel; refused while a line is being said. Lines without a voice file get a dimmed button.
+* **Combine**: on the Pocket page, drag a card onto another (a drag starts after 26 px; the target lights up) -> `combine:<a>:<b>` -> `Hud::combineFromPanel`, which is `dropAt` onto a
+  slot: `Hud::combine` (0x421880, the six recipes) or, if it fails, `switchTo("H000F")`, the game's own refusal comment. The snapshot's `combine{n,ok,t}` carries "Made: <name>" or the
+  comment text (`Game::lastCommentText`, set in `showComment`), shown for 6 s in a banner. Works on the big cards and on the Touchpad layout's slim row. A short tap still takes the item in hand.
+* **Goals** (`goals{sv,st,sc,places[]}`, `hint`): the chapter's scenes found in the player's `scenes/` folder (levels >= 2) against the entered scenes (GameState), per place with a bar, the number of
+  scripts seen (`GameState::scriptsSeenCount`), and WHAT NEXT = the hint the HINT button resolves (`Hud::hintText`, first help line of the chapter whose condition holds), or "Nothing to suggest yet".
+* GameState got two read-only `// port: companion` getters (`scenesEntered`, `scriptsSeenCount`), Game one (`lastCommentText`, `commentSerial`), Hud `combineFromPanel`.
+
+## Tests
+* `tools/companion/test.sh <build> <game> [out]` (inside the box, own Xvfb :84): runs the game headless with `SB_COMPANION_DUMP` and `SB_TEST_COMPANION`: dialogue history after a conversation, travel
+  refused for a locked place / a target not on the map / while a conversation is open, travel allowed to an open place (and the scene is entered), combine of two items (`SB_TEST_ITEMS`) and the refusal comment.
+* `tools/companion/panel-test.sh` (inside the box): the real `CompanionView.java` on the Java2D shim: tabs, tap on an open place sends `travel:`, a place that is not open sends nothing, a drag of a card onto another sends `combine:a:b`.
+* Renders: `tools/companion/render.sh <snap> <png> page:map|page:talk|page:goals[:pad]|combine|combine:mid|banner` (`samples/pages.json` has invented place names and lines; a snapshot written by the game renders with its own data).

@@ -70,7 +70,7 @@ int TextBlock::show(Game* g, int x, int y, int z, bool highlighted, const std::s
 // ------------------------------------------------------------------------------------------ DialogueUI
 DialogueUI::DialogueUI(Game* g)
     : game_(g), sceneId_(0), active_(false), choice_(false), exiting_(false), zOpen_(false), branch_(0), cur_(-1), voice_(0),
-      timerMs_(0), dirty_(false)
+      timerMs_(0), lineSerial_(0), dirty_(false)
 {
 }
 
@@ -214,6 +214,7 @@ void DialogueUI::playLine()
     const DialogueLine& l = g.lines[g.current];
     curText_ = l.text;
     curSpeaker_ = l.speaker;
+    curKey_ = l.key; ++lineSerial_;                 // port: companion
     timerMs_ = 0;
     if (startVoice(l.key)) {
         game_->playOnChannel(4, voice_, 0);
