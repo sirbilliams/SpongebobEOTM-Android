@@ -106,8 +106,11 @@ add_library(sb_audio STATIC omt1/OMediaSoundManager.cpp sdl/OMediaSDLSound.cpp
   OMTClasses/Engines/OMediaSoundEngine.cpp OMTClasses/Engines/OMediaEngine.cpp OMTClasses/Engines/OMediaEngineImplementation.cpp)
 target_include_directories(sb_audio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/omt1
   ${CMAKE_CURRENT_SOURCE_DIR}/OMTClasses/Sound ${CMAKE_CURRENT_SOURCE_DIR}/OMTClasses/Engines PRIVATE ${OMT_INC} sdl
-  ${CMAKE_CURRENT_SOURCE_DIR}/../game/bink ${SDL2_INCLUDE_DIRS})
+  ${CMAKE_CURRENT_SOURCE_DIR}/../game/bink ${SDL2_INCLUDE_DIRS} ${OMT_GL_INC})   # OMediaSysDefs.h includes GL/gl.h (gl4es on Android)
 target_compile_definitions(sb_audio PRIVATE OMT1_AUDIO_ONLY)
+if(OMT_GL4ES)
+  target_compile_definitions(sb_audio PRIVATE OMT_USE_GL4ES)
+endif()
 target_compile_options(sb_audio PRIVATE -Wno-write-strings -Wno-multichar)
 target_link_libraries(sb_audio PUBLIC ${OMT_SDL})
 
