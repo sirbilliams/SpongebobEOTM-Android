@@ -51,7 +51,7 @@ stand-in pictures drawn by `shim/.../SampleIcons.java` (the sample's `"icons":"@
   these names (no ids). Chapter stays "Chapter N".
 * Hint: first `help.sb2` entry of the chapter whose condition holds (`Hud::hintText`); its text may be another line's id (`F121A` -> `F000D`), which lives in the
   chapter-0 lines. `HelpTable` now keeps those apart (`common_`, `// port:`) so `find` resolves them; before, the panel showed the raw id `F000D`. The hint has no
-  speaker and no voice here (`sounds/help.omt` is on the CD, not in the install; the game's own hint button plays none either), so no play button.
+  speaker. The voice bank `cd/sounds/help.omt` (the CD folder; also tried: `sounds/help.omt`) is played by the game itself: `Hud::hint` (hint button, and the panel command `hint`) plays the read line's voice on channel 4 (0x419210). The panel has no play button.
 * `menu`: sends the F10 key (`CompanionKey`, SDL_PushEvent): the same path as F10 / Android Back, the game is paused behind the main menu (Resume Game).
 * `skip`: a dialogue line -> `DialogueUI::onKey(' ')` (the click that closes a line); else in a cutscene (`GameScene::letterboxed()`: the cinematic bars are in,
   also `cut`:1) the exe's click handler 0x41ae00 -> `ScriptRunner::skipToLetterboxClose` (0x43df30) + `Game::wake` (scene vt+0xe0); during a Bink movie the game loop is

@@ -75,7 +75,7 @@ class StartupApp : public MenuHost
 		init_font();
 		load_config();
 		SDL_Log("0x40e2c0: SetVideoMode(640,480,16,%d)", software);
-		SDL_Log("TODO(0x40ceb0): select the 3D scene rasterizer when a scene starts");
+		// 0x40ceb0 InitRasterizer: done by World3D::rasterizer() when a scene starts (the 2D menu needs none).
 		init_granny();
 		init_movie_sound();
 	}

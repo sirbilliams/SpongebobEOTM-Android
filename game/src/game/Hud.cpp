@@ -41,7 +41,7 @@ static std::string lowerStr(std::string s)
 
 Hud::Hud(Game* g)
     : g_(g), held_(0), dragging_(false), downX_(0), downY_(0), open_(false), shownNow_(false), fly_(0), flyT_(0), flyMs_(0),
-      flyX_(0), flyY_(0), mx_(320), my_(240), hover_(None), hoverSlot_(-1), hintBlock_(0), hintMs_(0), iconFrame_(0),
+      flyX_(0), flyY_(0), mx_(320), my_(240), hover_(None), hoverSlot_(-1), hintBlock_(0), hintMs_(0), hintVoice_(false), iconFrame_(0),
       testItemsDone_(false), built_(false), testHoldDone_(false), lastScene_(0), sparkleMs_(0), sparkleX_(0), sparkleY_(0), sparkleAcc_(0)
 {
     for (int i = 0; i < 10; ++i) { sparkles_[i] = 0; sparkleAge_[i] = 0; }
@@ -330,6 +330,17 @@ bool Hud::onMouseUp(int x, int y)
 
 void Hud::onMove(int x, int y) { mx_ = x; my_ = y; }
 
+std::string Hud::hintId()
+{
+    const std::vector<sbscript::HelpEntry>& h = g_->help().entries();
+    for (size_t i = 0; i < h.size(); ++i)
+        if (!h[i].condition.empty() && g_->cond(h[i].condition.c_str())) {
+            const sbscript::HelpEntry* alias = g_->help().find(h[i].text);
+            return alias ? alias->id : h[i].id;
+        }
+    return std::string();
+}
+
 std::string Hud::hintText()             // the first help line whose condition holds; a line that is another line's id (F121A -> F000D) is that line's text
 {
     const std::vector<sbscript::HelpEntry>& h = g_->help().entries();
@@ -350,8 +361,11 @@ void Hud::hint()                        // game vt+0x100
     if (t.empty()) { g_->log("HUD: hint: no help line applies\n"); return; }
     delete hintBlock_;
     hintBlock_ = new TextBlock;
-    hintBlock_->show(g_, 5, 440, 10100, false, t, 630);   // STUB: the voice (sounds/help.omt) is not played
-    hintMs_ = 1500.0f + 50.0f * (float)t.size();
+    hintBlock_->show(g_, 5, 440, 10100, false, t, 630);
+    OMediaSound* v = g_->helpVoice(hintId());                // 0x419210: the voice of the read line (sound manager channel 4)
+    hintVoice_ = v && g_->playOnChannel(4, v, 0);
+    g_->log("HUD: hint %s voice=%d\n", hintId().c_str(), hintVoice_ ? 1 : 0);
+    hintMs_ = hintVoice_ ? 100.0f : 1500.0f + 50.0f * (float)t.size();
 }
 
 bool Hud::overHotspot(int x, int y)
@@ -597,6 +611,7 @@ void Hud::update(float dtMs)
         if (held_) release();
         open_ = false;
     }
+    if (hintBlock_ && hintVoice_ && g_->channelBusy(4)) hintMs_ = 100.0f;      // the voice runs: the text stays
     if (hintBlock_ && (hintMs_ -= dtMs) <= 0) { delete hintBlock_; hintBlock_ = 0; }
 
     // the pickup flight (+0x130 .. +0x140)

@@ -374,6 +374,15 @@ void Game::updateComment(float dt)
 
 // --------------------------------------------------------------------------------------- sounds
 // Wave by name in a bank: exact, then lower case, then upper case (the bank holds e.g. "121aab")
+OMediaSound* Game::helpVoice(const std::string& id)
+{
+    if (!helpBank_.db) {
+        if (!helpBank_.open(root_ + "/cd/sounds/help.omt")) helpBank_.open(root_ + "/sounds/help.omt");
+        if (!helpBank_.db) { log("help voice bank not found\n"); return 0; }
+    }
+    return soundCI(helpBank_.db, sbscript::CommentTable::voiceName(id));    // the same five-character name rule (first and last upper case)
+}
+
 OMediaSound* Game::soundCI(OMediaDataBase* db, const std::string& name)
 {
     if (!db) return 0;
