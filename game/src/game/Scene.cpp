@@ -296,6 +296,7 @@ void GameScene::enter(int startPoint)
         else game_->switchTo(game_->chained.c_str());
         game_->chained.clear();
     }
+    game_->state().markScene(sceneId_);                 // 0x416a60(scene id): "cXlYsZ" conditions see it from now on
     // "here 12": scenes without a level (and the loading kind) hide the "loading" object
     if ((sceneId_ & 0xf00) == 0) hide("loading");
     lock_ = 500.0f;     // 0x437cf0 "here 16": param_1[0x735] = 500.0

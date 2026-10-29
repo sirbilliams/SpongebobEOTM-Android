@@ -41,6 +41,11 @@ class OMedia3DGrannyModel
 	// "play animation and wait" and the return to the idle animation.
 	bool animation_expired(void) const;
 
+	// sb2.exe 0x433780 / 0x433730 (character vt+0x12c / +0x130): this model's sequence hangs at its bone `bone` from
+	// `parent_bone` of the parent's sequence (GrannyGetBoneIndexFromName, GrannyAttachSequence with 0x1ff, 0x1ff); false: a
+	// bone is missing or Granny refused.  detach: GrannyDetachSequence.
+	bool attach_to(OMedia3DGrannyModel *parent, const char *bone, const char *parent_bone);
+	void detach(void);
 	inline OMedia3DShape *get_shape(void) {return shape;}
 	inline float get_scale(void) const {return scale;}
 	inline void set_scale(float s) {scale = s;}

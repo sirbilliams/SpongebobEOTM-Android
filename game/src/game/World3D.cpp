@@ -23,7 +23,7 @@ Actor3D::Actor3D()
       rotTarget(0), rotTolerance(0), idling(false), idleLeft(0), waited(false), scheduled(false)
 {
     waypoint = 0; interaction = 0; radius = 50; control = true; useGrid = false;
-    arrive = 25; pickupItem = 0; doorWalk = false; dirX = 0; dirZ = 1;
+    arrive = 25; pickupItem = 0; doorWalk = false; dirX = 0; dirZ = 1; attachModel = 0; attachElem = 0;
 }
 
 static std::string lower(std::string s)
@@ -114,6 +114,10 @@ World3D::World3D(Game* game, GameScene* scene)
         a->heading = (rec && rec->tag == sb::scene::CharacterTag) ? (rec->data.character.o0240 & 0x3fff) : 0;
         if (rec && rec->tag == sb::scene::CharacterTag) { a->radius = rec->data.character.o023c; a->useGrid = rec->data.character.o0280 != 0; }
         if (rec && rec->tag == sb::scene::ItemTag) a->radius = rec->data.item.o023c;
+        if (rec && rec->tag == sb::scene::CharacterTag) {
+            a->attachName = rec->data.character.o0976.text(); a->attachBone = rec->data.character.o0996.text();
+            a->attachParentBone = rec->data.character.o09b6.text(); a->attachCond = rec->data.character.o09d6.text();
+        }
         a->model = new OMedia3DGrannyModel;
         std::string sub = o->kind == SceneObject::Char ? "/models/people/" : "/models/items/";
         if (!a->model->load(dir_ + sub + a->name + "_model")) {
@@ -121,6 +125,8 @@ World3D::World3D(Game* game, GameScene* scene)
             delete a->model; delete a;
             continue;
         }
+        float sc = rec && rec->tag == sb::scene::CharacterTag ? rec->data.character.o0224 : rec && rec->tag == sb::scene::ItemTag ? rec->data.item.o0224 : 1.0f;
+        if (sc > 0) a->model->set_scale(sc);                  // +0x224 Scale
         a->elem = new OMedia3DShapeElement;
         a->elem->setshape(a->model->get_shape());
         a->elem->link(w3_);
@@ -133,6 +139,7 @@ World3D::World3D(Game* game, GameScene* scene)
 
 World3D::~World3D()
 {
+    for (size_t i = 0; i < actors_.size(); i++) detach(actors_[i]->obj);
     for (size_t i = 0; i < actors_.size(); i++) delete actors_[i]->elem;
     for (size_t i = 0; i < actors_.size(); i++) { delete actors_[i]->model; delete actors_[i]; }
     for (size_t i = 0; i < lights_.size(); i++) delete lights_[i];
@@ -722,8 +729,60 @@ void World3D::setHidden(SceneObject* o, bool hide)
     else while (a->elem->get_hide_count() > 0) a->elem->hide(false);
 }
 
+// vt+0x12c (0x433780): a new item model ("models\\items\\%s_model"), not clickable, hung by its bone `bone` from the
+// character's `parentBone`; a failed attachment is taken off again (vt+0x130)
+bool World3D::attach(SceneObject* o, const char* name, const char* bone, const char* parentBone)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || a->attachModel) return false;
+    a->attachBone = bone; a->attachParentBone = parentBone;
+    OMedia3DGrannyModel* m = new OMedia3DGrannyModel;
+    if (!m->load(dir_ + "/models/items/" + lower(name) + "_model")) {
+        game_->log("3D: attach %s: %s\n", name, m->get_error().c_str());
+        delete m;
+        return false;
+    }
+    a->attachModel = m;
+    a->attachElem = new OMedia3DShapeElement;
+    a->attachElem->setshape(m->get_shape());
+    a->attachElem->link(w3_);
+    a->attachElem->place(a->x, a->y, a->z);
+    a->attachElem->set_angle(0, (short)(a->heading & 0x3fff), 0);
+    if (!m->attach_to(a->model, bone, parentBone)) {
+        game_->log("3D: attach %s to %s: bone %s / %s not found\n", name, a->name.c_str(), bone, parentBone);
+        detach(o);
+        return false;
+    }
+    game_->log("3D: %s holds %s (%s on %s)\n", a->name.c_str(), name, bone, parentBone);
+    return true;
+}
+
+void World3D::detach(SceneObject* o)            // vt+0x130 (0x433730)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || !a->attachModel) return;
+    a->attachModel->detach();
+    delete a->attachElem; a->attachElem = 0;
+    delete a->attachModel; a->attachModel = 0;
+}
+
+void World3D::hideAttach(SceneObject* o, bool hide)     // the attached object's vt+0x30 ('showattach' only when it is hidden)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || !a->attachElem) return;
+    if (hide) { if (a->attachElem->get_hide_count() == 0) a->attachElem->hide(true); }
+    else while (a->attachElem->get_hide_count() > 0) a->attachElem->hide(false);
+}
+
 void World3D::refreshVisibility()
 {
+    for (size_t i = 0; i < actors_.size(); i++) {         // 0x438ad0: a character's own attachment (+0xa56) by its condition (+0xab6)
+        Actor3D* a = actors_[i];
+        if (a->obj->kind != SceneObject::Char || a->attachName.empty()) continue;
+        bool c = game_->cond(a->attachCond.c_str());
+        if (a->attachModel && !c) detach(a->obj);
+        else if (!a->attachModel && c) attach(a->obj, a->attachName.c_str(), a->attachBone.c_str(), a->attachParentBone.c_str());
+    }
     for (size_t i = 0; i < actors_.size(); i++) {
         SceneObject* o = actors_[i]->obj;
         if (o->visibleCond.empty()) continue;
@@ -816,6 +875,12 @@ void World3D::update(float dtMs)
         if (moved) place(a);
         if (a->mode == Actor3D::OneShot && a->model->animation_expired()) animEnded(a);
         a->model->update_pose();
+        if (a->attachElem) {                                  // port: the attached model's pose is in the character's space
+            a->attachElem->place(a->x, a->y, a->z);
+            a->attachElem->set_angle(0, (short)(a->heading & 0x3fff), 0);
+            a->attachModel->set_scale(a->model->get_scale());
+            a->attachModel->update_pose();
+        }
         if (game_->world3d() != this) return;                 // an event switched the scene (port: the world is gone)
         if (a->obj->userCtl && a->obj->kind == SceneObject::Char) updateTouches(a);
         if (game_->world3d() != this) return;

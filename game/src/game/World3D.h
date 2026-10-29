@@ -41,6 +41,9 @@ struct Actor3D {
     SceneObject* pickupItem;          // +0x398: the item being picked up (0x433910)
     bool doorWalk;                    // +0x356: walking straight ahead (through a door, into a scene)
     float dirX, dirZ;                 // port: the straight-ahead direction of doorWalk
+    // the attached object (+0xad8, 0x433780): an item model hanging from a bone of this character
+    OMedia3DGrannyModel* attachModel; OMedia3DShapeElement* attachElem;
+    std::string attachName, attachBone, attachParentBone, attachCond;   // +0xa56, +0xa76, +0xa96, +0xab6 (CHAR record +0x976..)
 };
 
 class World3D {
@@ -75,6 +78,10 @@ public:
     bool rotate(SceneObject* o, int angle, int tolerance);                             // vt+0x13c
     bool idle(SceneObject* o, float seconds);                                   // vt+0x168
     void setHidden(SceneObject* o, bool hide);
+    // character vt+0x12c / +0x130 and the attached object's vt+0x30 (script attach / detach / hideattach / showattach)
+    bool attach(SceneObject* o, const char* name, const char* bone, const char* parentBone);
+    void detach(SceneObject* o);
+    void hideAttach(SceneObject* o, bool hide);
     void refreshVisibility();                                                   // scene vt+0x100, CHAR / ITEM part
     SceneObject* pick(int x, int y);                                            // scene vt+0xc4, the 3D passes
     bool screenBounds(SceneObject* o, int& x1, int& y1, int& x2, int& y2);      // where the character is drawn
