@@ -149,11 +149,11 @@ void MainMenu::rebuild() {
         caption(data.text(0x455904),225+(95-font->get_text_length(data.text(0x455904)))/2,380,93);
         caption("Cancel",320+(95-font->get_text_length("Cancel"))/2,380,90);
     } else if(page==4) {
-        // 0x424d60: movie availability is driven by VM unlock variables.
-        // Initial game permits THQ, SpongeBob and Intro; later unlocks await the VM.
-        for(int i=0;i<3;++i) center(data.text(data.word(0x455720+4*i)),91+23*i,300+i);
-        for(int i=3;i<11;++i) image("locked",-1,91+23*i,10301);
-        center(data.text(data.word(0x455720+4*11)),91+23*11,311);
+        // 0x4246a0: the 12 movies; a locked one (0x424d60) shows the 'locked' picture instead of its name and cannot be clicked
+        for(int i=0;i<12;++i) {
+            if(movieUnlocked(i)) center(data.text(data.word(0x455720+4*i)),91+23*i,300+i);
+            else image("locked",-1,91+23*i,10301);
+        }
         center(data.text(0x455904),380,90);
     }
     for(size_t i=0;i<buttons.size();++i)
@@ -183,6 +183,12 @@ void MainMenu::listen_to_message(omt_Message msg,void *param) {
         if(hit(buttons[i],ci->click_x,ci->click_y)) { int id=buttons[i].id; activate(id); return; }
     // 0x425aa0: a click on the picture of the Save / Load Game screen does what Ok does
     if((page==2 || page==3) && confirm<0 && ci->click_x>=0xa1 && ci->click_x<=0x1df && ci->click_y>=0x60 && ci->click_y<=0x14e) activate(93);
+}
+bool MainMenu::movieUnlocked(int i) {       // 0x424d60: 0..2 and 11 always; 3..10 once the script was seen
+    static const char *const scripts[8]={"schap1end","schap2end","schap3end","schap4end","svideo1","splankton","svideo3","svideo4"};
+    if(i<=2 || i==11) return true;
+    if(i>10) return false;
+    return host->menu_script_seen(scripts[i-3]);
 }
 void MainMenu::back() { confirm=-1;page=-1;selected=-1;rebuild(); }
 
@@ -270,6 +276,7 @@ void MainMenu::activate(int id) {
     if(id>=300) {
         const char *names[]={"mthq","mspongebob","mintro","mchapter2","mchapter3","mchapter4",
             "mend","mmaking1","mmaking2","mmaking3","mmaking4","mcredits"};
+        if(!movieUnlocked(id-300)) return;                 // 0x424bb0 checks 0x424d60 again
         SDL_Log("0x424bb0: movie %s",names[id-300]);
         if(!host->menu_movie(names[id-300])) quit=true;
         rebuild(); return;
@@ -284,7 +291,7 @@ void MainMenu::activate(int id) {
         { int s=-1; if(host->save>=0 && sbgame::SaveGame::exists(host->save)) s=host->save;
           for(int i=0;s<0 && i<sbgame::SaveGame::kSlots;++i) if(sbgame::SaveGame::exists(i)) s=i;
           selectSlot(s); } break;
-    case 4: SDL_Log("0x4246a0: View Movies; TODO(0x424d60): VM unlock variables");page=4; break;
+    case 4: SDL_Log("0x4246a0: View Movies");page=4; break;
     case 5: SDL_Log("0x425605: New Game confirmation");confirm=5; break;
     case 6: SDL_Log("0x4248b0: Resume Game");
         if(host->menu_can_resume()) host->menu_resume();

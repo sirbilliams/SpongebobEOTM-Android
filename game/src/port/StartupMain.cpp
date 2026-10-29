@@ -155,6 +155,20 @@ class StartupApp : public MenuHost
         else return;
         start_game = true;
     }
+    // 0x416690 for View Movies (0x424d60): the game's progress, else the last used slot's (port: the exe keeps one progress object; here it lives in the paused game or the save)
+    virtual bool menu_script_seen(const char *name) {
+        std::string n(name); for (size_t i = 0; i < n.size(); ++i) n[i] = (char)tolower((unsigned char)n[i]);
+        if (const char *t = getenv("SB_TEST_VM_SEEN")) {     // port: tests only, comma list of scripts seen
+            std::string l(",");  l += t; l += ",";
+            if (l.find("," + n + ",") != std::string::npos) return true;
+        }
+        if (paused) return paused->state().scriptSeen(name);
+        sbgame::SaveFile f;
+        if (save >= 0 && sbgame::SaveGame::exists(save) && sbgame::SaveGame::read(sbgame::SaveGame::slotPath(save), f)) {
+            for (size_t i = 0; i < f.scrp.size(); ++i) { std::string s = f.scrp[i]; for (size_t k = 0; k < s.size(); ++k) s[k] = (char)tolower((unsigned char)s[k]); if (s == n) return true; }
+        }
+        return false;
+    }
     virtual bool menu_save(int slot, const char *name) {     // 0x428740 -> 0x41db50
         if (!paused) return false;
         sbgame::SaveFile f;
