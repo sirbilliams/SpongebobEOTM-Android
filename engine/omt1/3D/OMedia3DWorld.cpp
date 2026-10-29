@@ -211,6 +211,20 @@ void OMedia3DVPModel::add_element(OMedia3DShapeElement *e, std::vector<OMedia3DT
 			area += a.x * b.y - b.x * a.y;
 		}
 		if (area > 0 && !(pl.flags & om3pf_TwoSided)) continue;
+		{
+			ElementBounds &eb = bounds[e];
+			bool fresh = !(eb.r > eb.l);
+			for (int k = 0; k < nc; k++)
+			{
+				const OMedia3DRenderPoint &q = poly.pts[k];
+				if (fresh) {eb.l = eb.r = q.x; eb.t = eb.b = q.y; eb.z = q.z; fresh = false; continue;}
+				if (q.x < eb.l) eb.l = q.x;
+				if (q.x > eb.r) eb.r = q.x;
+				if (q.y < eb.t) eb.t = q.y;
+				if (q.y > eb.b) eb.b = q.y;
+				if (q.z < eb.z) eb.z = q.z;
+			}
+		}
 		if (poly.alpha < 0.999f) blended.push_back(poly);
 		else opaque.push_back(poly);
 	}
@@ -234,12 +248,21 @@ void OMedia3DVPModel::gather(omt_ElementList::iterator first, omt_ElementList::i
 
 static bool omf_far_first(const OMedia3DTranslatedPolygon &a, const OMedia3DTranslatedPolygon &b) {return a.sort_z > b.sort_z;}
 
+bool OMedia3DVPModel::get_element_bounds(const OMedia3DShapeElement *e, float &l, float &t, float &r, float &b, float &z) const
+{
+	std::map<const OMedia3DShapeElement*, ElementBounds>::const_iterator i = bounds.find(e);
+	if (i == bounds.end()) return false;
+	l = i->second.l; t = i->second.t; r = i->second.r; b = i->second.b; z = i->second.z;
+	return true;
+}
+
 // 0x10033660. Without a canvas or a rasterizer nothing is drawn. The double canvas is swapped as the base model does.
 void OMedia3DVPModel::render(void)
 {
 	OMediaCanvas *c = viewport->getcanvas();
 	OMedia3DWorld *w3 = (OMedia3DWorld*)world;
 	if (!c) return;
+	bounds.clear();
 	OMedia3DAbstractRasterizer *ras = w3->rasterizer;
 	if (ras)
 	{

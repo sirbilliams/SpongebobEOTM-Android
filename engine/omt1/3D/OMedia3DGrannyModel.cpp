@@ -260,6 +260,14 @@ bool OMedia3DGrannyModel::play(const std::string &anim_path, float speed, int lo
 	return true;
 }
 
+bool OMedia3DGrannyModel::animation_expired(void) const
+{
+	if (!loaded || !have_control) return true;
+	granny_uint32 expired = 0;
+	if (GrannyHasControlExpired(control[0], control[1], control[2], &expired)) return true;
+	return expired != 0;
+}
+
 // 0x405620's second half (the code after the Granny clock): lock the sequence for positions + normals (0x11) and
 // copy them, in the exe's axis order, into the shape; scale; polygon normals.
 void OMedia3DGrannyModel::update_pose(void)

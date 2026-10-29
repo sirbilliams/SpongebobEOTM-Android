@@ -37,6 +37,10 @@ class OMedia3DGrannyModel
 	// z = x), scaled, polygon normals.
 	void update_pose(void);
 
+	// port: has the playing animation run to its end (loop count reached)? true when nothing plays. Drives the script's
+	// "play animation and wait" and the return to the idle animation.
+	bool animation_expired(void) const;
+
 	inline OMedia3DShape *get_shape(void) {return shape;}
 	inline float get_scale(void) const {return scale;}
 	inline void set_scale(float s) {scale = s;}

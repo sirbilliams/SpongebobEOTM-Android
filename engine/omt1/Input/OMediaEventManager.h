@@ -69,6 +69,7 @@ class OMediaEventManager : public OMediaPeriodical
 
 	inline bool quit_requested(void) const {return quit;}
 	inline static OMediaEventManager *get_event_manager(void) {return event_manager;}
+	static void window_to_logical(int &px, int &py);			// port: SDL window pixels -> the 640x480 screen (one place for the viewport mapping)
 
 	omtshared static OMediaEventManager		*event_manager;		// 0x10420d84
 

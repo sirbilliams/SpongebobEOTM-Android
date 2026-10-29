@@ -16,6 +16,7 @@
 #include "OMedia3DElement.h"
 #include "OMedia3DMaterial.h"
 #include <list>
+#include <map>
 
 class OMediaGfxWorld;
 class OMedia3DAbstractRasterizer;
@@ -85,7 +86,13 @@ class OMedia3DVPModel : public OMediaVPModel
 	omtshared virtual void render(void);							// 0x10033660
 	omtshared virtual void test_click(OMediaWorldClickInfo *ci);	// 0x10035e10  TODO (log): picking is not needed to draw
 
+	// port: picking (test_click 0x10035e10 is not rebuilt): the screen rectangle (target pixels) the element's visible
+	// polygons covered in the last render, and the nearest view depth among them. false: it was not drawn.
+	bool get_element_bounds(const OMedia3DShapeElement *e, float &l, float &t, float &r, float &b, float &z) const;
+
 	protected:
+	struct ElementBounds {float l, t, r, b, z;};
+	std::map<const OMedia3DShapeElement*, ElementBounds>	bounds;
 	void prepare_viewport_logic(OMediaGfxWorld *g, OMediaRect &r);	// 0x10033490
 	void add_element(OMedia3DShapeElement *e, std::vector<OMedia3DTranslatedPolygon> &opaque, std::vector<OMedia3DTranslatedPolygon> &blended);
 	void gather(omt_ElementList::iterator first, omt_ElementList::iterator last, std::vector<OMedia3DTranslatedPolygon> &opaque, std::vector<OMedia3DTranslatedPolygon> &blended);

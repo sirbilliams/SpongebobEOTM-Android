@@ -18,14 +18,9 @@ OMediaEventManager::~OMediaEventManager()
 	if (event_manager == this) event_manager = NULL;
 }
 
-// 0x10390f70: the pointer (OMT.dll asks the input driver) and the modifier keys
-void OMediaEventManager::fill_pointer(const SDL_Event *e, OMediaEvent *ev)
+// port: window pixels -> logical screen pixels (the GL back end letterboxes the screen, omgl_present)
+void OMediaEventManager::window_to_logical(int &px, int &py)
 {
-	int px = 0, py = 0;
-	if (e->type == SDL_MOUSEBUTTONDOWN || e->type == SDL_MOUSEBUTTONUP) { px = e->button.x; py = e->button.y; }
-	else SDL_GetMouseState(&px, &py);
-
-	// port: window pixels -> logical screen pixels (the GL back end letterboxes the screen)
 	SDL_Window *win = SDL_GL_GetCurrentWindow();
 	OMediaScreenDevice *dev = OMediaScreenDevice::getdefaultdevice();
 	if (win && dev && dev->getwidth() > 0 && dev->getheight() > 0)
@@ -39,6 +34,16 @@ void OMediaEventManager::fill_pointer(const SDL_Event *e, OMediaEvent *ev)
 		px = (int)((px - x0) / sc);
 		py = (int)((py - y0) / sc);
 	}
+}
+
+// 0x10390f70: the pointer (OMT.dll asks the input driver) and the modifier keys
+void OMediaEventManager::fill_pointer(const SDL_Event *e, OMediaEvent *ev)
+{
+	int px = 0, py = 0;
+	if (e->type == SDL_MOUSEBUTTONDOWN || e->type == SDL_MOUSEBUTTONUP) { px = e->button.x; py = e->button.y; }
+	else SDL_GetMouseState(&px, &py);
+
+	window_to_logical(px, py);
 	ev->x = (short)px;
 	ev->y = (short)py;
 

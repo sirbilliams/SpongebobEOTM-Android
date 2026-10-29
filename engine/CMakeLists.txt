@@ -100,20 +100,6 @@ if(OMT_GL4ES)
   target_compile_definitions(omt1 PUBLIC OMT_USE_GL4ES)
 endif()
 
-# port: reuse lane B's SDL audio without linking the incompatible OMT 2.5 worlds.
-add_library(sb_audio STATIC omt1/OMediaSoundManager.cpp sdl/OMediaSDLSound.cpp
-  OMTClasses/Sound/OMediaSound.cpp OMTClasses/Sound/OMediaSoundChannel.cpp
-  OMTClasses/Engines/OMediaSoundEngine.cpp OMTClasses/Engines/OMediaEngine.cpp OMTClasses/Engines/OMediaEngineImplementation.cpp)
-target_include_directories(sb_audio PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/omt1
-  ${CMAKE_CURRENT_SOURCE_DIR}/OMTClasses/Sound ${CMAKE_CURRENT_SOURCE_DIR}/OMTClasses/Engines PRIVATE ${OMT_INC} sdl
-  ${CMAKE_CURRENT_SOURCE_DIR}/../game/bink ${SDL2_INCLUDE_DIRS} ${OMT_GL_INC})   # OMediaSysDefs.h includes GL/gl.h (gl4es on Android)
-target_compile_definitions(sb_audio PRIVATE OMT1_AUDIO_ONLY)
-if(OMT_GL4ES)
-  target_compile_definitions(sb_audio PRIVATE OMT_USE_GL4ES)
-endif()
-target_compile_options(sb_audio PRIVATE -Wno-write-strings -Wno-multichar)
-target_link_libraries(sb_audio PUBLIC ${OMT_SDL})
-
 # The OMT 1.x sound manager (omt1/OMediaSoundManager.cpp, lane B's) and the SDL sound channels, for programs built on
 # the omt1 layer: the OMT 2.5 sound classes it is made of, compiled against the omt1 headers.
 add_library(omt1_sound STATIC OMTClasses/Sound/OMediaSound.cpp OMTClasses/Sound/OMediaSoundChannel.cpp OMTClasses/Engines/OMediaEngineImplementation.cpp
@@ -163,9 +149,7 @@ endif()
 # The reconstructed game (../game/src). MSVC's char is signed and the original code relies on it,
 # so -fsigned-char (arm64's default char is unsigned).
 file(GLOB_RECURSE SB_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/*.cpp)
-# game/src/game is the scene runtime on the OMT 1.x layer (library omt1, built by sb_scenetest); 'spongebob' still links
-# the OMT 2.5 'omt', so it is left out until the two engines are merged
-list(FILTER SB_SRC EXCLUDE REGEX "/game/src/game/")
+# game/src/game (the scene runtime) is part of the game: 'spongebob' is built on the OMT 1.x layer (omt1 + omt1_sound) only
 if(SB_SRC AND NOT TARGET bink)
   message(FATAL_ERROR "Startup needs Bink: fetch pinned FFmpeg or set FFMPEG_PREFIX")
 endif()
@@ -175,7 +159,7 @@ if(ANDROID)
   # SDLActivity loads libspongebob.so (the game) and calls SDL_main (OMediaSDLMain.cpp's main).
   if(SB_SRC)
     add_library(spongebob SHARED ${SB_SRC} ${OMT_MAIN})
-    target_link_libraries(spongebob omt1 sb_audio granny_compat bink log)   # __android_log_print (CrashLog, SDL_Log routing)
+    target_link_libraries(spongebob omt1_sound omt1 granny_compat bink log)   # __android_log_print (CrashLog, SDL_Log routing)
     target_compile_options(spongebob PRIVATE ${SB_FLAGS})
   endif()
 else()
@@ -233,7 +217,7 @@ else()
   # The reconstructed game, desktop build
   if(SB_SRC)
     add_executable(spongebob ${SB_SRC} ${OMT_MAIN})
-    target_link_libraries(spongebob omt1 sb_audio granny_compat bink)
+    target_link_libraries(spongebob omt1_sound omt1 granny_compat bink)
     target_compile_options(spongebob PRIVATE ${SB_FLAGS})
   endif()
 
