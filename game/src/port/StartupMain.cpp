@@ -16,6 +16,7 @@
 #include "OMediaGLBackend.h"
 #include "../game/SceneScriptHost.h"
 #include "../game/SaveGame.h"
+#include "Companion.h"
 #include <stdexcept>
 #include "CrashLog.h"
 #include <stdio.h>
@@ -385,7 +386,9 @@ class StartupApp : public MenuHost
     static void game_movie(const char *name, void *data) {
         StartupApp *app=(StartupApp*)data;
         char buf[64]; size_t n=0; while(name[n] && name[n]!=' ' && n<sizeof buf-1) { buf[n]=name[n]; ++n; } buf[n]=0;
+        sbport::CompanionMovie(true);    // port: companion (its SKIP is a key press while the movie holds the loop)
         if(!app->skip_movies) app->movie_ok=app->play_movie(SDL_GL_GetCurrentWindow(),buf) && app->movie_ok;
+        sbport::CompanionMovie(false);
         app->movie_done=true;      // the classifier continues with game->chained after the movie (game+0x186)
     }
     bool movie_ok, movie_done;

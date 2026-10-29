@@ -183,6 +183,7 @@ const CommentEntry* CommentTable::find(const std::string& id) const
 bool HelpTable::load(FileSource& fs, int chapter, std::string* err)
 {
     entries_.clear();
+    common_.clear();
     std::vector<std::string> records;
     if (!decodeFile(fs, "dialogue/help.sb2", records, err)) return false;
     for (size_t r = 1; r < records.size(); ++r) {
@@ -195,6 +196,12 @@ bool HelpTable::load(FileSource& fs, int chapter, std::string* err)
             if (tok.next(text)) e.text = capped(text, 255);
             if (tok.next(cond)) e.condition = capped(cond, 31);
             entries_.push_back(e);
+        } else if (id.size() > 1 && id[1] == '0') {      // port: F000A..: texts that other chapters' lines point to (a hint "F121A" -> "F000D")
+            HelpEntry e;
+            e.id = capped(id, 15);
+            if (tok.next(text)) e.text = capped(text, 255);
+            if (tok.next(cond)) e.condition = capped(cond, 31);
+            common_.push_back(e);
         }
     }
     return true;
@@ -203,6 +210,7 @@ bool HelpTable::load(FileSource& fs, int chapter, std::string* err)
 const HelpEntry* HelpTable::find(const std::string& id) const
 {
     for (size_t i = 0; i < entries_.size(); ++i) if (entries_[i].id == id) return &entries_[i];
+    for (size_t i = 0; i < common_.size(); ++i) if (common_[i].id == id) return &common_[i];   // port: chapter-0 lines
     return 0;
 }
 
