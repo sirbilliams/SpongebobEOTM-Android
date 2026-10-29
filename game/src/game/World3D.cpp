@@ -1,4 +1,5 @@
 #include "World3D.h"
+#include "Kick.h" // lane d
 #include "Game.h"
 #include "SceneScriptHost.h"
 #include "DialogueUI.h"
@@ -21,7 +22,7 @@ static const float kWalkSpeed = 150.0f;      // 0x42f1a0: 0.15 world units per e
 static const float kRunSpeed = 300.0f;
 
 Actor3D::Actor3D()
-    : obj(0), model(0), elem(0), mode(Idle), x(0), y(0), z(0), heading(0), walking(false), tx(0), tz(0), speed(0), rotating(false),
+    : obj(0), model(0), elem(0), mode(Idle), x(0), y(0), z(0), heading(0), kicking(false), walking(false), tx(0), tz(0), speed(0), rotating(false),
       rotTarget(0), rotTolerance(0), idling(false), idleLeft(0), waited(false), scheduled(false), shadowOn(true), climbing(false), climbTarget(0), climbPrev(0),
       idleWanted(true), idleSuspended(false), idleHost(0), idleRunner(0), wakeIdle(false), fidgetAcc(0), fidgetNext((float)(7 + rand() % 8)),   // lane f: ctor 0x42e150
       shadowModel(0), shadowElem(0)
@@ -671,6 +672,7 @@ void World3D::update(float dtMs)
     }
     for (size_t i = 0; i < actors_.size(); i++) {
         Actor3D* a = actors_[i];
+        Kick::update(*this, a, dtMs); // lane d: kick uses movement completion, not an animation timer
         bool moved = false;
         if (a->walking && !a->rotating) {
             float dx = a->tx - a->x, dz = a->tz - a->z, d = sqrtf(dx * dx + dz * dz), step = a->speed * dt;
@@ -709,7 +711,7 @@ void World3D::update(float dtMs)
             moved = true;
         }
         if (moved) place(a);
-        if (a->mode == Actor3D::OneShot && a->model->animation_expired()) {
+        if (!a->kicking && a->mode == Actor3D::OneShot && a->model->animation_expired()) { // lane d: bounce expiry cannot complete a kick walk
             setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
             finished(a);
         }

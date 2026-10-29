@@ -28,6 +28,7 @@ struct Actor3D {
     Mode mode;
     float x, y, z;                    // world position
     int heading;                      // 0x4000 = 360 degrees
+    bool kicking; // lane d: 0x410 kick movement, handled by Kick.cpp
     bool walking; float tx, tz, speed;
     std::vector< std::pair<float,float> > route;
     size_t waypoint;
@@ -93,6 +94,7 @@ public:
 
 private:
     friend class SceneScriptHost;
+    friend class Kick; // lane d: isolated beachball character reconstruction
     const sb::scene::Grid* grid(float y) const;
     bool cell(const sb::scene::Grid& g, int x, int z) const;
     bool gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run);

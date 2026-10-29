@@ -1,4 +1,5 @@
 #include "SceneScriptHost.h"
+#include "Kick.h" // lane d
 #include "MiniGame.h" // chapter 2 mini-games
 #include "DialogueUI.h"
 #include "World3D.h"
@@ -209,9 +210,18 @@ bool SceneScriptHost::actorPlayAnim(ScriptActor* a, const char* name, bool wait,
 void SceneScriptHost::actorLoopAnim(ScriptActor* a, const char* name) { if (a && g_->world3d()) g_->world3d()->loopAnim(a->obj, name); }
 void SceneScriptHost::actorTalkAnim(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->talk(a->obj, true); }
 void SceneScriptHost::actorOneShotAnim(ScriptActor* a, const char* name) { if (a && g_->world3d()) g_->world3d()->oneShotAnim(a->obj, name); }
-void SceneScriptHost::actorKick(ScriptActor* a) { stub("%s kick (vt+0x16c)", an(a)); arm3d(sim3dMs); }
-bool SceneScriptHost::actorGoal(ScriptActor* a) { stub("%s goal? (vt+0x174)", an(a)); return false; }
-bool SceneScriptHost::actorGoalMissed(ScriptActor* a) { stub("%s goal missed? (vt+0x188)", an(a)); return false; }
+// lane d: character vtable slots 0x16c / 0x174 / 0x188 (not the shared mini-game object).
+void SceneScriptHost::actorKick(ScriptActor* a) {
+    World3D* w=g_->world3d();
+    if (a && w && Kick::start(*w,w->actorFor(a->obj))) wait3d_=true;
+    else arm3d(1); // port: allow a missing model to release the script.
+}
+bool SceneScriptHost::actorGoal(ScriptActor* a) {
+    World3D* w=g_->world3d(); return a && w && Kick::goal(*w,w->actorFor(a->obj));
+}
+bool SceneScriptHost::actorGoalMissed(ScriptActor* a) {
+    World3D* w=g_->world3d(); return a && w && Kick::missed(*w,w->actorFor(a->obj));
+}
 void SceneScriptHost::actorStopWalk(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->stopWalk(a->obj); }
 void SceneScriptHost::actorShadow(ScriptActor* a, bool on) { if (a && g_->world3d()) g_->world3d()->setShadow(a->obj, on); }      // the shadow model is hidden / shown (World3D)
 void SceneScriptHost::actorSetTexture(ScriptActor* a, const char* t) { stub("%s texture %s (vt+0xf0)", an(a), t); }
