@@ -9,7 +9,13 @@ if(NOT FFMPEG_PREFIX AND EXISTS ${FFMPEG_SRC}/configure)
   set(FFMPEG_PREFIX ${CMAKE_BINARY_DIR}/ffmpeg-install)
   set(FF_ARGS "")
   if(ANDROID)
-    set(FF_ARGS android ${CMAKE_ANDROID_NDK}/toolchains/llvm/prebuilt/${CMAKE_ANDROID_NDK_TOOLCHAIN_HOST_TAG}/bin ${CMAKE_SYSTEM_VERSION})
+    # The NDK toolchain file sets ANDROID_TOOLCHAIN_ROOT and ANDROID_PLATFORM_LEVEL; CMAKE_SYSTEM_VERSION
+    # and CMAKE_ANDROID_NDK_TOOLCHAIN_HOST_TAG are not set by it (gave "prebuilt//bin" and API 1).
+    set(FF_API ${ANDROID_PLATFORM_LEVEL})
+    if(NOT FF_API)
+      set(FF_API 24)
+    endif()
+    set(FF_ARGS android ${ANDROID_TOOLCHAIN_ROOT}/bin ${FF_API})
   endif()
   ExternalProject_Add(ffmpeg_ep
     SOURCE_DIR ${FFMPEG_SRC}
