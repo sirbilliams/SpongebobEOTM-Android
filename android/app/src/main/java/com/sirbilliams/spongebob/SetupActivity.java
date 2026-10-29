@@ -19,7 +19,7 @@ import java.io.InputStream;
 /** Hosts the Canvas launcher and the original CD importer and diagnostic actions. */
 public class SetupActivity extends Activity {
 
-    private static final int PICK_ISO = 1, EXPORT_ALL = 2, EXPORT_ONE = 3, IMPORT_ZIP = 4, PICK_ART = 5;
+    private static final int PICK_ISO = 1, EXPORT_ALL = 2, EXPORT_ONE = 3, IMPORT_ZIP = 4, PICK_ART = 5, PICK_HD = 6;
     static final String ART_FILE = "boxart.jpg";
 
     private String mPage = "main";
@@ -171,12 +171,33 @@ public class SetupActivity extends Activity {
             "Panel window: " + (panelFocusable() ? "Takes focus" : "Safe (default)"),
             "Right-stick cursor: " + (padCursor() ? "On" : "Off"),
             "Cursor: " + LauncherView.CURSORS[cursor()],
+            "HD backgrounds: " + (hdOn() ? "On" : "Off"),
             "Box art: " + (art != null ? "Your picture" : "Pick an image"), "Back");
+    }
+    private boolean hdOn() { return getSharedPreferences("settings", MODE_PRIVATE).getBoolean("hd_bg", true); }
+    /** "3 scenes, 12.4 MB" for the installed HD pack (docs/hd-pack.md), or null without one. */
+    private String hdInfo() {
+        File data = gameDir();
+        if (HdPack.count(data) == 0) return null;
+        File[] scenes = new File(data, HdPack.DIR + "/sceneart").listFiles();
+        int n = 0;
+        if (scenes != null) for (File f : scenes) if (f.isDirectory()) n++;
+        long bytes = treeSize(new File(data, HdPack.DIR));
+        return n + (n == 1 ? " scene, " : " scenes, ") + (bytes >= 1048576 ? String.format(java.util.Locale.US, "%.1f MB", bytes / 1048576.0) : (bytes / 1024) + " KB");
+    }
+    private static long treeSize(File f) {
+        File[] kids = f.listFiles();
+        if (kids == null) return f.length();
+        long n = 0;
+        for (File k : kids) n += treeSize(k);
+        return n;
     }
     private void showTest() {
         mPage = "test";
-        launcher.page(3, "Engine room", "Tools & diagnostics", "Logs include the current\nand previous run.",
-            "Share log", "Touch test", "App version: " + versionText(), "Reset settings", "Crash test", "Reinstall from CD image", "Back");
+        String hd = hdInfo();
+        launcher.page(3, "Engine room", "Tools & diagnostics", "Logs include the current\nand previous run.\nVersion " + versionText() + ".\n" + (hd != null ? "HD pack installed: " + hd + "." : "No HD pack installed."),
+            "Share log", "Touch test", "Reset settings", "Crash test", "Reinstall from CD image",
+            "Model viewer", "Scene explorer", "HD pack: Install (.zip)", "HD pack: Remove", "Back");
     }
     private void showAbout() {
         mPage = "about";
@@ -214,12 +235,12 @@ public class SetupActivity extends Activity {
         case "saves":
             switch(row) { case 0: exportAll(); break; case 1: chooseExport(); break; case 2: pickZip(); break; default: showMain(); } break;
         case "settings":
-            if(row==7) {showMain();break;}
-            if(row==6) {chooseArt();break;}
+            if(row==8) {showMain();break;}
+            if(row==7) {chooseArt();break;}
             applySetting(row);
             showSettings(); launcher.focusRow(row); bottom.refresh(); break;
         case "test":
-            switch(row) {case 0:shareLog();break;case 1:startActivity(new Intent(this, TouchTestActivity.class), onTopScreen());break;case 2:break;case 3:resetSettings();break;case 4:if(installed())play(true);else showImport();break;case 5:showImport();break;default:showMain();} break;
+            switch(row) {case 0:shareLog();break;case 1:startActivity(new Intent(this, TouchTestActivity.class), onTopScreen());break;case 2:resetSettings();break;case 3:if(installed())play(true);else showImport();break;case 4:showImport();break;case 5:viewAssets("models");break;case 6:viewAssets("scene");break;case 7:pickHd();break;case 8:removeHd();break;default:showMain();} break;
         case "about": if(row==1)showLicences(); else if(row==2)showMain(); break;
         }
     }
@@ -235,7 +256,7 @@ public class SetupActivity extends Activity {
             new int[] {widescreen(), padCursor() ? 1 : 0, cursor(), bottomMode() == CompanionView.MODE_PAD ? 1 : 0}, new int[] {4, 2, 4, 2});
     }
 
-    /** A Settings row's preference, cycled (rows 0-5); the bottom screen's dials use the same. */
+    /** A Settings row's preference, cycled (rows 0-6); the bottom screen's dials use the same. */
     private void applySetting(int row) {
         if(row==0) getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("widescreen", Math.floorMod(widescreen()+1,4)).apply();
         if(row==1) getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE).edit().putBoolean(CompanionPanel.KEY_ON,!panelOn()).apply();
@@ -244,6 +265,7 @@ public class SetupActivity extends Activity {
         if(row==4) getSharedPreferences("settings", MODE_PRIVATE).edit().putBoolean("pad_cursor",!padCursor()).apply();
         // port: same persistent preference cycle as widescreen.
         if(row==5) getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("cursor", Math.floorMod(cursor()+1,4)).apply();
+        if(row==6) getSharedPreferences("settings", MODE_PRIVATE).edit().putBoolean("hd_bg", !hdOn()).apply();
         if(row==1) bottom.resume(panelOn());
     }
 
@@ -263,7 +285,7 @@ public class SetupActivity extends Activity {
         new android.app.AlertDialog.Builder(this).setTitle("Box art")
             .setItems(new String[] {"Pick another image", "Remove the picture"}, (d, which) -> {
                 if (which == 0) pickArt();
-                else { new File(getFilesDir(), ART_FILE).delete(); loadArt(); showSettings(); launcher.focusRow(6); }
+                else { new File(getFilesDir(), ART_FILE).delete(); loadArt(); showSettings(); launcher.focusRow(7); }
             }).setNegativeButton("Back", null).show();
     }
     private void pickArt() {
@@ -292,7 +314,7 @@ public class SetupActivity extends Activity {
         } catch (IOException | SecurityException | OutOfMemoryError e) {
             Toast.makeText(this, "Couldn't use that picture: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
-        showSettings(); launcher.focusRow(6);
+        showSettings(); launcher.focusRow(7);
     }
 
     // ------------------------------------------------------------------ saves export / import
@@ -461,6 +483,55 @@ public class SetupActivity extends Activity {
         startActivity(Intent.createChooser(i, "Share log"));
     }
 
+    // ------------------------------------------------------------------ asset viewer, HD pack (docs/asset-viewer.md, docs/hd-pack.md)
+
+    private void viewAssets(String what) {
+        if (!installed()) { showImport(); return; }
+        startActivity(new Intent(this, SpongeActivity.class).putExtra(SpongeActivity.EXTRA_ASSET_VIEW, what), onTopScreen());
+    }
+
+    private void pickHd() {
+        if (!installed()) { showImport(); return; }
+        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+        i.addCategory(Intent.CATEGORY_OPENABLE);
+        i.setType("application/zip");
+        startActivityForResult(i, PICK_HD);
+    }
+
+    private void removeHd() {
+        if (importing) return;
+        boolean had = HdPack.count(gameDir()) > 0;
+        boolean ok = HdPack.remove(gameDir());
+        showTest(); launcher.focusRow(8);
+        launcher.status(!ok ? "Couldn't remove the HD pack." : had ? "HD pack removed." : "No HD pack installed.", false);
+    }
+
+    private void installHd(final Uri uri) {
+        importing = true;
+        showTest();
+        launcher.status("Installing the HD pack…", true);
+        final File data = gameDir();
+        new Thread(() -> {
+            long size = -1;
+            try (android.database.Cursor c = getContentResolver().query(uri, new String[] {android.provider.OpenableColumns.SIZE}, null, null, null)) {
+                if (c != null && c.moveToFirst() && !c.isNull(0)) size = c.getLong(0);
+            } catch (RuntimeException e) { /* unknown size */ }
+            final int[] last = { -1 };
+            final HdPack.Result r = HdPack.install(this, uri, data, size, permille -> {
+                if (permille != last[0]) {
+                    last[0] = permille;
+                    ui.post(() -> launcher.status("Installing the HD pack…\n" + (permille / 10) + "%", true));
+                }
+            });
+            ui.post(() -> {
+                importing = false;
+                showTest(); launcher.focusRow(7);
+                launcher.status(r.error == null ? r.message() : "HD pack failed. The old pack is kept.", false);
+                if (r.error != null) new android.app.AlertDialog.Builder(this).setTitle("HD pack failed").setMessage(r.error).setPositiveButton("OK", null).show();
+            });
+        }).start();
+    }
+
     // ------------------------------------------------------------------ install screen
 
     private void showImport() {
@@ -488,6 +559,7 @@ public class SetupActivity extends Activity {
         else if (requestCode == EXPORT_ONE && exportOne != null) writeZip(uri, exportOne);
         else if (requestCode == IMPORT_ZIP) previewZip(uri);
         else if (requestCode == PICK_ART) storeArt(uri);
+        else if (requestCode == PICK_HD) installHd(uri);
     }
 
     // ------------------------------------------------------------------ import from the CD image

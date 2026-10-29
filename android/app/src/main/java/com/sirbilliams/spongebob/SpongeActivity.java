@@ -46,6 +46,7 @@ public class SpongeActivity extends SDLActivity {
                 Os.setenv("OMT_CRASHTEST", "1", true);
             else
                 Os.unsetenv("OMT_CRASHTEST");              // (the process can outlive a run)
+            Os.setenv("SB_HD", getSharedPreferences("settings", MODE_PRIVATE).getBoolean("hd_bg", true) ? "on" : "off", true);
             String av = getIntent() != null ? getIntent().getStringExtra(EXTRA_ASSET_VIEW) : null;
             if (av != null && !av.isEmpty())
                 Os.setenv("SB_ASSET_VIEW", av, true);
