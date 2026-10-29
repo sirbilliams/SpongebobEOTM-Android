@@ -163,7 +163,7 @@ if(ANDROID)
   # SDLActivity loads libspongebob.so (the game) and calls SDL_main (OMediaSDLMain.cpp's main).
   if(SB_SRC)
     add_library(spongebob SHARED ${SB_SRC} ${OMT_MAIN})
-    target_link_libraries(spongebob omt1 sb_audio granny_compat bink)
+    target_link_libraries(spongebob omt1 sb_audio granny_compat bink log)   # __android_log_print (CrashLog, SDL_Log routing)
     target_compile_options(spongebob PRIVATE ${SB_FLAGS})
   endif()
 else()
