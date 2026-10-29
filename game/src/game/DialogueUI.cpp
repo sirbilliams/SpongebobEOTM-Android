@@ -334,6 +334,7 @@ void DialogueUI::render()               // 0x4128d0
     if (!choice_) {
         // a single line at the bottom (y = 450)
         if (curText_.empty()) return;
+        if (!game_->optText && voice_) return;       // 0x410a60 / 0x4128d0: Dialogue Text Off hides a voiced line's text
         TextBlock* b = new TextBlock;
         b->show(game_, 5, 450, 10100, false, curText_, 630);
         blocks_.push_back(b);
