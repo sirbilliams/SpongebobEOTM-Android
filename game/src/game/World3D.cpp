@@ -1,4 +1,5 @@
 #include "World3D.h"
+#include "Kick.h" // lane d
 #include "Game.h"
 #include "SceneScriptHost.h"
 #include "DialogueUI.h"
@@ -21,13 +22,13 @@ static const float kWalkSpeed = 150.0f;      // 0x42f1a0: 0.15 world units per e
 static const float kRunSpeed = 300.0f;
 
 Actor3D::Actor3D()
-    : obj(0), model(0), elem(0), mode(Idle), x(0), y(0), z(0), heading(0), walking(false), tx(0), tz(0), speed(0), rotating(false),
+    : obj(0), model(0), elem(0), mode(Idle), x(0), y(0), z(0), heading(0), kicking(false), walking(false), tx(0), tz(0), speed(0), rotating(false),
       rotTarget(0), rotTolerance(0), idling(false), idleLeft(0), waited(false), scheduled(false), shadowOn(true), climbing(false), climbTarget(0), climbPrev(0),
-      idleWanted(true), idleSuspended(false), idleHost(0), idleRunner(0), wakeIdle(false), fidgetAcc(0), fidgetNext((float)(7 + rand() % 8)),   // lane f: ctor 0x42e150
+      idleWanted(true), idleSuspended(false), idleHost(0), idleRunner(0), wakeIdle(false), animSnd(false), fidgetAcc(0), fidgetNext((float)(7 + rand() % 8)),   // lane f: ctor 0x42e150
       shadowModel(0), shadowElem(0)
 {
     waypoint = 0; interaction = 0; radius = 50; control = true; useGrid = false;
-    arrive = 25; pickupItem = 0; doorWalk = false; dirX = 0; dirZ = 1;
+    arrive = 25; pickupItem = 0; doorWalk = false; dirX = 0; dirZ = 1; attachModel = 0; attachElem = 0;
 }
 
 static std::string lower(std::string s)
@@ -118,6 +119,10 @@ World3D::World3D(Game* game, GameScene* scene)
         a->heading = (rec && rec->tag == sb::scene::CharacterTag) ? (rec->data.character.o0240 & 0x3fff) : 0;
         if (rec && rec->tag == sb::scene::CharacterTag) { a->radius = rec->data.character.o023c; a->useGrid = rec->data.character.o0280 != 0; }
         if (rec && rec->tag == sb::scene::ItemTag) a->radius = rec->data.item.o023c;
+        if (rec && rec->tag == sb::scene::CharacterTag) {
+            a->attachName = rec->data.character.o0976.text(); a->attachBone = rec->data.character.o0996.text();
+            a->attachParentBone = rec->data.character.o09b6.text(); a->attachCond = rec->data.character.o09d6.text();
+        }
         a->model = new OMedia3DGrannyModel;
         std::string sub = o->kind == SceneObject::Char ? "/models/people/" : "/models/items/";
         if (!a->model->load(dir_ + sub + a->name + "_model")) {
@@ -125,6 +130,8 @@ World3D::World3D(Game* game, GameScene* scene)
             delete a->model; delete a;
             continue;
         }
+        float sc = rec && rec->tag == sb::scene::CharacterTag ? rec->data.character.o0224 : rec && rec->tag == sb::scene::ItemTag ? rec->data.item.o0224 : 1.0f;
+        if (sc > 0) a->model->set_scale(sc);                  // +0x224 Scale
         a->elem = new OMedia3DShapeElement;
         a->elem->setshape(a->model->get_shape());
         a->elem->link(w3_);
@@ -153,6 +160,7 @@ World3D::World3D(Game* game, GameScene* scene)
 
 World3D::~World3D()
 {
+    for (size_t i = 0; i < actors_.size(); i++) detach(actors_[i]->obj);
     for (size_t i = 0; i < actors_.size(); i++) {      // lane f: the idle runners first (they stop their sound channel), then their hosts
         delete actors_[i]->idleRunner; actors_[i]->idleRunner = 0;
         delete actors_[i]->idleHost; actors_[i]->idleHost = 0;
@@ -203,10 +211,36 @@ static bool fileCI(const std::string& path)        // Windows file names: any le
 
 bool World3D::exists(Actor3D* a, const char* name) { return fileCI(animPath(a, name)); }
 
+// 0x405040: "%s%s" (char name, animation) looked up in the chapter sound bank c<N>.omt (game+0x5c) and played on the char's channel +0x334 (0).  "idle1" never
+// interrupts a sound that still plays.  Not while the char has an idle script and a dialogue runs (scene+0xd24 vt+0x18).
+void World3D::animSound(Actor3D* a, const char* anim)
+{
+    if (a->obj->kind != SceneObject::Char) return;
+    DialogueUI* d = scene_->dialogue();
+    if (d && d->busy() && a->idleRunner) return;
+    OMediaSound* s = game_->chapterSound((a->name + anim).c_str());
+    if (!s) return;
+    if (strcmp(anim, "idle1") == 0 && game_->channelBusy(0)) return;
+    if (game_->playOnChannel(0, s, 0)) { a->animSnd = true; game_->log("anim sound %s%s\n", a->name.c_str(), anim); }
+}
+
+// 0x404fe0: stops the char's sound (channel 0) if it has one
+void World3D::stopAnimSound(Actor3D* a)
+{
+    if (!a->animSnd) return;
+    game_->stopChannel(0);
+    a->animSnd = false;
+}
+
 void World3D::setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m)
 {
     a->mode = m;
     a->anim = name;
+    // 0x4047xx (play animation by name): idle2 / idle3 start their sound, any other animation ends it; 0x406050 plays the idle1 sound back at idle
+    if (a->obj->kind == SceneObject::Char) {
+        if (strcasecmp(name, "idle2") == 0 || strcasecmp(name, "idle3") == 0 || strcasecmp(name, "idlet2") == 0 || strcasecmp(name, "idlet3") == 0) animSound(a, lower(name).c_str());
+        else { stopAnimSound(a); if (strcasecmp(name, "idle1") == 0) animSound(a, "idle1"); }
+    }
     a->model->play(animPath(a, name), speed, loops, game_->blending ? 0.4f : 0.0f);   // 0x4046d0: blend params 6 / 8 = 0.4 only while game+0x251 is set (port: blend in only)
 }
 
@@ -779,8 +813,60 @@ void World3D::setHidden(SceneObject* o, bool hide)
     else while (a->elem->get_hide_count() > 0) a->elem->hide(false);
 }
 
+// vt+0x12c (0x433780): a new item model ("models\\items\\%s_model"), not clickable, hung by its bone `bone` from the
+// character's `parentBone`; a failed attachment is taken off again (vt+0x130)
+bool World3D::attach(SceneObject* o, const char* name, const char* bone, const char* parentBone)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || a->attachModel) return false;
+    a->attachBone = bone; a->attachParentBone = parentBone;
+    OMedia3DGrannyModel* m = new OMedia3DGrannyModel;
+    if (!m->load(dir_ + "/models/items/" + lower(name) + "_model")) {
+        game_->log("3D: attach %s: %s\n", name, m->get_error().c_str());
+        delete m;
+        return false;
+    }
+    a->attachModel = m;
+    a->attachElem = new OMedia3DShapeElement;
+    a->attachElem->setshape(m->get_shape());
+    a->attachElem->link(w3_);
+    a->attachElem->place(a->x, a->y, a->z);
+    a->attachElem->set_angle(0, (short)(a->heading & 0x3fff), 0);
+    if (!m->attach_to(a->model, bone, parentBone)) {
+        game_->log("3D: attach %s to %s: bone %s / %s not found\n", name, a->name.c_str(), bone, parentBone);
+        detach(o);
+        return false;
+    }
+    game_->log("3D: %s holds %s (%s on %s)\n", a->name.c_str(), name, bone, parentBone);
+    return true;
+}
+
+void World3D::detach(SceneObject* o)            // vt+0x130 (0x433730)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || !a->attachModel) return;
+    a->attachModel->detach();
+    delete a->attachElem; a->attachElem = 0;
+    delete a->attachModel; a->attachModel = 0;
+}
+
+void World3D::hideAttach(SceneObject* o, bool hide)     // the attached object's vt+0x30 ('showattach' only when it is hidden)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || !a->attachElem) return;
+    if (hide) { if (a->attachElem->get_hide_count() == 0) a->attachElem->hide(true); }
+    else while (a->attachElem->get_hide_count() > 0) a->attachElem->hide(false);
+}
+
 void World3D::refreshVisibility()
 {
+    for (size_t i = 0; i < actors_.size(); i++) {         // 0x438ad0: a character's own attachment (+0xa56) by its condition (+0xab6)
+        Actor3D* a = actors_[i];
+        if (a->obj->kind != SceneObject::Char || a->attachName.empty()) continue;
+        bool c = game_->cond(a->attachCond.c_str());
+        if (a->attachModel && !c) detach(a->obj);
+        else if (!a->attachModel && c) attach(a->obj, a->attachName.c_str(), a->attachBone.c_str(), a->attachParentBone.c_str());
+    }
     for (size_t i = 0; i < actors_.size(); i++) {
         SceneObject* o = actors_[i]->obj;
         if (o->visibleCond.empty()) continue;
@@ -922,6 +1008,7 @@ void World3D::update(float dtMs)
     }
     for (size_t i = 0; i < actors_.size(); i++) {
         Actor3D* a = actors_[i];
+        Kick::update(*this, a, dtMs); // lane d: kick uses movement completion, not an animation timer
         bool moved = false;
         if (a->walking && !a->rotating) {
             float dx = a->tx - a->x, dz = a->tz - a->z, d = sqrtf(dx * dx + dz * dz), step = a->speed * dt;
@@ -967,11 +1054,17 @@ void World3D::update(float dtMs)
             if (open) { a->x = nx; a->z = nz; moved = true; }
         }
         if (moved) place(a);
-        if (a->mode == Actor3D::OneShot && a->model->animation_expired()) animEnded(a);
+        if (!a->kicking && a->mode == Actor3D::OneShot && a->model->animation_expired()) animEnded(a);   // lane d: a bounce cannot complete a kick walk
         updateIdle(a, dtMs);        // lane f
         updateShadow(a);            // lane f
         a->model->update_pose();
         if (a->shadowModel) a->shadowModel->update_pose();
+        if (a->attachElem) {                                  // port: the attached model's pose is in the character's space
+            a->attachElem->place(a->x, a->y, a->z);
+            a->attachElem->set_angle(0, (short)(a->heading & 0x3fff), 0);
+            a->attachModel->set_scale(a->model->get_scale());
+            a->attachModel->update_pose();
+        }
         if (game_->world3d() != this) return;                 // an event switched the scene (port: the world is gone)
         if (a->obj->userCtl && a->obj->kind == SceneObject::Char) updateTouches(a);
         if (game_->world3d() != this) return;

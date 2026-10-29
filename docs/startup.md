@@ -24,7 +24,7 @@ Port: SDL/GL replaces DirectDraw; per-user `settings.cfg` replaces the registry
 at `Software/THQ/SpongeBob 2/Settings` (`OMT_CONFIG` overrides the path). Defaults
 are Music/Sound/Voice 7, Save -1, Text/Shadows 1; `-sw` suppresses shadows.
 CD-relative paths use the imported install folder. Software **3D** rasterizer
-selection remains TODO(0x40ceb0); it is not needed by this 2D menu.
+selection (0x40ceb0) is done by `World3D::rasterizer()` when the first scene starts; the 2D menu needs none.
 
 The five-logo sequence is legal -> THQ -> AWE -> Nick -> SpongeBob. The requested
 port milestone opens the menu after it. Retail additionally probes slot0 at

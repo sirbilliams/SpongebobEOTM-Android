@@ -28,6 +28,7 @@ struct Actor3D {
     Mode mode;
     float x, y, z;                    // world position
     int heading;                      // 0x4000 = 360 degrees
+    bool kicking; // lane d: 0x410 kick movement, handled by Kick.cpp
     bool walking; float tx, tz, speed;
     std::vector< std::pair<float,float> > route;
     size_t waypoint;
@@ -38,6 +39,14 @@ struct Actor3D {
     bool idling; float idleLeft;
     bool waited;                      // the script waits for this actor's walk / rotate / animation
     bool scheduled;                   // the idle animation switch is due next frame
+    float arrive;                     // +0x3f0: the walk ends this close to the destination
+    std::vector<SceneObject*> touches;// +0x368: what the character touches (0x4313e0 / 0x431610)
+    SceneObject* pickupItem;          // +0x398: the item being picked up (0x433910)
+    bool doorWalk;                    // +0x356: walking straight ahead (through a door, into a scene)
+    float dirX, dirZ;                 // port: the straight-ahead direction of doorWalk
+    // the attached object (+0xad8, 0x433780): an item model hanging from a bone of this character
+    OMedia3DGrannyModel* attachModel; OMedia3DShapeElement* attachElem;
+    std::string attachName, attachBone, attachParentBone, attachCond;   // +0xa56, +0xa76, +0xa96, +0xab6 (CHAR record +0x976..)
     bool shadowOn;                    // char +0x30c shown (`shadow on/off`)
     bool climbing; float climbTarget, climbPrev;   // char +0x3f8 / +0x3f4 / +0x3fc: `climb` arms a straight walk that blends y
     // ---- lane f: character idle scripts (0x42f1a0) and the shadow model (0x422070) ----
@@ -46,15 +55,11 @@ struct Actor3D {
     SceneScriptHost* idleHost;        // port: one script host per idle runner (the exe's runner holds its own wait state)
     sbscript::ScriptRunner* idleRunner;   // char +0x32c
     bool wakeIdle;                    // an animation / walk the idle script waits on has finished
+    bool animSnd;                     // char +0xfc: the per-animation sound is playing (0x405040 / 0x404fe0)
     float fidgetAcc, fidgetNext;      // char +0x38c / +0x390: random idle2 / idle3 timer (seconds)
     std::string shadowName;           // CHAR record "Shadow Name" (+0x204)
     OMedia3DGrannyModel* shadowModel; // char +0x22c of the 0x354 byte object: models/items/<name>_model
     OMedia3DShapeElement* shadowElem;
-    float arrive;                     // +0x3f0: the walk ends this close to the destination
-    std::vector<SceneObject*> touches;// +0x368: what the character touches (0x4313e0 / 0x431610)
-    SceneObject* pickupItem;          // +0x398: the item being picked up (0x433910)
-    bool doorWalk;                    // +0x356: walking straight ahead (through a door, into a scene)
-    float dirX, dirZ;                 // port: the straight-ahead direction of doorWalk
 };
 
 class World3D {
@@ -91,6 +96,10 @@ public:
     bool rotate(SceneObject* o, int angle, int tolerance);                             // vt+0x13c
     bool idle(SceneObject* o, float seconds);                                   // vt+0x168
     void setHidden(SceneObject* o, bool hide);
+    // character vt+0x12c / +0x130 and the attached object's vt+0x30 (script attach / detach / hideattach / showattach)
+    bool attach(SceneObject* o, const char* name, const char* bone, const char* parentBone);
+    void detach(SceneObject* o);
+    void hideAttach(SceneObject* o, bool hide);
     void refreshVisibility();                                                   // scene vt+0x100, CHAR / ITEM part
     SceneObject* pick(int x, int y);                                            // scene vt+0xc4, the 3D passes
     bool screenBounds(SceneObject* o, int& x1, int& y1, int& x2, int& y2);      // where the character is drawn
@@ -113,6 +122,7 @@ public:
 
 private:
     friend class SceneScriptHost;
+    friend class Kick; // lane d: isolated beachball character reconstruction
     const sb::scene::Grid* grid(float y) const;
     bool cell(const sb::scene::Grid& g, int x, int z) const;
     bool gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, bool neighbour = false);
@@ -120,6 +130,8 @@ private:
     void place(Actor3D* a);
     void updateIdle(Actor3D* a, float dtMs);                                    // lane f: the idle part of 0x42f1a0
     void resumeIdle(Actor3D* a);                                                // 0x4350d0
+    void animSound(Actor3D* a, const char* anim);                               // 0x405040 (char vt+0xf8): sound "<char><anim>" of the chapter bank on channel 0
+    void stopAnimSound(Actor3D* a);                                             // 0x404fe0 (char vt+0xfc)
     void updateShadow(Actor3D* a);                                              // lane f: char +0x30c
     void finished(Actor3D* a);
     void finishInteraction(Actor3D* a);

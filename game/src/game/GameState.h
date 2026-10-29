@@ -41,7 +41,8 @@ public:
     void removeItem(const char* name);
     const std::vector<std::string>& items() const { return items_; }
     void setFlag(const char* name, bool on);
-    void addChar(const char* name);                                 // 0x416c70 (the 'CHAR' save record: an item was given to it)
+    void addChar(const char* name);
+    void markScene(unsigned id) { scen_.insert(id); }               // 0x416a60: the scene was entered (a 'C' condition term)                                 // 0x416c70 (the 'CHAR' save record: an item was given to it)
     // 0x416ba0 'block' / 'unblock': (scene, x, y) cells the player may not walk on
     void setBlocked(unsigned scene, int x, int y, bool blocked);
     bool isBlocked(unsigned scene, int x, int y) const;
@@ -55,6 +56,8 @@ public:
     // the item bar 0x421c40, the puzzle object); they are kept and written back unchanged.
     struct PosiRec { char name[32]; unsigned a, b, c, d; short e; };
     struct BarRec { char name[32]; char tex[32]; short slot; };
+    std::vector<BarRec>& bar() { return bar_; }                     // the item bar's save record (Hud::toBar / fromBar)
+    const std::vector<BarRec>& bar() const { return bar_; }
     bool hasPlayer;            // scene+0x248 exists: the controlled character (writer 0x416ed0)
     float playerX, playerY, playerZ; short playerFacing;   // character +0x310/+0x314/+0x318/+0x320; filled by the walking code
     bool resumePos;            // progress+0x64: a save restored a non-zero position; playerX.. hold it for the scene to place

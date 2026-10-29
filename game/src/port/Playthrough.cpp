@@ -241,6 +241,15 @@ bool Playthrough::tick(Game* g, void (*click)(int, int), void (*move)(int, int),
         fprintf(stdout, "PLAYTHROUGH line %d: %s %s at %d,%d\n", st.line, c.c_str(), st.args[0].c_str(), x, y);
         click(x, y);
         done = true;
+    } else if (c == "floor") {                      // a click on the floor at world x z (the player's height)
+        Actor3D* pl = g->world3d() ? g->world3d()->player() : 0;
+        int x, y;
+        if (st.args.size() < 2 || !pl || !g->world3d()->project((float)atof(st.args[0].c_str()), pl->y, (float)atof(st.args[1].c_str()), x, y)) {
+            fail(g, "floor point not on screen"); *failed = true; return false;
+        }
+        fprintf(stdout, "PLAYTHROUGH line %d: floor %s %s at %d,%d\n", st.line, st.args[0].c_str(), st.args[1].c_str(), x, y);
+        click(x, y);
+        done = true;
     } else if (c == "say") {
         answers_.assign(st.args.begin(), st.args.end());
         done = true;

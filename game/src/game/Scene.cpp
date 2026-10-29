@@ -309,8 +309,11 @@ void GameScene::enter(int startPoint)
         else game_->switchTo(game_->chained.c_str());
         game_->chained.clear();
     }
-    // "here 12": scenes without a level (and the loading kind) hide the "loading" object
-    if ((sceneId_ & 0xf00) == 0) hide("loading");
+    game_->state().markScene(sceneId_);                 // 0x416a60(scene id): "cXlYsZ" conditions see it from now on
+    // "here 11": after a script's `letterbox in` (game+0x25c) every scene opens with the transition (vt+0x138)
+    if (game_->letterboxIn) transitionOpen();
+    // "here 12": the map (level 1, vt+0xd0 0x437140) and the scenes without a level hide the "loading" object
+    if ((sceneId_ & 0xf00) == 0x100 || (sceneId_ & 0xf00) == 0) hide("loading");
     lock_ = 500.0f;     // 0x437cf0 "here 16": param_1[0x735] = 500.0
 }
 
@@ -474,8 +477,9 @@ SceneObject* GameScene::pick2D(int x, int y)    // 0x43a310, third pass
 
 SceneObject* GameScene::hover(int x, int y)
 {
+    SceneObject* mz = game_->miniGame() ? game_->miniGame()->pickMazeDoor(x, y) : 0;    // the maze's doors (Codex lane)
+    if (mz) return mz;
     // 0x43a310 order: triggers, then the 3D characters / items, then the 2D objects
-    if (game_->miniGame()) { SceneObject* m = game_->miniGame()->pickMazeDoor(x, y); if (m) return m; }
     for (size_t i = 0; i < objects_.size(); ++i) {
         SceneObject* o = objects_[i];
         if (o->kind != SceneObject::Trigger || o->hidden3D) continue;
@@ -488,8 +492,8 @@ SceneObject* GameScene::hover(int x, int y)
 
 SceneObject* GameScene::pickAll(int x, int y)
 {
-    if (game_->miniGame()) { SceneObject* m = game_->miniGame()->pickMazeDoor(x, y); if (m) return m; }
-    SceneObject* t = 0;
+    SceneObject* t = game_->miniGame() ? game_->miniGame()->pickMazeDoor(x, y) : 0;     // the maze's doors (Codex lane)
+    if (t) return t;
     for (size_t i = 0; i < objects_.size() && !t; ++i) {
         SceneObject* o = objects_[i];
         if (o->kind != SceneObject::Trigger || o->hidden3D) continue;
@@ -591,6 +595,7 @@ void GameScene::charEvent(SceneObject* o, bool touching)
     }
     World3D* w = game_->world3d();
     Actor3D* p = w ? w->player() : 0;
+    if (w) w->suspendIdle(o);                                   // 0x433bca: +0x24c, the character's idle script is put on hold (0x435080)
     if (!game_->state().debugAll() && p) {
         if (!touching && w->walkTo(o, o->px, o->pz)) return;
         bool turning = o->faceHeading == 0 ? w->rotateToward(o) : w->rotatePlayer(o->faceHeading);
@@ -663,6 +668,7 @@ bool GameScene::charUseItem(SceneObject* o, const char* item)
     World3D* w = game_->world3d();
     Actor3D* p = w ? w->player() : 0;
     bool match = strcasecmp(o->itemAccept.c_str(), item) == 0;
+    if (w && (match || o->used || !o->wrongItemEvent.empty())) w->suspendIdle(o);   // 0x433f00: +0x24c -> 0x435080
     if (!match || (o->used && (!p || p->obj != o))) {
         if ((o->wrongItemEvent.empty() || o->used) && !(dialogue_ && dialogue_->refusal(o->art.c_str(), 0)))
             return baseUseItem(o, item);
@@ -900,7 +906,6 @@ void GameScene::shakeStep(bool background)
     shakeX_ = (float)(rand() % 10 - 5); shakeY_ = (float)(rand() % 10 - 5);
     shakeObjects();
 }
-
 void GameScene::setDoor(const char* name)       // 'setdoor' (0x43fbed): scene+0x1c80 = the trigger of that name
 {
     doorTrig_ = 0;

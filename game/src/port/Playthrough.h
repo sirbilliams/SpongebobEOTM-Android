@@ -5,6 +5,7 @@
       scene <cXlYsZ>         wait until this scene is the current one (and idle)
       idle                   wait until idle
       click <target>         a click on the target: @x,y | an object's art name | "its description"
+      floor <x> <z>          a click on the floor at that world point (the player's height)
       talk <target> [KEY..]  click the target, then answer each choice list with the next KEY (none left: Escape); lines are
                              skipped with Space
       grab <target>          click the target as soon as it can be picked, not waiting for idle (a script with `control on` still runs)

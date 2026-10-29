@@ -105,6 +105,8 @@ inline void companionCommands(sbgame::Game* g)
             // a dialogue line: the click that closes it; else the cutscene skip of the exe's click handler (a movie is handled in Companion.cpp)
             if (d && d->busy() && !d->choiceMode()) d->onKey(' ');
             else if (companionCutscene(g) && g->runner()->skipToLetterboxClose()) g->wake();
+        } else if (cmd == "hint") {
+            if (g->hud()) g->hud()->hint();            // the HUD's hint button (Hud::hint): text and, if the help bank is installed, its voice
         } else if (cmd == "menu") {
             CompanionKey(SDLK_F10);                    // exactly the F10 / Android Back key: StartupMain pauses the game behind the main menu
         }
@@ -167,7 +169,7 @@ inline void companionTick(sbgame::Game* g, float /*dtMs*/)
             s.text = d->currentText();
             if (s.choiceMode) s.choices = d->choiceTexts();
         }
-        // hint: the first help line of the chapter whose condition holds, an alias (F121A -> F000D) resolved to its text (the HUD's hint button shows the same).  The help voice bank sounds/help.omt is not in the install, so no voice/speaker
+        // hint: the first help line of the chapter whose condition holds, an alias (F121A -> F000D) resolved to its text (the HUD's hint button shows the same).  The hint voice (sounds/help.omt) plays in the game via the "hint" command, not in the panel
         if (g->hud()) s.hint = g->hud()->hintText();
     }
     CompanionPublish(s);

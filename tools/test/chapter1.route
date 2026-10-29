@@ -232,4 +232,104 @@ click ict2
 idle
 have ict2
 shot 29-c1l3s5-pie
+map
+scene c1l1s1
+idle
+click chap103
+scene c1l5s1
+idle
+click "Walk to Castle Entrance"
+scene c1l5s2
+idle
+click "Walk toward Mussel Beach"
+scene c1l5s3
+idle
+click "Walk to Mussel Beach"
+scene c1l5s4
+idle
+use ict2 larry
+idle
+expect slarryjog
+click isp1
+idle
+have isp1
+shot 30-c1l5s4-shovel
+click "Walk toward Sand Castle"
+scene c1l5s3
+idle
+click "Walk to Castle Entrance"
+scene c1l5s2
+idle
+click "Enter Ray's Tanning Salon"
+scene c1l5s5
+idle
+click "Walk to Other Side"
+scene c1l5s6
+idle
+click "Walk to Ray"
+scene c1l5s7
+idle
+use ico1 ray
+idle
+expect 157BAA
+click isl1
+idle
+have isl1
+click "Walk to Beach Area#3"
+scene c1l5s6
+idle
+# the way to the other side keeps clear of the walk-in trigger "Walk to Ray" (radius 200)
+floor 300 600
+idle
+click "Walk to Other Side"
+scene c1l5s8
+idle
+shot 31-c1l5s8-dig
+use isp1 Beach
+idle
+use isp1 Beach#2
+idle
+use isp1 Beach#3
+idle
+use isp1 Beach#4
+scene c1l5s9
+idle
+shot 32-c1l5s9-treasure
+click 159treasure
+idle
+have ibt1
+click "Exit Treasure Chest"
+scene c1l5s8
+idle
+click "Walk to Beach Area#2"
+scene c1l5s6
+idle
+click "Walk to Castle Exit"
+scene c1l5s5
+idle
+use isl1 dame
+idle
+expect sdame
+have iub1
+shot 33-c1l5s5-umbrella
+save 5
+map
+scene c1l1s1
+idle
+click chap102
+scene c1l6s1
+idle
+click "Walk to The Bus Stop"
+scene c1l6s4
+idle
+use ibt1 patalt
+idle
+expect spattoken
+shot 34-c1l6s4-marty
+talk marty AAA AAA ABA AXC
+idle
+expect 164AAA
+use iub1 marty
+scene c2l0s1
+shot 35-c2-start
 end

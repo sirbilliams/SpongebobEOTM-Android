@@ -163,7 +163,6 @@ void Game::listen_to_message(omt_Message msg, void* param)
 void Game::mouseDown(int x, int y)
 {
     mx_ = x; my_ = y;
-    log("mouse down %d,%d\n", x, y);
     if (!scene_) return;
     if (scene_->dialogue() && scene_->dialogue()->busy()) { scene_->dialogue()->onClick(x, y); return; }
     if (hud_ && hud_->onMouseDown(x, y)) return;                // port: hud (0x420d50)
@@ -282,15 +281,15 @@ void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without 
     host_->sceneLoaded();
     pendingObj = 0; pendingItem.clear();
     scene_->enter(start);
-    // 0x437cf0: maze scene setup uses the persistent slot clue.
-    if (scene_->name() == "c2l5s4") createMiniGame();
-    if (mini_) mini_->sceneEntered();
     // 0x40b720 tail: the new scene's player walks in (game+0x258 = 500: walk-in triggers wait), unless a script or an
     // H event starts the scene (port: the old player's turn flags +0x354..+0x358 are always clear here)
     if (hadPlayer && w3_ && w3_->player() && id != 0x80404 && !runner_ && !scene_->hasPendingEvent()) {
         walkInMs = 500.0f;
         w3_->walkIn();
     }
+    // 0x437cf0: maze scene setup uses the persistent slot clue.
+    if (scene_->name() == "c2l5s4") createMiniGame();
+    if (mini_) mini_->sceneEntered();
 }
 
 // ------------------------------------------------------------------------ the event classifier
@@ -406,6 +405,15 @@ void Game::updateComment(float dt)
 
 // --------------------------------------------------------------------------------------- sounds
 // Wave by name in a bank: exact, then lower case, then upper case (the bank holds e.g. "121aab")
+OMediaSound* Game::helpVoice(const std::string& id)
+{
+    if (!helpBank_.db) {
+        if (!helpBank_.open(root_ + "/cd/sounds/help.omt")) helpBank_.open(root_ + "/sounds/help.omt");
+        if (!helpBank_.db) { log("help voice bank not found\n"); return 0; }
+    }
+    return soundCI(helpBank_.db, sbscript::CommentTable::voiceName(id));    // the same five-character name rule (first and last upper case)
+}
+
 OMediaSound* Game::soundCI(OMediaDataBase* db, const std::string& name)
 {
     if (!db) return 0;

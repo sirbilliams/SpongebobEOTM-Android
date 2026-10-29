@@ -2,6 +2,36 @@
 
 Phase 0 findings (Oct 24) and the plan for the rest. Formats: `docs/formats.md`.
 
+## Status (2026-10-28)
+
+Layers (the 7 above):
+
+| # | Layer | State | Notes |
+|---|---|---|---|
+| 1 | Repo base | done | App `com.sirbilliams.spongebob`, importer, CI, crash log |
+| 2 | Engine layer `engine/omt1/` | done | 2D/UI and 3D (Granny) engine; all 674 model files load |
+| 3 | Granny + Bink | done | Granny functions in; 15 movies play through FFmpeg |
+| 4 | Startup | done | Movies, main menu, View Movies, Help, Options |
+| 5 | Script, scene loader, dialogue | done | Script VM 57 commands; scene loader 123/123; dialogue; inventory HUD; cursor |
+| 6 | Chapters | in progress | Ch1 and ch2 playthroughs, ch3/ch4 audits, darts/kick/phone mini-games, bug sweep |
+| 7 | Thor port features | in progress | Done: widescreen, companion panel, touch + right-stick cursor, nautical launcher, saves, sky, idle scripts, shadows, climb/sparkle/blending/shake, slots + maze. Not started: saves export/import, lid suspend, casting |
+
+Milestones (from "Percentage to goal" below):
+
+| Milestone | Status |
+|---|---|
+| Phase 0: inputs, maps, formats, plan (5%) | done |
+| Repo base, importer, CI APK (12%) | done |
+| Engine layer + Granny + Bink: logo movies + main menu on desktop (30%) | done |
+| Same on the Thor, first APK (35%) | done |
+| Script VM, scene loader, dialogue: first scene playable (45%) | done |
+| Chapter 1 plays through (55%) | in progress |
+| Chapter 2 (65%) | in progress |
+| Chapter 3 (73%) | in progress (audit) |
+| Chapter 4, end movie, credits (82%) | in progress (audit) |
+| Full playthrough on the Thor, saves, minigames, bug pass (90%) | in progress (saves and slots/maze done; darts, kick, phone and bug sweep open) |
+| Port features (100%) | in progress (see layer 7) |
+
 ## What the game is made of
 
 | Part | Size | Approach |
