@@ -18,6 +18,19 @@ About 55% of the way to the goal (see `docs/PLAN.md` for the milestones).
 - In progress: playing chapter 1 through to its end. Chapters 2 to 4, the end movie and credits, and the
   minigames are not done yet.
 
+## Screenshots
+
+Captured from the port on a 1920x1080 desktop build (the AYN Thor's top-screen size), using the game files from the original CD.
+
+| | |
+|---|---|
+| ![Main menu](docs/screenshots/menu.jpg) | ![Chapter 1 title](docs/screenshots/chapter1.jpg) |
+| Main menu, in the game's own font | Chapter 1 opening, with 3D characters |
+| ![Krusty Krab, Fill widescreen](docs/screenshots/krusty-krab.jpg) | ![Larry's beach](docs/screenshots/larry-dialogue.jpg) |
+| Krusty Krab, widescreen Fill mode | Clicking a character starts their dialogue |
+| ![Side panels widescreen mode](docs/screenshots/side-panels.jpg) | ![Bottom-screen companion panel](docs/screenshots/companion-panel.jpg) |
+| Widescreen Side panels mode | Thor bottom-screen panel: chapter, hint, inventory |
+
 ## Features
 
 - Dual-screen companion panel on the AYN Thor's bottom screen. The game stays on the top screen, and the
