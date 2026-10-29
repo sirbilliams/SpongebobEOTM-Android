@@ -14,7 +14,7 @@ Not done: click-on-character runs (positions need per-scene coordinates; the dia
 ## Summary
 * All 31 chapter 2 scenes load, run 400 frames and exit cleanly (rc 0, no crash, no missing-file message, no error in any log).
   All 31 have a `sceneart/c2*.omt`; the 13 scenes with a dialogue table have `dialogue/` + `sounds/` files.
-* The only engine TODO logged is the global `TODO(0x40ceb0) select the 3D scene rasterizer` (once per run, harmless).
+* No engine TODO is logged any more (the rasterizer selection 0x40ceb0 is `World3D::rasterizer()`).
 * All 50 c2 scripts parse and run; none crashes. Stubbed host calls are hit by: climb (8 scripts), attach (4), sparkle (1),
   blending (1), slots (3), maze (4), plus the no-op blob shadow (1). Dialogue, comments, letterbox, transitions,
   walk/rotate, hide/show, setchar, sound, add, movie and scene switch paths work (see the per-script table).
