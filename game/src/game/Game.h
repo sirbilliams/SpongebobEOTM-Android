@@ -102,6 +102,8 @@ public:
     // Sound helpers (OMT sound manager, 15 channels like the exe)
     OMediaSound* findSound(const char* name, bool* shared);
     OMediaSound* soundCI(OMediaDataBase* db, const std::string& name);
+    // 0x419210: the hint voice, "%ssounds\help.omt" (the CD) else "sounds\help.omt"; opened on first use (a 34 MB bank)
+    OMediaSound* helpVoice(const std::string& id);
     // sound manager channels: 4 = dialogue voice, 5 = script 'sound', 9 = idle scripts (as the exe)
     bool playOnChannel(int ch, OMediaSound* s, int pan);
     bool channelBusy(int ch);
@@ -134,7 +136,7 @@ private:
     OMediaViewPort* vp_;
     OmtFile skies_;                         // game+0x64: sceneart/c%dskies.omt
     OMediaCanvas* skyCache_[10];            // game+0x70 + index*4
-    OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_;
+    OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_, helpBank_;
     RetailData* retail_;
     GameFont* font_;
     World3D* w3_;

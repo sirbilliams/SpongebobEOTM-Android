@@ -13,7 +13,7 @@
       names ["Shovel and Pail", ...] display names, parallel to items     icons  folder holding <id>.png pictures of the items
       visited ["Krusty Krab - Dish Pit", ...] scene names entered, oldest first (not tappable: the game's map has no travel list)
       dlg  {"choice":0/1, "speaker", "text", "choices":["...", ...]} while a dialogue is open
-    Commands (CompanionPop): "item:<id>", "noitem", "choice:<n>", "advance", "menu", "skip".  */
+    Commands (CompanionPop): "item:<id>", "noitem", "choice:<n>", "advance", "menu", "skip", "hint".  */
 #pragma once
 #include <string>
 #include <vector>

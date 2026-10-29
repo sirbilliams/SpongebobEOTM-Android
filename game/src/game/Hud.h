@@ -67,7 +67,9 @@ public:
     bool overHotspot(int x, int y);                 // a button of the bar, or something clickable in the scene
     // the hover caption (0x4201c0) that replaces the scene's; false: none
     bool caption(std::string* out);
-    std::string hintText();                         // the current help line ("" none)
+    void hint();                                    // game vt+0x100: the hint button (text + voice)
+    std::string hintText();
+    std::string hintId();                           // the id of the help line that is read (an alias resolved), "" none                         // the current help line ("" none)
     // the inventory as it is now (the companion panel)
     struct Entry { std::string name, desc; };
     std::vector<Entry> items() const;
@@ -94,7 +96,6 @@ private:
     void showItem(HudItem* it, bool on);
     bool ensure3D(HudItem* it);
     void placeItem(HudItem* it, float x, float y);
-    void hint();
     void build();
     void relink();
     OMediaCanvasElement* mk(const char* name, float x, float y);
@@ -117,6 +118,7 @@ private:
     Spot hover_; int hoverSlot_;
     TextBlock* hintBlock_;
     float hintMs_;
+    bool hintVoice_;                                // the hint plays its voice (channel 4): the text stays until it ends
     int iconFrame_;
     bool testItemsDone_, built_, testHoldDone_;
     GameScene* lastScene_;
