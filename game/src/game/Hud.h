@@ -20,6 +20,7 @@ class OMedia3DLight;
 class OMedia3DAbstractRasterizer;
 
 namespace sbgame {
+class GameState;
 
 class Game;
 class TextBlock;
@@ -73,7 +74,10 @@ public:
     // the inventory as it is now (the companion panel)
     struct Entry { std::string name, desc; };
     std::vector<Entry> items() const;
-    int slotOf(const std::string& name);            // port (tests): the slot an item sits in, -1 none
+    int slotOf(const std::string& name);
+    // the save game's item bar (0x421c40 writes name, Description and slot of every item; the loader rebuilds them)
+    void toBar(GameState& st);
+    void fromBar(const GameState& st);            // port (tests): the slot an item sits in, -1 none
     bool isOpen() const { return open_; }
     bool flying() const { return fly_ != 0; }
     // port: companion pictures.  A 96x96 PNG of the item's model, written to iconDir() once.  false: cannot (yet).

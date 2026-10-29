@@ -331,5 +331,5 @@ idle
 expect 164AAA
 use iub1 marty
 scene c2l0s1
-shot 35-c2l0s1-chapter2
+shot 35-c2-start
 end

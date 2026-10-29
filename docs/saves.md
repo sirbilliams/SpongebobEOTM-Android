@@ -21,7 +21,7 @@ Little endian, strings are fixed zero padded fields. The tags are the dwords bel
 | thumbnail | `s32` byte count (-1: none), then the bytes: 320x240, 16 bits per pixel (port: RGB565, rows of 640 bytes) |
 | scene | `u32` scene id (`scene+0x264`: scene<<16 \| level<<8 \| chapter) |
 | player | `f32 x, y, z`, `s16 facing` of the controlled character (all 0 when none) |
-| item bar | `s16 n`, then n * { `char[0x20]` name, `char[0x20]` texture, `s16` slot } (`0x421c40`) |
+| item bar | `s16 n`, then n * { `char[0x20]` name, `char[0x20]` the item's Description (ITEM +0x200), `s16` slot } (`0x421c40`); port: `Hud::toBar` before every capture, `Hud::fromBar` after a load |
 | records, to the end of the file | each a `u32` tag and its fields |
 
 Records (the list of the progress object they come from; loader function that stores each):

@@ -1,4 +1,5 @@
 #include "Hud.h"
+#include "GameState.h"
 #include "Game.h"
 #include "DialogueUI.h"
 #include "World3D.h"
@@ -125,6 +126,32 @@ Hud::Spot Hud::spotAt(int x, int y, int* slot)      // 0x4201c0 / 0x420d50 bound
     for (int i = 0; i < 6; ++i)                     // 0x420a30
         if (x > 0x40 + 0x40 * i && x < 0x80 + 0x40 * i) { if (slot) *slot = i; return Slot; }
     return None;
+}
+
+void Hud::toBar(GameState& st)          // 0x421c40
+{
+    std::vector<GameState::BarRec>& b = st.bar();
+    b.clear();
+    for (size_t i = 0; i < items_.size(); ++i) {
+        GameState::BarRec r; memset(&r, 0, sizeof r);
+        strncpy(r.name, items_[i]->name.c_str(), sizeof r.name - 1);
+        strncpy(r.tex, items_[i]->desc.c_str(), sizeof r.tex - 1);      // the ITEM's Description (+0x200)
+        r.slot = (short)items_[i]->slot;
+        b.push_back(r);
+    }
+}
+
+void Hud::fromBar(const GameState& st)  // the loader (0x417460): the bar as it was saved, no flight
+{
+    while (!items_.empty()) remove(items_.back());
+    const std::vector<GameState::BarRec>& b = st.bar();
+    for (size_t i = 0; i < b.size(); ++i) {
+        HudItem* it = new HudItem;
+        it->name = std::string(b[i].name, strnlen(b[i].name, sizeof b[i].name));
+        it->desc = std::string(b[i].tex, strnlen(b[i].tex, sizeof b[i].tex));
+        it->slot = b[i].slot;
+        items_.push_back(it);
+    }
 }
 
 int Hud::slotOf(const std::string& name) { HudItem* it = find(name); return it ? it->slot : -1; }

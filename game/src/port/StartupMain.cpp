@@ -16,6 +16,7 @@
 #include "OMediaGLBackend.h"
 #include "../game/SceneScriptHost.h"
 #include "../game/SaveGame.h"
+#include "../game/Hud.h"
 #include "Playthrough.h"
 #include "Companion.h"
 #include <stdexcept>
@@ -175,6 +176,7 @@ class StartupApp : public MenuHost
     virtual bool menu_save(int slot, const char *name) {     // 0x428740 -> 0x41db50
         if (!paused) return false;
         sbgame::SaveFile f;
+        if (paused->hud()) paused->hud()->toBar(paused->state());     // 0x421c40: the item bar goes into the file
         sbgame::SaveGame::capture(paused->state(), paused->state().sceneId, name, paused_thumb, f);
         if (!sbgame::SaveGame::write(sbgame::SaveGame::slotPath(slot), f)) return false;
         save = slot; menu_settings_changed();                // game+0x26c: the slot Load Game and Resume start from
@@ -397,6 +399,7 @@ class StartupApp : public MenuHost
             static bool autoStarted=false;      // port: tests only, once per run
             if(getenv("SB_TEST_NEWGAME") && frame==20 && !autoStarted) { autoStarted=true; launch=L_NEW; start_game=true; }
             if(getenv("SB_TEST_RESUME") && frame==20 && !autoStarted) { autoStarted=true; menu_resume(); }
+            if(getenv("SB_TEST_LOADSLOT") && frame==20 && !autoStarted) { autoStarted=true; menu_load(atoi(getenv("SB_TEST_LOADSLOT"))); }   // port: tests only
             if(const char *k=getenv("SB_TEST_MENUKEYS")) {      // port: tests only, "frame:key,...": a key pressed in the menu (SDL key name; a single character is typed)
                 for(const char *p=k;p && *p;) {
                     unsigned at=(unsigned)atoi(p); const char *c=strchr(p,':'); const char *e=strchr(p,','); std::string n=c?std::string(c+1,e?e:p+strlen(p)):std::string();
@@ -431,6 +434,7 @@ class StartupApp : public MenuHost
         const char *path=getenv(var);
         if(!path || !game) return;
         sbgame::SaveFile f; std::vector<unsigned char> none;
+        if(game->hud()) game->hud()->toBar(game->state());
         sbgame::SaveGame::capture(game->state(),game->state().sceneId,"dump",none,f);
         bool ok=sbgame::SaveGame::write(path,f);
         SDL_Log("test dump %s: scene %08x %s",var,f.sceneId,ok?"written":"FAILED");
@@ -457,6 +461,7 @@ class StartupApp : public MenuHost
         std::vector<unsigned char> thumb;
         sbgame::SaveGame::grabThumb(pt_app->screen->getdefaultdrawgfxworld(),thumb);
         sbgame::SaveFile f;
+        if(game->hud()) game->hud()->toBar(game->state());
         sbgame::SaveGame::capture(game->state(),game->state().sceneId,"Playthrough",thumb,f);
         bool ok=sbgame::SaveGame::write(sbgame::SaveGame::slotPath(slot),f);
         SDL_Log("playthrough: saved slot %d scene %08x %s",slot,f.sceneId,ok?"written":"FAILED");
@@ -490,6 +495,7 @@ class StartupApp : public MenuHost
                         SDL_Log("0x417460: slot %d cannot be loaded",launch_slot); delete game; return true;
                     }
                     scene=sbgame::SaveGame::apply(f,game->state());
+                    if(game->hud()) game->hud()->fromBar(game->state());      // the item bar as it was saved
                     save=launch_slot; menu_settings_changed();
                     SDL_Log("0x417460: loaded slot %d \"%s\" -> %s",launch_slot,f.name,scene.c_str());
                 } else scene=first?first:"mintro c1l0s1";
