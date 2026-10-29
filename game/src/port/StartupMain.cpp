@@ -1,15 +1,17 @@
 // Startup slice reconstructed from sb2.exe. See docs/startup.md for engine gaps.
-#include "OMediaApplication.h"
-#include "OMediaFullscreenWindow.h"
-#include "OMediaMonitorMap.h"
-#include "OMediaRendererDef.h"
-#include "OMediaPeriodical.h"
-#include "OMediaWorld.h"
+#include "OMediaDisplay.h"
+#include "OMediaDXSurfaceWorld.h"
+#include "OMedia2DWorld.h"
 #include "OMediaViewPort.h"
-#include "OMediaLayer.h"
-#include "OMediaEngineFactory.h"
+#include "OMediaEventManager.h"
+#include "OMediaWorldClickDispatcher.h"
+#include "OMediaFileStream.h"
+#include "OMediaFilePath.h"
 #include "OMediaError.h"
 #include "OMediaSDLRetarget.h"
+#include "../ui/MainMenu.h"
+#include "../scene/SceneData.h"
+#include <stdexcept>
 #include "CrashLog.h"
 #include <stdio.h>
 #include <string.h>
@@ -21,20 +23,24 @@
 #include "OMediaSoundManager.h"
 #include "OMediaDataBase.h"
 #include "OMediaCanvas.h"
-#include "OMedia3DMaterial.h"
 #include "OMediaSound.h"
 #include "../../granny/granny_compat.h"
 
 extern void omf_SDLFrameHook(SDL_Window *win);		// OMediaSDLMain.cpp: frame count, OMT_SCREENSHOT
 
-class StartupApp : public OMediaApplication, public OMediaPeriodical
+class StartupApp : public MenuHost
 {
 	public:
-	OMediaMonitorMap	*monitors;
-	OMediaWindow		*window;
-	OMediaWorld			*world;
-	OMediaViewPort		*viewport;
-	OMediaLayer			*layer;
+    OMediaDoubleCanvas *screen;
+    OMediaDisplay *display;
+    OMedia2DWorld *world;
+    OMediaViewPort *viewport;
+    OMediaEventManager *event_manager;
+    OMediaWorldClickDispatcher *click_dispatcher;
+    OMediaFileStream font_stream;
+    OMediaDataBase *font_database;
+    GameFont *font;
+    RetailData retail;
 
 	StartupApp()
 	{
@@ -42,78 +48,52 @@ class StartupApp : public OMediaApplication, public OMediaPeriodical
 		// register_object and cache=0 match OMT.dll; the shared implementation checks
 		// !cache_size before purging just as 0x10054d30 does.
 		OMediaDataBase::register_object(0x43616e76, OMediaCanvas::db_builder, 0);
-		OMediaDataBase::register_object(0x33444d61, OMedia3DMaterial::db_builder, 0);
 		OMediaDataBase::register_object(0x57617665, OMediaSound::db_builder, 0);
 		OMediaDataBase::set_cache_size(0);
 		SDL_ShowCursor(SDL_DISABLE);
 		init_display();
-		// port: DirectX::install(7)'s sound backend is already rebuilt on SDL.
 		OMediaSoundManager::setdefaultmanager(new OMediaDXSoundManager);
 		init_world();
 		init_menu_controller();
-		SDL_Log("TODO(0x40cdb0): connect OMT1 event broadcaster and window controller");
+		event_manager = new OMediaEventManager;
+		click_dispatcher = new OMediaWorldClickDispatcher;
+		click_dispatcher->get_pick_broadcaster()->addlistener(world);
 		init_font();
 		load_config();
 		SDL_Log("0x40e2c0: SetVideoMode(640,480,16,%d)", software);
-		SDL_Log("TODO(0x40e2c0): bind OMT1 ScreenDevice driver/mode to the SDL display bridge");
-		SDL_Log("TODO(0x40ceb0): implement missing OMT1 OMedia3DAbstractRasterizer; SDL GL presents movies");
+		SDL_Log("TODO(0x40ceb0): select the 3D scene rasterizer when a scene starts");
 		init_granny();
 		init_movie_sound();
-		SDL_Log("TODO(0x4097d0): connect missing OMT1 WorldClickDispatcher");
 	}
 
-	// 0x40cc10 / 0x40e2c0. port: existing SDL/OMT 2.5 window bridge until
-	// OMT1 has the Application/Display lifecycle; never mix their world ABIs.
-	void init_display()
-	{
-		SDL_Log("0x40cc10: InitDisplay");
-		window = new OMediaFullscreenWindow(this, true);
-		window->set_title("SpongeBob EOTM");
-		omt_EngineID video_engine = *(OMediaEngineFactory::get_factory()->video_engines.begin());
-		monitors = new OMediaMonitorMap(video_engine, window);
-		window->link_monitor_map(monitors);
-		for (omt_VideoEngineList::iterator vi = monitors->engines.begin(); vi != monitors->engines.end(); vi++)
-		{
-			(*vi)->link(&(*(*vi)->get_video_cards()->begin()));
-			OMediaRendererDef *def = NULL;
-			for (omt_RendererDefList::iterator ri = (*vi)->get_renderer_list()->begin(); ri != (*vi)->get_renderer_list()->end(); ri++)
-				if ((*ri).attributes & omcrdattr_Accelerated) { def = &(*ri); break; }
-			if (!def && (*vi)->get_renderer_list()->size()) def = &(*(*vi)->get_renderer_list()->begin());
-			if (def) { (*vi)->select_renderer(def, def->zbuffer_depth); SDL_Log("renderer: %s", def->name.c_str()); }
-		}
-		window->show();
-
-	}
-
-	// 0x40d010 / 0x40d1d0. port: the bootstrap world establishes the GL context.
-	void init_world()
-	{
-		SDL_Log("TODO(0x40d010): connect OMT1 game world and viewport to display");
-		OMediaRect r;
-		world = new OMediaWorld;
-		viewport = new OMediaViewPort(window);
-		viewport->link(world);
-		viewport->link_window(window);
-		r.set(0, 0, 0, 0);
-		viewport->setbounds(&r);
-		viewport->set_bounds_mode(omcpbc_Right, omvpbmc_RightRelative);
-		viewport->set_bounds_mode(omcpbc_Bottom, omvpbmc_BottomRelative);
-		OMediaFARGBColor sky(1.0f, 0.05f, 0.08f, 0.16f);
-		layer = new OMediaLayer;
-		layer->link(world);
-		layer->add_flags(omlayerf_ClearColor);
-		layer->set_clear_color(sky);
-	}
-
-	void init_menu_controller() // 0x40d120
-	{
-		SDL_Log("TODO(0x40d120): connect menu/inventory controller construction");
-	}
-
-	void init_font() // 0x40d0b0
-	{
-		SDL_Log("TODO(0x40d0b0): connect OMT1 font database and missing CStringField/CCaption");
-	}
+    // 0x40cc10 / 0x40e2c0: port: OMT1 Display maps DirectDraw onto SDL/GL.
+    void init_display() {
+        OMediaDirectX::install(OMediaDirectX::omcdx_Video);
+        OMediaScreenDevice *dev=OMediaScreenDevice::getdefaultdevice();
+        OMediaVideoMode *mode=NULL;
+        OMediaVideoDriver &driver=dev->get_video_drivers()->front();
+        for(size_t i=0;i<driver.modes.size();++i)
+            if(driver.modes[i].width==640 && driver.modes[i].height==480 && driver.modes[i].depth==16)
+                mode=&driver.modes[i];
+        dev->setmode(mode,0);
+        screen=new OMediaDoubleCanvas;
+        display=new OMediaDisplay(NULL,screen,"SpongeBob EOTM");
+    }
+    void init_world() { // 0x40d010 / 0x40d1d0
+        world=new OMedia2DWorld;
+        world->set_framerate_mode(omfrc_Max);
+        viewport=new OMediaViewPort(world);
+        OMediaRect bounds(0,0,640,480);
+        viewport->setbounds(&bounds); viewport->setcanvas(screen);
+    }
+    void init_menu_controller() { SDL_Log("0x40d120: menu controller initialized (lazy sb2.omt)"); }
+    void init_font() { // 0x40d0b0 -> 0x414820
+        OMediaFilePath path("Font.omt");
+        font_stream.setpath(&path); font_stream.open(omcfp_Read);
+        font_database=new OMediaDataBase(&font_stream);
+        font=new GameFont(font_database,retail);
+        SDL_Log("0x414820: Font.omt glyph font initialized");
+    }
 
 	granny_uint32 granny_version;
 	void init_granny() // 0x40d2d0
@@ -138,23 +118,38 @@ class StartupApp : public OMediaApplication, public OMediaPeriodical
 		BinkPortSetSurfaceType(BINKSURFACE32);
 	}
 
-	virtual ~StartupApp()
-	{
-		delete world;
-		delete monitors;
-		OMediaSoundManager::setdefaultmanager(NULL);
-		GrannyClose(granny_version); // 0x40d330
-	}
-
-	virtual void spend_time(void)
-	{
-		if (!SDL_GL_GetCurrentWindow()) return;		// the engine has not rendered yet
-		run();
-		do_quit = true;
-	}
+    virtual ~StartupApp() {
+        delete click_dispatcher;
+        delete event_manager;
+        delete font;
+        delete world;
+        delete font_database;
+        delete display;
+        OMediaSoundManager::setdefaultmanager(NULL);
+        GrannyClose(granny_version);
+        OMediaScreenDevice::setdefaultdevice(NULL);
+    }
+    virtual bool menu_movie(const char *name) { return play_movie(SDL_GL_GetCurrentWindow(),name); }
+    virtual bool menu_new_game() {
+        if(!menu_movie("mintro")) return false;
+        sb::scene::Scene scene; std::string error;
+        if(sb::scene::load("scenes/c1l0s1.scn",scene,error))
+            SDL_Log("0x437210: c1l0s1 parsed (%lu bytes, %lu objects)",
+                (unsigned long)scene.bytesConsumed,(unsigned long)scene.elements.size());
+        else SDL_Log("0x437210: %s",error.c_str());
+        SDL_Log("TODO(0x40a230): instantiate c1l0s1 3D scene and script VM");
+        return true;
+    }
+    virtual void menu_settings_changed() {
+        // port: persist 0x409ed0's registry settings under SDL's per-user directory.
+        char *pref=SDL_GetPrefPath("THQ","SpongeBob 2");
+        std::string path=getenv("OMT_CONFIG")?getenv("OMT_CONFIG"):std::string(pref?pref:"")+"settings.cfg";
+        SDL_free(pref);
+        FILE *f=fopen(path.c_str(),"w");
+        if(f) { fprintf(f,"Music=%d\nSound=%d\nVoice=%d\nSave=%d\nText=%d\nShadows=%d\n",music,sound,voice,save,text,shadows); fclose(f); }
+    }
 
 	bool software;
-	int music, sound, voice, save, text, shadows;
 
 	// 0x409ed0: registry-free equivalent of the six DWORD queries.
 	void load_config()
@@ -269,17 +264,41 @@ class StartupApp : public OMediaApplication, public OMediaPeriodical
 		return running;
 	}
 
-	void main_menu(SDL_Window *win)
-	{
-		// port: stop at the menu handoff until scene/save integration is available.
-		// Retail +0x104 is 0x40e160 (slot0 probe), not the menu function.
-		SDL_Log("0x41bbb0: main menu path reached (startup handoff)");
-		SDL_Log("TODO(0x40d340): connect main menu sb2.omt database objects");
-		SDL_Log("TODO(0x41f6a0): connect OMT1 CanvasElement menu/menut canvases, captions and click routing");
-		SDL_ShowCursor(SDL_ENABLE);
-		bool skip = false;
-		while (events(skip)) { present(win, 0); SDL_Delay(16); }
-	}
+    void main_menu(SDL_Window *win) {
+        (void)win;
+        OMediaFileStream stream;
+        OMediaFilePath path("sb2.omt"); stream.setpath(&path); stream.open(omcfp_Read);
+        OMediaDataBase database(&stream);
+        MainMenu menu(world,&database,font,retail,this);
+        click_dispatcher->get_click_broadcaster()->addlistener(&menu);
+        SDL_ShowCursor(SDL_ENABLE);
+        unsigned frame=0;
+        while(!menu.quit && !event_manager->quit_requested()) {
+            SDL_Event ev;
+            while(SDL_PollEvent(&ev)) {
+                event_manager->handle_sdl_event(&ev);
+                if(ev.type==SDL_MOUSEMOTION) menu.hover(ev.motion.x,ev.motion.y);
+                if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE) menu.back();
+            }
+#ifndef __ANDROID__
+            // port: deterministic desktop input replay, routed through the real SDL/OMT event path.
+            const char *replay=getenv("OMT_MENU_CLICKS");
+            for(const char *p=replay;p && *p;) {
+                unsigned at; int x,y;
+                if(sscanf(p,"%u:%d:%d",&at,&x,&y)==3 && at==frame) {
+                    SDL_Event e; SDL_zero(e); e.type=SDL_MOUSEMOTION; e.motion.x=x; e.motion.y=y;
+                    SDL_PushEvent(&e);
+                    e.type=SDL_MOUSEBUTTONDOWN; e.button.button=SDL_BUTTON_LEFT; e.button.x=x; e.button.y=y; SDL_PushEvent(&e);
+                    e.type=SDL_MOUSEBUTTONUP; SDL_PushEvent(&e);
+                }
+                p=strchr(p,','); if(p) ++p;
+            }
+#endif
+            world->update(); ++frame; SDL_Delay(16);
+        }
+        click_dispatcher->get_click_broadcaster()->removelistener(&menu);
+        SDL_Log("main menu: clean exit");
+    }
 
 	void run(void)
 	{
@@ -302,9 +321,10 @@ void omt_main(void)
 	try
 	{
 		StartupApp *app = new StartupApp;
-		app->start();
+		app->run();
 		delete app;
 	}
+    catch (std::exception &e) { SDL_Log("Startup stopped: %s",e.what()); }
 	catch (granny_result result)
 	{
 		SDL_Log("Startup stopped: Granny result %d", (int)result);

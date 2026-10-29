@@ -1,121 +1,146 @@
-# Startup reconstruction
+# Startup and main menu reconstruction
 
-Retail addresses refer to sb2.exe (image base 0x400000). Engine addresses below are cross-referenced with private decomp/omt/exports.json. No game assets are embedded.
+Retail addresses refer to the installed sb2.exe (image base 0x400000). No game art,
+fonts, executable tables, or captures belong in git. This lane leaves game/src/script alone.
 
-## Call chain
+## Startup and display
 
-* WinMain/platform entry -> 0x40e580 (game entry / omt_main): CD check 0x40e470, single-instance guard, allocate app, sound check, application start, destruction. WinMain is 0x42a540 (mislabelled main by the decompiler: four WinMain arguments, stored into OMediaWinStoreStartInfo). It derives the install working directory from the module path and calls 0x40e580. SDLMain performs that data-root mapping using OMT_DATA / Android imported files.
-* 0x4097d0 app constructor: Application(2,true), Listener, Periodical; defaults; register Canv/3DMa/Wave builders; cache=0; hide cursor; InitDisplay 0x40cc10; DirectX::install(7); sound-manager check.
-* Initialization order: InitWorld 0x40d010 -> menu/inventory controllers 0x40d120 -> event/window controller 0x40cdb0 -> font 0x40d0b0 -> SetVideoMode(640,480,16,-sw) 0x40e2c0 -> settings 0x409ed0 -> Granny initialization 0x40d2d0 -> Bink sound 0x40c2a0 -> scene dispatch 0x40a230("mlegal") -> click dispatcher.
-* 0x40a230 named dispatch -> movie switch 0x40bbf0 -> movie ctor 0x429af0 -> open 0x429b60 (movies/%s.bik, CD fallback). 0x429b40 closes any active movie.
-* Periodical 0x40da40 -> 0x429c80: Wait, DoFrame, present 0x429ce0, compare FrameNum==Frames, Close or NextFrame. On completion -> 0x40bcc0.
-* Startup completion transitions: mlegal -> mthq -> mawe -> mnick -> mspongebob -> slot0 probe 0x40e160 (app virtual +0x104), then mintro or the alternate c1l2s6p1 branch. The menu controller is 0x41bbb0, which lazily opens sb2.omt and invokes 0x41f6a0 (menu/menut canvases); it is not a named mainmenu scene. The current port deliberately stops at that menu handoff after the requested five-logo chain; save/intro/scene continuation is TODO, not claimed implemented.
+`game/src/port/StartupMain.cpp` reconstructs the startup sequence from WinMain
+0x42a540 -> game entry 0x40e580 -> application constructor 0x4097d0. Database
+registration/cache setup, font initialization 0x40d0b0, settings 0x409ed0,
+Granny initialization 0x40d2d0, and Bink sound initialization 0x40c2a0 precede
+named movie dispatch 0x40a230. Movies open at 0x429b60, advance/present at
+0x429c80/0x429ce0, and complete at 0x40bcc0.
 
-## Port and lane A integration
+The startup now uses **OMT 1.x** Display/ScreenDevice/DoubleCanvas, 2DWorld,
+ViewPort, EventManager and WorldClickDispatcher. It does not link the OMT 2.5
+world/display/application implementation. The SDL main function invokes the
+startup's explicit event/render loop (port adaptation of the application and
+periodical loop). `sb_audio` reuses lane B's manager and SDL mixer separately;
+its otherwise unused OMT 2.5 sound-engine window association is compiled out
+with `OMT1_AUDIO_ONLY`, so UBSan never needs an incompatible OMT 2.5 Window.
 
-The SDL application/window bridge currently uses OMTClasses Application/FullscreenWindow/MonitorMap/World/ViewPort/Layer to establish the existing GL context. This is a temporary port adapter, not an ABI cast between OMT 2.5 and 1.x worlds. Bink is game/bink/bink.cpp, FFmpeg-backed, with engine/sdl/OMediaSDLSound.cpp mixer callbacks. DirectDraw surface probing/copy is replaced by a GL RGBA texture.
+Port: SDL/GL replaces DirectDraw; per-user `settings.cfg` replaces the registry
+at `Software/THQ/SpongeBob 2/Settings` (`OMT_CONFIG` overrides the path). Defaults
+are Music/Sound/Voice 7, Save -1, Text/Shadows 1; `-sw` suppresses shadows.
+CD-relative paths use the imported install folder. Software **3D** rasterizer
+selection remains TODO(0x40ceb0); it is not needed by this 2D menu.
 
-Lane A: provide a complete application-compatible OMT1 Display + DoubleCanvas + screen-device lifecycle, world/viewport attach and movie presentation path, plus CanvasElement UI creation for 0x41f6a0, CCaption/CStringField font rendering and WorldClickDispatcher menu event routing. Headers for several of these already exist in this snapshot; their integration and virtual behavior are not yet verified by this lane. No engine/omt1 files are edited.
+The five-logo sequence is legal -> THQ -> AWE -> Nick -> SpongeBob. The requested
+port milestone opens the menu after it. Retail additionally probes slot0 at
+0x40e160 and has save/intro/alternate-scene continuation; that automatic boot
+continuation is still outside this menu milestone.
 
-Settings replace HKCU Software/THQ/SpongeBob 2/Settings with a text file under SDL_GetPrefPath (override OMT_CONFIG). Music/Sound/Voice default 7, Save -1, Text/Shadows 1. Software mode suppresses shadows. CD/data root is the imported install folder. Win32 single-instance mapping is omitted for the SDL port. CrashLog remains installed.
+## Font: vtable 0x44dd78
 
-## Direct OMT imports in the startup slice
+`game/src/ui/GameFont.{h,cpp}` implements the game's font and an OMediaTextFont
+adapter for lane A's CCaption/CStringField interfaces. Important correction to
+the earlier API note: this retail vtable has **six entries**, ending before
+0x44dd90. It is not itself the DLL's text-font vtable with draw at +0x18/+0x1c.
+The adapter provides those operations without pretending the original ABIs match.
 
-Includes initialization/destruction, named dispatch and menu construction imports. Virtual calls require the class contracts above; this table is the named-import cross-reference, not a claim that every branch is implemented.
-
-| OMT export | DLL address | sb2 callers | source coverage |
-|---|---|---|---|
-| `??0OMedia2DWorld@@QAE@XZ` | 0x10004380 | 0x442010 | engine/omt1/World/OMedia2DWorld.h |
-| `?db_builder@OMedia3DMaterial@@SAPAVOMediaDBObject@@XZ` | 0x1001ce20 | 0x4097d0 | engine/OMTClasses/Graphics/3D/OMedia3DMaterial.h |
-| `??0OMediaApplication@@QAE@W4omt_InitAppHints@@_N@Z` | 0x10037270 | 0x4097d0 | engine/OMTClasses/Application/OMediaApplication.h |
-| `??1OMediaApplication@@UAE@XZ` | 0x10037320 | 0x409ca0 | engine/OMTClasses/Application/OMediaApplication.h |
-| `??0OMediaBroadcaster@@QAE@XZ` | 0x1003b080 | 0x442010 | engine/OMTClasses/Messages/OMediaBroadcaster.h |
-| `?db_builder@OMediaCanvas@@SAPAVOMediaDBObject@@XZ` | 0x1003b610 | 0x4097d0 | engine/omt1/Graphics/OMediaCanvas.h, engine/OMTClasses/Graphics/Canvas/OMediaCanvas.h |
-| `??0OMediaCanvasElement@@QAE@XZ` | 0x1003cea0 | 0x41f6a0 | engine/omt1/World/OMediaCanvasElement.h, engine/OMTClasses/World/Element/OMediaCanvasElement.h |
-| `??0OMediaDXSurfaceWorld@@QAE@_N@Z` | 0x1005cd70 | 0x429b60 | engine/omt1/Display/OMediaDXSurfaceWorld.h |
-| `??0OMediaDataBase@@QAE@PAVOMediaStream@@@Z` | 0x10053b80 | 0x40d340 | engine/OMTClasses/Stream/Database/OMediaDataBase.h |
-| `?register_object@OMediaDataBase@@SAXKP6APAVOMediaDBObject@@XZJ@Z` | 0x10054570 | 0x4097d0 | engine/OMTClasses/Stream/Database/OMediaDataBase.h |
-| `?set_cache_size@OMediaDataBase@@SAXK@Z` | 0x10054d30 | 0x4097d0 | engine/OMTClasses/Stream/Database/OMediaDataBase.h |
-| `??0OMediaDisplay@@QAE@PAVOMediaSupervisor@@PAVOMediaCanvas@@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z` | 0x1038f8a0 | 0x40cc10 | engine/omt1/Display/OMediaDisplay.h |
-| `??0OMediaDoubleCanvas@@QAE@XZ` | 0x10056840 | 0x40cc10 | engine/omt1/Graphics/OMediaCanvas.h |
-| `?event_manager@OMediaEventManager@@1PAV1@A` | 0x10420d84 | 0x40cdb0 | engine/OMTClasses/Input/OMediaEventManager.h |
-| `??0OMediaFilePath@@QAE@V?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@KK@Z` | 0x103913f0 | 0x40d340, 0x40e160 | engine/OMTClasses/Stream/Core/OMediaFilePath.h |
-| `??1OMediaFilePath@@UAE@XZ` | 0x103914b0 | 0x40d340, 0x40e160 | engine/OMTClasses/Stream/Core/OMediaFilePath.h |
-| `??0OMediaFileStream@@QAE@XZ` | 0x10391d30 | 0x40d340, 0x40e160 | engine/OMTClasses/Stream/Core/OMediaFileStream.h |
-| `??1OMediaFileStream@@UAE@XZ` | 0x10391db0 | 0x40e160 | engine/OMTClasses/Stream/Core/OMediaFileStream.h |
-| `?setpath@OMediaFileStream@@UAEXPBVOMediaFilePath@@@Z` | 0x10392050 | 0x40e160 | engine/OMTClasses/Stream/Core/OMediaFileStream.h |
-| `?input_manager@OMediaInputManager@@1V1@A` | 0x104211f8 | 0x41a850, 0x41bbb0 | engine/omt1/OMediaInputManager.h |
-| `??0OMediaListener@@QAE@XZ` | 0x1006ae50 | 0x4097d0, 0x41a850 | engine/OMTClasses/Messages/OMediaListener.h |
-| `??1OMediaListener@@UAE@XZ` | 0x1006aeb0 | 0x409ca0 | engine/OMTClasses/Messages/OMediaListener.h |
-| `??0OMediaPeriodical@@QAE@XZ` | 0x10082ee0 | 0x4097d0 | engine/OMTClasses/Core/OMediaPeriodical.h |
-| `??1OMediaPeriodical@@UAE@XZ` | 0x10082ff0 | 0x409ca0 | engine/OMTClasses/Core/OMediaPeriodical.h |
-| `?getdefaultdevice@OMediaScreenDevice@@SAPAV1@XZ` | 0x103981f0 | 0x40e2c0 | engine/omt1/Display/OMediaDisplay.h |
-| `?db_builder@OMediaSound@@SAPAVOMediaDBObject@@XZ` | 0x10086d00 | 0x4097d0 | engine/OMTClasses/Sound/OMediaSound.h |
-| `?getdefaultmanager@OMediaSoundManager@@SAPAV1@XZ` | 0x10086ee0 | 0x4097d0, 0x40c2a0, 0x40e580 | engine/omt1/OMediaSoundManager.h |
-| `??0OMediaViewPort@@QAE@PAVOMediaWorld@@@Z` | 0x1038ec00 | 0x40d1d0 | engine/omt1/World/OMediaViewPort.h, engine/OMTClasses/World/Element/OMediaViewPort.h |
-| `?get_world_position_info@OMediaWorld@@QAEXJJAAVOMediaWorldPositionInfo@@@Z` | 0x1039a900 | 0x41bbb0 | engine/omt1/World/OMediaWorld.h, engine/OMTClasses/World/Core/OMediaWorld.h |
-| `??0OMediaWorldClickDispatcher@@QAE@XZ` | 0x1039aa30 | 0x4097d0 | **missing** |
-| `?omt_GetMilliSecsCounter@@YAKXZ` | 0x10395370 | 0x4097d0, 0x40da40, 0x41bbb0 | platform function, SDL_GetTicks clock adapter |
-| `?build@OMedia3DRasterizerDesc@@QAEPAVOMedia3DAbstractRasterizer@@PAVOMediaGfxWorld@@K@Z` | 0x1001f380 | 0x40ceb0 | engine/omt1/3D/OMedia3DRasterizerDesc.h |
-| `?commandLine@OMediaWinStoreStartInfo@@2PADA` | 0x10421254 | 0x4097d0, 0x42a540 | engine/OMTClasses/OS/MSWindows/Application/OMediaWinStoreStartInfo.h |
-| `?prevInstance@OMediaWinStoreStartInfo@@2PAUHINSTANCE__@@A` | 0x1042124c | 0x42a540 | engine/OMTClasses/OS/MSWindows/Application/OMediaWinStoreStartInfo.h |
-| `?showState@OMediaWinStoreStartInfo@@2HA` | 0x10421250 | 0x42a540 | engine/OMTClasses/OS/MSWindows/Application/OMediaWinStoreStartInfo.h |
-| `?startinfo_stored@OMediaWinStoreStartInfo@@2_NA` | 0x10421248 | 0x42a540 | engine/OMTClasses/OS/MSWindows/Application/OMediaWinStoreStartInfo.h |
-| `?theInstance@OMediaWinStoreStartInfo@@2PAUHINSTANCE__@@A` | 0x10421258 | 0x42a540 | engine/OMTClasses/OS/MSWindows/Application/OMediaWinStoreStartInfo.h |
-| `?install@OMediaDirectX@@SAXG@Z` | 0x10056480 | 0x4097d0 | engine/omt1/Display/OMediaDisplay.h |
-| `?hide@OMediaMouseCursor@@SAXXZ` | 0x103950d0 | 0x4097d0 | engine/OMTClasses/Core/OMediaMouseCursor.h |
-| `?show@OMediaMouseCursor@@SAXXZ` | 0x103950f0 | 0x40e580 | engine/OMTClasses/Core/OMediaMouseCursor.h |
-| `?msg_broadcaster@OMediaWinDefaultMsgHandler@@1VOMediaBroadcaster@@A` | 0x10420d60 | 0x40cdb0 | engine/omt1/OMediaWinDefaultMsgHandler.h |
-
-Coverage means declaration exists; it does not certify all OMT 2.5 semantics. Port adapters and unresolved game-controller construction must remain explicit TODO logs until connected.
-
-## Virtual engine calls and remaining contracts
-
-These are the named virtual contracts used by startup (including backend overrides), cross-referenced against the same exports catalog. Their call sites are 0x40e580 (start), 0x40d010 (framerate), 0x40e2c0 (setmode), 0x40d1d0 (viewport), 0x40cd10 (clear/page flip), 0x40c2a0 (channels), and 0x429b60/0x429ce0 (surface creation and pixel lock/copy). Shared base no-op methods are not substitutes for the concrete display surface implementation.
-
-| Method | DLL address |
+| Address | Reconstructed operation |
 |---|---|
-| `OMediaApplication::start` | 0x10037390 |
-| `OMediaWorld::set_framerate_mode` | 0x1039a0a0 |
-| `OMediaScreenDevice::setmode` | 0x103987d0 |
-| `OMediaDXScreenDevice::setmode` | 0x1005ac30 |
-| `OMediaViewPort::setbounds` | 0x1038ee70 |
-| `OMediaViewPort::setcanvas` | 0x1038f190 |
-| `OMediaDoubleCanvas::getdefaultdrawgfxworld` | 0x10057080 |
-| `OMediaGfxWorld::create` | 0x10066b10 |
-| `OMediaGfxWorld::fill` | 0x10067c80 |
-| `OMediaGfxWorld::getheight` | 0x10392460 |
-| `OMediaGfxWorld::getpixmaplowleveldata` | 0x103924a0 |
-| `OMediaGfxWorld::getwidth` | 0x10392440 |
-| `OMediaGfxWorld::page_flip` | 0x1005a390 |
-| `OMediaGfxWorld::pixlock` | 0x10066be0 |
-| `OMediaGfxWorld::pixunlock` | 0x10066c00 |
-| `OMediaGfxWorld::support_page_flipping` | 0x10069a50 |
-| `OMediaWindowPortWorld::fill` | 0x10399a60 |
-| `OMediaWindowPortWorld::getheight` | 0x103999a0 |
-| `OMediaWindowPortWorld::getpixmaplowleveldata` | 0x10399a10 |
-| `OMediaWindowPortWorld::getwidth` | 0x10399940 |
-| `OMediaWindowPortWorld::pixlock` | 0x10399730 |
-| `OMediaWindowPortWorld::pixunlock` | 0x103997b0 |
-| `OMediaSoundManager::get_max_channels` | 0x100017f0 |
-| `OMediaSoundManager::set_nchannels` | 0x10086f10 |
-| `OMediaDXSoundManager::get_max_channels` | 0x1005cc70 |
+| 0x414820 | Open Font.omt; initialize glyph pools and lookup |
+| 0x414910 / 0x414930 | Destruction / release glyph elements and font database |
+| 0x414a90 | Hide pooled glyph elements for reuse on the following frame |
+| 0x414b00 | Formatted text wrapper; default z=0x2774 |
+| 0x414b50 | Formatted text, optional centering, wrapping and returned height |
+| 0x414de0 | Draw banked glyph canvases through reusable CanvasElements |
+| 0x414fe0 | Measure text using normal-bank glyph widths |
 
-Rasterizer selection 0x40ceb0 also builds OMedia3DAbstractRasterizer and invokes virtual +0x14/+0x18 with 3. The class is still missing in this snapshot (only forward declarations exist). This blocks faithful software/accelerated scene rendering, though SDL GL movie presentation works. OMediaGfxWorld::support_page_flipping/page_flip and the concrete pixel-surface overrides are needed by 0x40cd10/0x429ce0. Database lookup, object linking/unlinking, canvas assignment and font draw calls in the menu are additional integration work, not implemented UI.
+The character-to-ID table at 0x454d44 is read from the player's PE file by
+`RetailData`, together with menu label tables. The checked PE reader handles
+section virtual addresses and reads little-endian values bytewise. There are
+no copied executable tables in source. Glyph variant ID = normal ID + bank*71.
+Space advances five pixels; glyphs advance width minus one. CP1252 0x85 maps to
+`{`, 0x92 to apostrophe; `*` toggles emphasis without drawing. Measurement
+always uses bank zero. Wrapping uses width <631, at most five lines, trailing
+spaces after words, and draws preceding lines upwards in 22-pixel steps;
+return height is 18 +22*(line count-1).
 
-0x40d2d0 / 0x40d330 initialize/close Granny using the existing compatibility library and enable texture format 0xb. Database acquisition is 0x40d340, invoked lazily by 0x41bbb0, rather than 0x40d2d0.
+Port adaptations: captions blit these same glyphs into their canvas; the font
+adapter exposes an 18-pixel line height. Unsupported extended bytes are guarded
+instead of indexing before the lookup table. Formatted text bounds the original
+256-byte vsprintf buffer. Cached canvases hold balanced database locks.
 
-The milestone currently implements movie startup and logs the menu handoff. It does not claim the retail saved-game probe, intro continuation, or interactive menu widgets are complete. Any key, click, touch or controller button skips a logo in the SDL adapter; quit closes the application. This input mapping is a port choice pending original event-controller integration.
+## Main menu and dispatch
 
-## Verification
+`game/src/ui/MainMenu.{h,cpp}` implements the modal controller path: lazy
+sb2.omt acquisition at 0x41bbb0, toolbar menu/menut art from 0x41f6a0, modal
+opening 0x41c1c0, and dialog construction 0x4242b0. The main menu does **not**
+load a menu .scn or sceneart database: its centered bamboo4 canvas, glyphs,
+noresume overlay, help pages, sliders, cursor and locked/movie art are in
+sb2.omt/Font.omt. Captions start at y=91, spaced by 40 pixels, centered using
+retail font measurement. Hover/click rectangles use the strict inequalities
+and 18-pixel text height of 0x426e00/0x425aa0. Help arrows use the eight-frame
+arrows/arrows2 canvas sequences. Options positions follow 0x427870.
 
-- RelWithDebInfo and Debug ASan/UBSan `spongebob` builds pass (C++98). The shell is already inside the Ubuntu build container; distrobox entry was unnecessary.
-- Pinned FFmpeg sources are absent and network DNS is unavailable. Verification used an installed FFmpeg 7 SDK through a temporary `/tmp/c-ffmpeg` prefix (FFmpeg headers and libraries only, no changes committed). Configure with `cmake -S engine -B build -DFFMPEG_PREFIX=/tmp/c-ffmpeg -DCMAKE_BUILD_TYPE=RelWithDebInfo`, then `make -C build -j6 spongebob`.
-- Full desktop run on display :83, 640x480, dummy audio: all 912 movie frames complete in legal/THQ/AWE/Nick/SpongeBob order and `0x41bbb0: main menu path reached` appears before the frame-930 quit. Test log `/tmp/c-final-run.log`.
-- Full final implementation ASan/UBSan run, frame 930: exit 0, no address/undefined-behavior diagnostics (`/tmp/c-verified-asan.log`). Options: `ASAN_OPTIONS=detect_leaks=0:halt_on_error=1 UBSAN_OPTIONS=halt_on_error=1`. LeakSanitizer itself cannot execute in this traced sandbox (fatal ptrace diagnostic); leak freedom is not certified.
-- That sanitizer run used SDL disk audio to verify actual mixed samples: 6,705,152 signed 16-bit samples, 6,599,823 nonzero, peak magnitude 32768, `/tmp/c-startup-audio.raw`. Dummy audio was verified separately on the full desktop run.
-- Custom `OMT_CONFIG` reads Music=3/Sound=4/Voice=5/Save=2/Text=0; `-sw` changes Shadows=1 to 0. Safe mode is a request for the missing retail software rasterizer; movie output still uses the SDL GL adapter.
-- Captured PNGs at global frames 50, 150, 260, 360, 600 in `/tmp/c-shots/` (legal, THQ, AWE, Nick, SpongeBob). Inspected THQ/AWE/Nick and an animated SpongeBob frame. No images or audio are added to the repository. The requested `~/Projects/sb-lanes/c-shots/` is read-only in this sandbox; `mkdir` failed, so the images remain under `/tmp`.
-- Git staging/commit is blocked: `/var/home/bill/Projects/SpongebobEOTM-Android/.git/worktrees/c/index.lock` is on a read-only filesystem. Branch remains lane/c. `/tmp/c-startup.patch` contains the changes for application/commit outside this sandbox.
+SDL mouse buttons go through `handle_sdl_event` -> mouse broadcaster ->
+WorldClickDispatcher -> the world's viewport picker -> MainMenu listener.
+SDL motion updates hover selection, matching the controller's polled-position
+behavior; it selects font bank one. Quit events terminate the loop, and Escape
+returns from a subpage (port keyboard convenience). Right clicks do not activate
+items. The desktop-only OMT_MENU_CLICKS replay hook injects SDL events into this
+same path; it does not call handlers directly.
 
-Reproduce the smoke run with `DISPLAY=:83 SDL_AUDIODRIVER=dummy LD_LIBRARY_PATH=/tmp/c-ffmpeg/lib OMT_DATA="$PWD/.game" OMT_WINDOW_SIZE=640x480 OMT_FRAMES=930 OMT_SHOTS=50,150,260,360,600 OMT_SCREENSHOT=/tmp/c-shots/startup.bmp ./build/spongebob`. The additional library path is specific to the temporary non-minimal SDK used here; the pinned minimal FFmpeg build needs only its normal prefix.
+| Item | Retail dispatch / implemented result |
+|---|---|
+| Help | 0x425580 -> 0x427640; five help canvases, previous/next, Cancel |
+| Options | 0x425580 -> 0x427870; three 0..9 sliders, dialogue text/shadows On/Off, persisted settings |
+| Save Game | 0x427ef0; preview frame; TODO(0x428740): scene/VM serialization |
+| Load Game | 0x428bb0; empty-slot presentation; TODO(0x429120): restore scene/VM state |
+| View Movies | 0x4246a0 / 0x424bb0; THQ, SpongeBob, Intro, Credits initially available; locked rows for others |
+| New Game | 0x425605 -> confirmation -> 0x4254b0 -> 0x4248b0 -> app 0x40a090; plays mintro, parses c1l0s1 with lane D's loader |
+| Resume Game | 0x4248b0; no scene to resume during this startup menu |
+| Quit Game | 0x4255ef -> confirmation -> 0x4254b0 -> app 0x40a070; clean teardown |
+
+New Game/Quit confirmations use Yes/No with their retail positions. The Quit
+prompt preserves the positioning quirk: measure "Exit Game?", draw "Quit Game?".
+No restores the menu through 0x425520. Logs identify each item's handler.
+
+Remaining runtime boundaries are explicit TODOs: instantiate the first 3D scene
+and script runner at 0x40a230 after the parsed c1l0s1 data; save screenshots,
+metadata browsing and restoration at 0x428740/0x429120 require live scene state;
+additional movie unlocks at 0x424d60 require script variables. The current empty
+save UI does not deserialize existing player saves. Menu audio effects and the
+inventory/map toolbar beyond its acquired menu art are not reconstructed here.
+Returning to the menu after a scene TODO is a port fallback, not playable gameplay.
+
+## Validation (2026-10-28)
+
+- C++98 RelWithDebInfo and ASan/UBSan builds of spongebob pass.
+- The shell is already inside the build distro; distrobox itself is not on PATH.
+  Existing local FFmpeg 7 headers/libraries at `/tmp/c-ffmpeg` were used because
+  the pinned SDK is absent. No dependency binaries are committed.
+- Full 912-frame logo sequence completes, then the menu displays and Quit/Yes
+  exits 0. `.shots/logos-menu.log` and PNGs at frames 20/125/225/350/450/925.
+- `tools/startup/smoke.py`: eight actual SDL menu clicks, hover, help navigation,
+  option changes, confirmation No/Yes, Intro, first-scene parse, clean quit.
+  `.shots/menu-replay.log`, `.shots/new-game.log`, `.shots/smoke.log`; captures
+  include the main panel, Options, Help, movie list and confirmations.
+- `sb_font_test`: empty text, spacing, glyph overlap, smart-character mapping,
+  emphasis markers, pool reuse across frames/banks, wrapping/height and clipping.
+  ASan/UBSan pass, `.shots/font.log`.
+- The shared RLE reader's unaligned unit load is now memcpy (`// port:`), fixing
+  the menu canvas UBSan report from OMediaRLEPacker.cpp.
+- Current sandbox cannot bind Xvfb's listening sockets on :83; host launch is
+  unavailable too. Tests explicitly unset WAYLAND_DISPLAY and use SDL's offscreen
+  driver (headless llvmpipe), with DISPLAY=:83 retained. **A real :83 Xvfb run is
+  still unverified in this session.** No final verification uses the real desktop.
+- ASan/UBSan report no memory-access or undefined-behavior errors. LSan's exit
+  scan cannot attach threads in this sandbox and fails with its ptrace diagnostic;
+  use detect_leaks=0 here. Leak freedom is not certified.
+- No commit: lane brief directs Codex to leave commits to the lead.
+
+Reproduce (inside the build distro):
+
+```
+cmake -S engine -B build-asan -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DFFMPEG_PREFIX=/tmp/c-ffmpeg \
+  -DCMAKE_CXX_FLAGS='-fsanitize=address,undefined -fno-omit-frame-pointer'
+cmake --build build-asan -j6 --target spongebob sb_font_test
+LD_LIBRARY_PATH=/tmp/c-ffmpeg/lib python3 tools/startup/smoke.py --offscreen --full-logos
+```
+
+Once Xvfb :83 is available, omit `--offscreen`. Captures remain in ignored `.shots/`.
