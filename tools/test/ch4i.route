@@ -1,0 +1,14 @@
+scene c4l5s4
+idle
+use ipp1 pat
+idle
+expect sshorts
+shot 42-c4l5s4-shorts
+click "Oxygen Timer"
+idle
+shot 43-c4l5s4-timer
+use iot1 "Oxygen Tub"
+scene c1l2s6
+idle
+shot 44-c1l2s6-after
+end

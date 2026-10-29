@@ -1,4 +1,4 @@
-# Chapter 4 route (docs/chapter4-play.md), for SB_TEST_PLAYTHROUGH
+# Chapter 4 route (docs/chapter4-play.md), for SB_TEST_PLAYTHROUGH: c4l0s1 -> the credits -> c1l2s6p1
 scene c4l2s1
 idle
 shot 00-c4l2s1-start
@@ -64,4 +64,271 @@ click "Gate Pressure Plate"
 idle
 shot 11-c4l3s2-open
 save 1
+# --- part b
+scene c4l3s2
+idle
+click "Enter Waverly Hills"
+scene c4l3s3
+idle
+shot 12-c4l3s3-waverly
+click "Walk to Golden Mansion"
+scene c4l3s4
+idle
+shot 13-c4l3s4-carlton
+talk carlton AAA AAA ACA AXA
+idle
+expect 434AAA
+click "Walk to Rodeo Drive"
+scene c4l3s3
+idle
+click "Walk to Shack"
+scene c4l3s5
+idle
+click "Enter Shack"
+scene c4l3s7
+idle
+shot 14-c4l3s7-cowfish
+talk cowfish AAA ABA ACA AXA
+idle
+click "Walk to Back Room"
+scene c4l3s8
+idle
+shot 15-c4l3s8-room
+scene c4l3s9
+idle
+shot 16-c4l3s9-pedestal
+use inc1 "Golden Coconut"
+idle
+have igc1
+shot 17-c4l3s9-swapped
+# --- part c
+scene c4l3s9
+idle
+click "Exit Pedestal#1"
+scene c4l3s8
+idle
+click "Walk to Living Room"
+scene c4l3s7
+idle
+click "Exit Shack"
+scene c4l3s5
+idle
+click "Walk to Rodeo Drive"
+scene c4l3s3
+idle
+click "Walk to Golden Mansion"
+scene c4l3s4
+idle
+use igc1 carlton
+idle
+have iqu1
+shot 18-c4l3s4-quarter
+click "Walk to Rodeo Drive"
+scene c4l3s3
+idle
+click "Exit Waverly Hills"
+scene c4l3s2
+idle
+click "Walk to Fountain"
+scene c4l3s1
+idle
+click "Walk to Bottoms Up"
+scene c4l1s1
+idle
+click "Go to The Rocket Landing"
+scene c4l2s3
+idle
+click "Walk to Sandy's Rocket"
+scene c4l2s1
+idle
+shot 19-c4l2s1-before-phone
+click "Enter Phone Booth"
+scene c4l2s2
+idle
+shot 20-c4l2s2-phone
+# --- part d
+scene c4l2s2
+idle
+use iqu1 "Coin Slot"
+idle
+click 4225
+wait 90
+idle
+click 4225
+wait 90
+idle
+click 4225
+wait 90
+idle
+click 4224
+wait 90
+idle
+click 4224
+wait 90
+idle
+click 4224
+wait 90
+idle
+click 4224
+wait 90
+idle
+shot 21-c4l2s2-dialled
+say AAA
+idle
+expect 422AAA
+# --- part e
+scene c4l2s1
+idle
+click "Walk to Bottoms Up"
+scene c4l1s1
+idle
+shot 22-c4l1s1-map3
+click "Go to Sublime Seafoods"
+scene c4l4s4
+idle
+shot 23-c4l4s4-gate
+click bob
+idle
+shot 24-c4l4s4-bouncer
+click "Walk to Other Side"
+scene c4l4s3
+idle
+shot 25-c4l4s3-timmy
+talk timmy AAA ABA AXA
+idle
+expect 443AAA
+click "Walk to Other Side"
+scene c4l4s2
+idle
+shot 26-c4l4s2-binoc
+click "Look Through Binoculars"
+scene c4l4s9
+idle
+shot 27-c4l4s9-view
+hover 100 240 35
+wait 30
+hover 320 100
+idle
+scene c4l4s2
+idle
+expect sbinoc
+click "Walk to The Mezzanine"
+scene c4l4s3
+idle
+click timmy
+idle
+have iin1
+shot 28-c4l4s3-invite
+# --- part f
+scene c4l4s3
+idle
+click "Walk to Security Gate"
+scene c4l4s4
+idle
+use iin1 bob
+idle
+expect sbouncer
+shot 29-c4l4s4-bouncer-gone
+click "Walk Up Path"
+scene c4l4s5
+idle
+shot 30-c4l4s5-path
+click "Enter Sublime Seafoods"
+scene c4l4s6
+idle
+shot 31-c4l4s6-lobby
+talk shapiro AAA ABA AXA
+idle
+expect 446ABA
+click Lisa
+idle
+expect scoatcheck
+shot 32-c4l4s6-jacket
+click shapiro
+idle
+expect sjacket
+click "Walk to Dining Room"
+scene c4l4s7
+idle
+shot 33-c4l4s7-dining
+# --- part g
+scene c4l4s7
+idle
+click "Walk to Reserved Table"
+scene c4l4s8
+idle
+shot 34-c4l4s8-table
+talk fred AAA ABA
+idle
+shot 35-c4l4s8-kicked
+scene c4l4s5
+idle
+expect skout
+shot 36-c4l4s5-out
+click "Walk to Security Gate"
+scene c4l4s4
+idle
+click "Walk Down Stairs"
+idle
+click "Walk to Bottoms Up"
+scene c4l1s1
+idle
+click "Go to Oxygen Springs"
+scene c4l5s1
+idle
+talk "Talk to Intercom" BAA
+idle
+click "Enter Oxygen Springs"
+scene c4l5s2
+idle
+shot 37-c4l5s2-springs
+# --- part h
+scene c4l5s2
+idle
+click "Walk to Geyser"
+scene c4l5s4
+idle
+shot 38-c4l5s4-patrick
+talk pat AAA
+idle
+click "Walk to Geysers"
+scene c4l5s2
+idle
+click "Walk to Building"
+scene c4l5s3
+idle
+shot 39-c4l5s3-building
+click "Enter Locker Room"
+scene c4l5s5
+idle
+shot 40-c4l5s5-lockers
+click leonmop
+idle
+shot 41-c4l5s5-leonard
+click ipp2
+idle
+have ipp1
+click "Exit Locker Room"
+scene c4l5s3
+idle
+click "Walk to Geysers"
+scene c4l5s2
+idle
+click "Walk to Geyser"
+scene c4l5s4
+idle
+# --- part i
+scene c4l5s4
+idle
+use ipp1 pat
+idle
+expect sshorts
+shot 42-c4l5s4-shorts
+click "Oxygen Timer"
+idle
+shot 43-c4l5s4-timer
+use iot1 "Oxygen Tub"
+scene c1l2s6
+idle
+shot 44-c1l2s6-after
 end

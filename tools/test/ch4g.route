@@ -1,0 +1,32 @@
+scene c4l4s7
+idle
+click "Walk to Reserved Table"
+scene c4l4s8
+idle
+shot 34-c4l4s8-table
+talk fred AAA ABA
+idle
+shot 35-c4l4s8-kicked
+scene c4l4s5
+idle
+expect skout
+shot 36-c4l4s5-out
+click "Walk to Security Gate"
+scene c4l4s4
+idle
+click "Walk Down Stairs"
+idle
+click "Walk to Bottoms Up"
+scene c4l1s1
+idle
+click "Go to Oxygen Springs"
+scene c4l5s1
+idle
+talk "Talk to Intercom" BAA
+idle
+click "Enter Oxygen Springs"
+scene c4l5s2
+idle
+shot 37-c4l5s2-springs
+save 7
+end
