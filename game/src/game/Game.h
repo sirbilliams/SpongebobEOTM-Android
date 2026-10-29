@@ -65,7 +65,7 @@ public:
     void createMiniGame();
     GameState& state() { return state_; }
     // game vt+0xb8 (0x40a6b0): is the condition expression true ("", "0" and " " are true)
-    bool cond(const char* expr, bool touching = false) { return sbscript::evalCondition(expr, touching, state_); }
+    bool cond(const char* expr, bool touching = false);      // evalCondition; the term "xxxx" reads the mini game object (lane f)
     // wake the scene's script after a wait (scene vt+0xe0 = 0x43aa80: do step() while no wait; delete when finished)
     void wake();
     void forceRedraw();                             // port (saves): the menu drew over the canvas; the next frame repaints all

@@ -2,6 +2,7 @@
 #include <strings.h>
 #include "Game.h"
 #include "SceneScriptHost.h"
+#include "Hud.h"
 #include "OMediaEventManager.h"
 #include <ctype.h>
 #include <stdlib.h>

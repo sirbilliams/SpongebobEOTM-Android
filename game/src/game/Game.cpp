@@ -86,6 +86,12 @@ Game::~Game()
     delete retail_;
 }
 
+bool Game::cond(const char* expr, bool touching)
+{
+    state_.miniFlag = mini_ && mini_->flag();                  // 0x40a7d0 "xxxx": the mini game object's shorts +0x14 != 0 && +0x12 == 0
+    return sbscript::evalCondition(expr, touching, state_);
+}
+
 void Game::createMiniGame() { if (!mini_) mini_ = new MiniGame(this); }
 
 void Game::log(const char* fmt, ...)

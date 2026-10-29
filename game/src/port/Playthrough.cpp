@@ -30,6 +30,27 @@ static std::vector<std::string> words(const std::string& s)
     return out;
 }
 
+// chapter 2 slot machine: the three symbols the winning spin leaves on the reels are the maze clue (docs/chapter2.md); the reels sit at
+// x = 143, 289, 430 and `symbol0N` is the picture of target N-1; the door of a maze step is `smaze<target - 5>`
+static int g_clue[3] = { -1, -1, -1 };
+static int g_mazeStep = 0;
+
+static void trackClue(Game* g)
+{
+    GameScene* sc = g->scene();
+    if (!sc || sc->name() != "c2l5s3" || g->pendingScene()) return;
+    int sym[3] = { -1, -1, -1 }, n = 0;
+    for (size_t i = 0; i < sc->objects().size(); ++i) {
+        SceneObject* o = sc->objects()[i];
+        if (o->kind != SceneObject::Obj2D || !o->elem || o->elem->get_hide_count() != 0) continue;
+        if (o->art.size() != 8 || strncasecmp(o->art.c_str(), "symbol0", 7) != 0) continue;
+        int reel = o->px < 215 ? 0 : o->px < 360 ? 1 : 2;
+        if (sym[reel] < 0) ++n;
+        sym[reel] = o->art[7] - '0';
+    }
+    if (n == 3) { for (int k = 0; k < 3; ++k) g_clue[k] = sym[k] - 6; g_mazeStep = 0; }
+}
+
 Playthrough::Playthrough(const char* file) : cur_(0), phase_(0), frames_(0), waitLeft_(0), idleFrames_(0), file_(file), failed_(false)
 {
     FILE* f = fopen(file, "r");
@@ -152,6 +173,7 @@ bool Playthrough::tick(Game* g, void (*click)(int, int), void (*move)(int, int),
     const Step& st = steps_[cur_];
     static int limit = getenv("SB_TEST_STEPFRAMES") ? atoi(getenv("SB_TEST_STEPFRAMES")) : 6000;
     if (++frames_ > limit) { fail(g, "timed out"); *failed = true; return false; }
+    trackClue(g);
     if (dialogueStep(g)) { *failed = failed_; return !failed_; }
     if (waitLeft_ > 0) { --waitLeft_; return true; }
     bool isIdle = idle(g);
@@ -163,6 +185,30 @@ bool Playthrough::tick(Game* g, void (*click)(int, int), void (*move)(int, int),
     } else if (c == "scene") {                     // the scene is current (busy or not)
         if (g->scene() && !g->pendingScene() && !st.args.empty() && strcasecmp(g->scene()->name().c_str(), st.args[0].c_str()) == 0) done = true;
         else return true;
+    } else if (c == "spin") {                       // pull the slot machine's handle until a spin wins (the scene is left by `swinner`)
+        GameScene* sc = g->scene();
+        if (sc && sc->name() != "c2l5s3" && !g->pendingScene()) { done = true; }
+        else if (isIdle && sc && sc->name() == "c2l5s3") {
+            int x, y;
+            if (!locate(g, "handle", &x, &y)) return true;
+            fprintf(stdout, "PLAYTHROUGH line %d: spin: handle at %d,%d\n", st.line, x, y);
+            click(x, y);
+            waitLeft_ = 200;
+        } else return true;
+    } else if (c == "maze") {                       // the maze door of the next step: the clue the winning spin showed
+        GameScene* sc = g->scene();
+        if (!isIdle || !sc) return true;
+        if (g_clue[0] < 0 || g_mazeStep > 2) { fail(g, "no clue / maze already done"); *failed = true; return false; }
+        char ev[16]; snprintf(ev, sizeof ev, "smaze%d", g_clue[g_mazeStep]);
+        SceneObject* door = 0;
+        for (size_t i = 0; i < sc->objects().size() && !door; ++i)
+            if (sc->objects()[i]->kind == SceneObject::Trigger && sc->objects()[i]->event == ev) door = sc->objects()[i];
+        if (!door) { fail(g, "maze door not found"); *failed = true; return false; }
+        int x = (door->x1 + door->x2) / 2, y = (door->y1 + door->y2) / 2;
+        fprintf(stdout, "PLAYTHROUGH line %d: maze step %d: %s at %d,%d\n", st.line, g_mazeStep, ev, x, y);
+        ++g_mazeStep;
+        click(x, y);
+        done = true;
     } else if (c == "snap") {                       // a shot without waiting for idle
         const char* dir = getenv("SB_TEST_SHOTDIR");
         std::string p = std::string(dir ? dir : ".") + "/" + (st.args.empty() ? "shot" : st.args[0]) + ".bmp";

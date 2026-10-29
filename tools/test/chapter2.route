@@ -152,5 +152,69 @@ use ikc2 jojo
 idle
 shot 22-c2l4s2-jojo-drink
 expect 242CAA
+click itb1
+idle
+have itb1
+shot 23-toolbox
+click "Walk to WSEA Entrance"
+scene c2l4s1
+idle
+click "Enter WSEA TV"
+scene c2l4s3
+idle
+shot 24-reception
+use itb1 tiff
+idle
+shot 25-tiff
+expect BAA
+click "Enter News Room"
+scene c2l4s4
+idle
+shot 26-newsroom
+talk garyg AAA ACA AXA
+idle
+shot 27-gary
+click "Mega Screen 2000 Controls"
+idle
+shot 28-megascreen
+expect smegascreen
 save 0
+map
+scene c2l1s1
+idle
+shot 30-c2l1s1-map3
+click chap204
+scene c2l5s8
+idle
+shot 31-c2l5s8-skull
+click "Walk to Other Side"
+scene c2l5s1
+idle
+click "Enter Magic Hat"
+scene c2l5s2
+idle
+shot 32-c2l5s2-hat
+click "Walk to Slot Machine"
+scene c2l5s3
+idle
+shot 33-c2l5s3-slots
+spin
+scene c2l5s2
+shot 34-c2l5s2-drapes
+scene c2l5s3
+idle
+shot 34b-c2l5s3-return
+click "Exit Slot Machine"
+scene c2l5s2
+idle
+click "Walk through Curtain"
+scene c2l5s4
+idle
+shot 35-c2l5s4-maze
+maze
+maze
+maze
+scene c2l5s5
+idle
+shot 36-c2l5s5-patrick
 end
