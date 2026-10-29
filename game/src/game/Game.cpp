@@ -52,7 +52,7 @@ bool OmtFile::open(const std::string& file)
 
 // ------------------------------------------------------------------------------------------- Game
 Game::Game()
-    : movieHook(0), movieHookData(0), inputConsumed(false), letterboxIn(false), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
+    : movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
       pendingId_(0), pendingStart_(0), runner_(0), host_(0), hoverCap_(0), commentCap_(0), commentMs_(0), mx_(320), my_(240),
       inputAttached_(false), commentBlock_(0), commentVoice_(false)
 {
@@ -129,6 +129,7 @@ void Game::attachInput()
 
 void Game::listen_to_message(omt_Message msg, void* param)
 {
+    if (suspended) return;      // port (saves): the menu is up
     if (msg == omsg_MouseClick) {
         OMediaEvent* ev = (OMediaEvent*)param;
         mouseDown(ev->x, ev->y);
@@ -283,6 +284,8 @@ void Game::runScript(const char* name)
         host_->controlLostToScript(name);       // the actor loses control (char+0x32a = 0)
     }
 }
+
+void Game::forceRedraw() { if (vp_) { OMediaRect r(0, 0, 640, 480); vp_->setbounds(&r); } }
 
 void Game::wake()       // scene vt+0xe0 (0x43aa80)
 {

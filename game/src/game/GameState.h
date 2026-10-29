@@ -13,8 +13,11 @@
 
 namespace sbgame {
 
+class SaveGame;     // game/SaveGame.cpp: the save-game writer / loader (0x416ed0 / 0x417460) reads and rebuilds the lists
+
 class GameState : public sbscript::ConditionAtoms, public sbscript::DialogueProgress {
 public:
+    friend class SaveGame;
     GameState();
 
     // ---- ConditionAtoms (game vt+0xb8 / 0xbc, ScriptCondition.cpp) ----
@@ -45,6 +48,17 @@ public:
     void setTexture(const std::string& object, const std::string& texture) { textures_[object] = texture; }
     const std::map<std::string, std::string>& textures() const { return textures_; }
 
+    // ---- save games (SaveGame.cpp), lane b ----
+    void clearProgress();                                           // 0x4163b0 + 0x41e160: the lists emptied before a load
+    // The lists the save file carries that nothing in the port sets yet (flags by scene id 0x416a60, CHAR 0x416c70, POSI 0x416880,
+    // the item bar 0x421c40, the puzzle object); they are kept and written back unchanged.
+    struct PosiRec { char name[32]; unsigned a, b, c, d; short e; };
+    struct BarRec { char name[32]; char tex[32]; short slot; };
+    bool hasPlayer;            // scene+0x248 exists: the controlled character (writer 0x416ed0)
+    float playerX, playerY, playerZ; short playerFacing;   // character +0x310/+0x314/+0x318/+0x320; filled by the walking code
+    bool resumePos;            // progress+0x64: a save restored a non-zero position; playerX.. hold it for the scene to place
+    unsigned lastScene;        // game+0x15c ('LAST')
+
     bool debug;                // game+0x24f
     bool miniFlag;             // mini game object shorts
     unsigned sceneId;          // current scene id (scene+0x264)
@@ -58,6 +72,12 @@ private:
     struct DEntry { std::string key; short a, b; };
     std::map<std::string, DEntry> dialogue_;
     std::map<std::string, std::string> textures_;
+    std::set<unsigned> scen_;                       // progress+0x14 list: 24-bit flag ids (0x416ad0 decodes a 'C' term)
+    std::vector<std::string> chars_;                // progress+0x2c list
+    std::vector<PosiRec> posi_;                     // progress+0x50 list
+    std::vector<BarRec> bar_;                       // item bar (0x457334) entries
+    bool hasPuzzle_; unsigned char puzzle_[42]; short high_;   // game+0x12c puzzle object, +0x58 high score
+    static unsigned flagId(const char* term);
 };
 
 }  // namespace sbgame

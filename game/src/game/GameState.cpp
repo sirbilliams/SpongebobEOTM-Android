@@ -1,11 +1,36 @@
 #include "GameState.h"
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <algorithm>
 
 namespace sbgame {
 
-GameState::GameState() : debug(false), miniFlag(false), sceneId(0), chapter(1) {}
+GameState::GameState() : hasPlayer(false), playerX(0), playerY(0), playerZ(0), playerFacing(0), resumePos(false), lastScene(0),
+                         debug(false), miniFlag(false), sceneId(0), chapter(1), hasPuzzle_(false), high_(0)
+{
+    memset(puzzle_, 0, sizeof puzzle_);
+}
+
+// 0x4163b0: every list emptied (and 0x41e160 the item bar); a save is loaded into a clean object.
+void GameState::clearProgress()
+{
+    seen_.clear(); flags_.clear(); items_.clear(); blocked_.clear(); dialogue_.clear(); textures_.clear();
+    scen_.clear(); chars_.clear(); posi_.clear(); bar_.clear();
+    hasPuzzle_ = false; high_ = 0; memset(puzzle_, 0, sizeof puzzle_);
+    hasPlayer = false; playerX = playerY = playerZ = 0; playerFacing = 0; resumePos = false; lastScene = 0;
+}
+
+// 0x416ad0: the id of a flag term is its characters 1, 3 and 5 read as decimal digits (atoi of "%c"): (c5*256 + c3)*256 + c1.
+unsigned GameState::flagId(const char* term)
+{
+    char c[3] = { 0, 0, 0 };
+    if (!term || strlen(term) < 6) return 0xffffffffu;
+    int v[3];
+    for (int i = 0; i < 3; ++i) { c[0] = term[1 + 2 * i]; v[i] = atoi(c); }
+    return (unsigned)(((v[2] * 0x100 + v[1]) * 0x100) + v[0]);
+}
 
 std::string GameState::low(const std::string& s)
 {
@@ -22,7 +47,12 @@ bool GameState::hasItem(const char* term)
     std::string t = low(term);
     return std::find(items_.begin(), items_.end(), t) != items_.end();
 }
-bool GameState::flagSet(const char* term) { return flags_.count(low(term)) != 0; }
+bool GameState::flagSet(const char* term)
+{
+    if (flags_.count(low(term)) != 0) return true;
+    unsigned id = flagId(term);
+    return id != 0xffffffffu && scen_.count(id) != 0;       // 0x416b70
+}
 
 static std::string dkey(unsigned scene, const std::string& g)
 {

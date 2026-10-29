@@ -63,6 +63,7 @@ public:
     bool cond(const char* expr, bool touching = false) { return sbscript::evalCondition(expr, touching, state_); }
     // wake the scene's script after a wait (scene vt+0xe0 = 0x43aa80: do step() while no wait; delete when finished)
     void wake();
+    void forceRedraw();                             // port (saves): the menu drew over the canvas; the next frame repaints all
     GameScene* scene() { return scene_; }
     World3D* world3d() { return w3_; }
     OMedia2DWorld* world() { return world_; }
@@ -80,6 +81,7 @@ public:
     int mouseX() const { return mx_; }
     int mouseY() const { return my_; }
     std::string chained;                            // game+0x186: the target to go to after a movie / script
+    bool suspended;                                 // port (saves): the game sits behind the menu; mouse and key messages are ignored
     bool inputConsumed;                             // game+0x24e
     bool letterboxIn;                               // game+0x25c
     // Show a comment / hover caption line (game+0xc4 vt+0x14 draws a comment: bottom-line caption)
