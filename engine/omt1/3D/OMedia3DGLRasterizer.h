@@ -8,7 +8,6 @@
 #define OMEDIA1_3DGLRasterizer_H
 
 #include "OMedia3DWorld.h"
-#include <map>
 
 struct OMediaGfxPixels;
 
@@ -26,8 +25,6 @@ class OMedia3DGLRasterizer : public OMedia3DAbstractRasterizer
 	protected:
 	unsigned int texture_of(OMedia3DMaterial *m);
 
-	struct Tex {unsigned int gl; unsigned int version; int w, h;};
-	std::map<OMediaGfxPixels*, Tex>	textures;
 	OMediaGfxWorld	*target;
 	float			farz;
 	int				anti_aliasing, texture_filtering;

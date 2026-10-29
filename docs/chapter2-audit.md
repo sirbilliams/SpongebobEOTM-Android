@@ -131,7 +131,8 @@ timer object): that is where the per-frame behaviour lives and why a stub object
 * Test hook: `SB_TEST_SCRIPT` takes `frame:name[@actor][,frame:name...]` (the actor is made the active character first).
 
 ## Prioritised fix list (lane-sized)
-1. **Marlin model garbled (c2l5s5, c2l5s6)** - small. `models/people/marlin_model.grn/.omt` renders as jagged triangles with
+1. **DONE (lane c): Marlin model garbled (c2l5s5, c2l5s6)** - fixed multi-mesh UV parsing and material references;
+   see [marlin-model.md](marlin-model.md) for root cause, all-model catalogue and verification. Original finding: `models/people/marlin_model.grn/.omt` renders as jagged triangles with
    wrong colours; every other c2 character is fine. Suspect: a mesh/vertex variant the Granny replacement does not handle (docs/granny-replacement.md
    mesh/weight section), a bone-count or index-width case, or the texture binding. Compare against `patnap`/`garyg`; needed to finish
    the chapter (Marlin is the boss of l5). Owner: Granny/3D lane.

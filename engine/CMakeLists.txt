@@ -180,6 +180,10 @@ else()
   target_link_libraries(omt1_3d_test omt1)
   target_compile_options(omt1_3d_test PRIVATE -Wno-multichar)
 
+  add_executable(omt1_models_test tests/omt1_models_test.cpp ${OMT_MAIN})
+  target_link_libraries(omt1_models_test omt1)
+  target_compile_options(omt1_models_test PRIVATE -Wno-multichar)
+
   add_executable(omt1_ui_test tests/omt1_ui_test.cpp ${OMT_MAIN})
   target_link_libraries(omt1_ui_test omt1)
   target_compile_options(omt1_ui_test PRIVATE -Wno-multichar)
