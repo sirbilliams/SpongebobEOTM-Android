@@ -92,6 +92,7 @@ public:
     bool movieFinished(const char* name); // lane c: 0x40bcc0, true ends the game
     bool gameCompleted; // game+0x254: the ending has been seen
     std::string chained;                            // game+0x186: the target to go to after a movie / script
+    std::string levelRet1e6, levelRet206;           // lane e: game+0x1e6 / +0x206, set by `skip` (0x40c860) in c3l2s3 / c7l5s1; read by scene vt+0x108 (0x4385c0)
     bool blending;                                  // game+0x251 (set by the `blending on/off` script command, 1 at start): animations ease in / out over 0.4 s (0x4046d0)
     int optText, optShadows;                        // port: the Options Text / Shadows values (exe +0x270 / +0x274 of the app object); set by the app
     void previewSound(bool voice);                  // 0x4256b0: the Options sample of the Sound / Voice volume

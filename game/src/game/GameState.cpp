@@ -41,6 +41,13 @@ std::string GameState::low(const std::string& s)
 
 // The terms of the condition language carry their prefix letter (S..., I...), and the script / item names the
 // scripts use start with the same letter ('sload1', 'ikc1'), so a term is looked up under its own text.
+void GameState::addPosition(const char* name, unsigned scene, float x, float y, float z, short facing)
+{
+    PosiRec r; memset(&r, 0, sizeof r);
+    strncpy(r.name, name, sizeof r.name - 1);
+    r.a = scene; memcpy(&r.b, &x, 4); memcpy(&r.c, &y, 4); memcpy(&r.d, &z, 4); r.e = facing;
+    posi_.push_back(r);
+}
 bool GameState::scriptSeen(const char* term) { return seen_.count(low(term)) != 0; }
 bool GameState::hasItem(const char* term)
 {

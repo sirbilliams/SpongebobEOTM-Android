@@ -232,8 +232,27 @@ void SceneScriptHost::actorSetTexture(ScriptActor* a, const char* t) // lane c: 
 {
     if (a && g_->world3d()) g_->world3d()->setTexture(a->obj, t);
 }
-void SceneScriptHost::swapPlayerHelmet() { stub("swapchar: sb <-> sbhelm"); }
-void SceneScriptHost::shockEffect() { stub("shock: 2D object \"elec\" at the player's screen position"); }
+// lane e: 0x43fced
+void SceneScriptHost::swapPlayerHelmet()
+{
+    GameScene* s = g_->scene(); World3D* w = g_->world3d();
+    SceneObject* sb = s ? s->find("sb", 1 << SceneObject::Char) : 0;
+    SceneObject* hm = s ? s->find("sbhelm", 1 << SceneObject::Char) : 0;
+    if (!w || !sb || !hm || !w->swapControl(w->actorFor(sb), w->actorFor(hm))) { stub("swapchar: needs sb and sbhelm"); return; }
+    active_ = actorFor(hm);          // scene+0x248
+}
+// lane e: 0x43ffda: the 2D object "elec" goes to the player's screen position (-50, -100), depth -(z + 10)
+void SceneScriptHost::shockEffect()
+{
+    GameScene* s = g_->scene(); World3D* w = g_->world3d();
+    SceneObject* e = s ? s->find("elec", 1 << SceneObject::Anim2D) : 0;
+    Actor3D* p = w ? w->controlled() : 0;
+    int sx, sy;
+    if (!e || !p || !w->project(p->x, p->y, p->z, sx, sy)) { stub("shock: needs \"elec\" and the player"); return; }
+    e->px = (float)(sx - 0x32); e->py = (float)(sy - 100); e->pz = p->z + 10.0f;     // GameScene::place applies z = -pz
+    if (e->elem) e->elem->place(e->px, e->py, -e->pz);
+    g_->log("      shock: elec at %g %g (player screen %d %d)\n", e->px, e->py, sx, sy);
+}
 
 // ------------------------------------------------------------------------------------------ scene
 void SceneScriptHost::sceneHide(const char* n) { if (g_->scene()) g_->scene()->hide(n); }
@@ -279,11 +298,28 @@ void SceneScriptHost::sceneSparkle(int x, int y) { if (g_->hud()) g_->hud()->spa
 
 // ------------------------------------------------------------------------------------------ game
 void SceneScriptHost::gameSwitch(const char* t) { g_->switchTo(t); }
-void SceneScriptHost::gameSkip() { stub("skip: scene vt+0x10c cutscene skip"); }
+// lane e: game vt+0xfc (0x40c860): in c3l2s3 / c7l5s1 the level "c<chapter>l<n>" of the current scene is kept (game+0x1e6 / +0x206) for the
+// scene's leave handler (0x4385c0).  The trailing level load (vt+0xc4) is a no-op for the current level.
+void SceneScriptHost::gameSkip()
+{
+    unsigned id = sceneId();
+    char b[16];
+    snprintf(b, sizeof b, "c%dl%d", g_->state().chapter, (int)((id >> 8) & 0xf));
+    if (id == 0x70501) g_->levelRet206 = b;
+    else if (id == 0x30203) g_->levelRet1e6 = b;
+    g_->log("      skip: level %s kept\n", b);
+}
 void SceneScriptHost::gameSetBlending(bool on) { g_->blending = on; }      // game+0x251
 void SceneScriptHost::gameComment(const char* id) { g_->showComment(id); }
 void SceneScriptHost::setChainedTarget(const char* n) { g_->chained = n; }
-void SceneScriptHost::progressSave(ScriptActor* a) { stub("save: %s position + scene id into the progress object", an(a)); }
+// lane e: 0x43f1a7 -> 0x416880: name, scene id, x, y, z, heading of the actor
+void SceneScriptHost::progressSave(ScriptActor* a)
+{
+    Actor3D* c = a && g_->world3d() ? g_->world3d()->actorFor(a->obj) : 0;
+    if (!c) { stub("save: %s has no character", an(a)); return; }
+    g_->state().addPosition(a->obj->art.c_str(), sceneId(), c->x, c->y, c->z, (short)c->heading);
+    g_->log("      save: %s at %g %g %g heading %d (scene %06x)\n", an(a), c->x, c->y, c->z, c->heading, sceneId());
+}
 void SceneScriptHost::progressUndo(const char* n) { g_->state().undoScript(n); }
 void SceneScriptHost::progressTexture(const char* n, const char* t) { g_->state().setTexture(n, t); }
 void SceneScriptHost::progressGiveItem(const char* n) { g_->state().giveItem(n); }

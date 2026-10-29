@@ -92,6 +92,10 @@ public:
     void refreshVisibility();                                                   // scene vt+0x100, CHAR / ITEM part
     SceneObject* pick(int x, int y);                                            // scene vt+0xc4, the 3D passes
     bool screenBounds(SceneObject* o, int& x1, int& y1, int& x2, int& y2);      // where the character is drawn
+    // lane e (chapter 3): char vt+0xec (project a world point to the 640x480 screen) and the 'swapchar' body 0x43fced
+    bool project(float x, float y, float z, int& sx, int& sy);
+    Actor3D* controlled();                                                      // scene+0x248: the player character
+    bool swapControl(Actor3D* from, Actor3D* to);
     OMedia3DWorld* world3d() { return w3_; }
 
 private:

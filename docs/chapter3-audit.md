@@ -106,3 +106,17 @@ Kick mini game: no c3 script or scene uses `kickit` / `goal`; the entry is `Scri
 7. **Verify in real play** - c3l1s1 map hotspots, the click-driven dialogue tables (c3l2s4, c3l3s4, c3l4s0, c3l4s7, c3l5s2,
    c3l5s3, c3l6s1, c3l6s4), c3l4s3 -> c3l4s4 dream chain (sdream / spitcher / senterdream), the c3l6 finale with the helmet
    character, snelson TV sequence, c3l4s8 low camera foreshortening of sb in fill mode.
+
+## Fixes (lane e, from integ 37504fc; shots and logs in `.shots/c3fix/`)
+Each script run headless at 1920x1080 in its home scene (`SB_TEST_SCENE` + `SB_TEST_SCRIPT=60:<name>`): no stub line, ASan/UBSan clean, smoke 16/16.
+* **swapchar** (0x43fced, shelmetswitch) - FIXED. `World3D::swapControl`: sb loses control, sbhelm takes its x/y/z/heading, is placed and becomes
+  the controlled character (scene+0x248 / the script host's active actor). The exe's `vt+0x10c(0)` on sb is taken as "control off" (not checked further).
+* **shock** (0x43ffda, sshock) - FIXED. `World3D::project` (the renderer's world -> screen transform, char vt+0xec) puts the 2D object `elec` at
+  (screen x - 50, screen y - 100), depth -(z + 10); the electric burst is drawn over sb (`shock100.png`).
+* **save** (0x43f1a7 -> 0x416880, sstellawalk) - FIXED. `GameState::addPosition` appends a POSI record (name, scene id, x, y, z, heading) that
+  `SaveGame` writes / reads (docs/saves.md, tag `POSI`).
+* **skip** (0x43f062 -> game vt+0xfc = 0x40c860; the audit's "scene vt+0x10c" was wrong) - FIXED as far as the data goes: in c3l2s3 (jukebox) /
+  c7l5s1 it keeps the current level `c<chapter>l<n>` in game+0x1e6 / +0x206 (`Game::levelRet1e6/206`); the trailing level load is a no-op for the
+  current level. The only reader, the scene leave handler 0x4385c0 (scene vt+0x108), is not reached by anything in the port yet (not wired).
+* **darts** (c3l2s5) - verified: `sinitdarts` / `sthrow` run with no stub line, the throw lands (`mini darts landed: hit 50`). **kick** was chapter 1 (done).
+* **attach / detach / hideattach / showattach** (scharm, spitcher) - still stubs (Opus lane).
