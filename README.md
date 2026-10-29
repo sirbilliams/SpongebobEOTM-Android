@@ -54,6 +54,11 @@ the game files from the original CD.
 - Touch controls: one finger acts as the mouse. The right stick moves a cursor, and R3 or A is the left
   click. The right-stick cursor can be turned off in the launcher.
 - Save games: the game's own save and load screens, plus quick save and resume.
+- Touchpad mode for the bottom screen: drag to move the top-screen cursor, tap to click, hold and drag to move
+  items, with a haptic tick; choose Panel or Touchpad in the launcher's settings.
+- A nautical launcher (drawn in code): Play, Import game, Captain's settings (widescreen, bottom screen, cursor),
+  Engine room (Share log with device and touch diagnostics, Touch test, app version, reset settings) and About.
+- All five mini-games: darts, kick, slots, the maze and the phone.
 
 ## Installing
 
