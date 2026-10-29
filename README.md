@@ -11,15 +11,14 @@ Not affiliated with or endorsed by THQ, AWE Games, Nickelodeon or the rights hol
 
 ## Status
 
-About 78% of the way to the goal (see `docs/PLAN.md` for the milestones). Last updated 2026-10-29.
+About 82% of the way to the goal (see `docs/PLAN.md` for the milestones). Last updated 2026-10-29.
 
-- **Chapters 1, 2 and 3 play through**, and chapter 4's route reaches the end movie, the credits and the
-  post-game Krusty Krab. Checked by scripted playthroughs (`tools/test/chapter1..4.route`) that drive the
+- **The whole game plays through**: chapters 1 to 4, the end movie, the credits and the post-game Krusty Krab. Checked by scripted playthroughs (`tools/test/chapter1..4.route`) that drive the
   real game through every scene.
 - All five mini-games work (darts, kick, slots, maze, phone), and the ending plays the end movie and credits.
 - SpongeBob-themed cursors (Spatula, Net, Bubble) or the classic arrows, chosen in the launcher.
 - Saves use the game's own format; Save, Load, Resume, Options, Help and View Movies all work.
-- Still to do: the final checks of the chapter 4 playthrough, a full play-through on the AYN Thor, saves
+- Still to do: a full play-through on the AYN Thor and its bug pass, saves
   export/import, lid suspend and casting.
 
 ## Screenshots
