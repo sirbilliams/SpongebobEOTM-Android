@@ -23,7 +23,7 @@ and link `port/Companion.cpp` into any target that uses it (`spongebob` globs it
 ("Waiting for the game") until then.
 
 ## Snapshot (JSON) and commands
-Fields: `game, chapter_title, scene_title, cut, hint, caption, sel, items[], visited[], dlg{choice, speaker, text, choices[]}`
+Fields: `game, chapter_title, scene_title, cut, hint, caption, sel, items[], names[], icons, visited[], dlg{choice, speaker, text, choices[]}`
 (see `Companion.h`). Taps go back as `item:<id>`, `noitem`, `choice:<n>`, `advance`, `menu`, `skip`
 (`Companion.command` -> queue -> `companionCommands` on the game thread).
 
@@ -32,12 +32,22 @@ Header plank (chapter, scene, MENU and SKIP portholes); hint ticket (when there 
 either the choice buttons (big, numbered) or the current line with a Next button; the inventory as large cards (tap =
 in hand, tap again = put away; pages when there are many); the trail of the last scenes entered.
 
+## Item pictures and names
+`items[]` is the HUD's inventory (what is carried; used items are gone), `names[]` the display name of each (the `add` command's second argument, e.g.
+"Shovel and Pail"). An item is a 3D model in the game (`models/items/<id>_model`), so its picture is a render: `Hud::ensureIcon` (called from
+`companionTick` while the panel is on) draws the model once into an offscreen surface (96x96, twice, on black and on white, then un-matted to get alpha),
+and writes `<id>.png` to `<game folder>/companion_icons/` (stored-deflate PNG, no zlib). The art is read from the player's files at run time and
+cached on their device only, never committed. `icons` in the snapshot is that folder (absolute); `CompanionView` loads `<icons>/<id>.png` with
+`BitmapFactory` (cached; a missing file is looked for again after 1.5 s, since the game writes it a moment after the item appears) and draws it in the card's bubble; without a
+picture the initials badge is drawn as before. Desktop: `tools/companion/render.sh tools/companion/samples/inventory.json out.png` renders the sample with
+stand-in pictures drawn by `shim/.../SampleIcons.java` (the sample's `"icons":"@ICONS@"` is replaced by the folder it writes); a snapshot written by the game
+(`SB_COMPANION_DUMP=f.json`) renders with the game's own pictures.
+
 ## Stubs / missing game state
-* Item in hand: stored (`companionSelectedItem()`), but the game's inventory bar / cursor (0x4201c0, game+0x88) is not
-  reconstructed, so nothing uses it yet. It should call `GameScene::useItem(obj, item)` on the next click.
-* Scene and chapter names: no name table known; shows "Chapter N" / "Level L, Scene S". Item names: the id prettified
-  ("golden_key" -> "Golden key"); item art is in sounds/items.omt-adjacent art, not read; badges show initials.
-* Hint: first `help.sb2` entry of the chapter whose condition holds; how the exe picks one is unknown.
+* Item in hand: `item:<id>` goes to `Hud::holdFromPanel` (the game's HUD, docs/scene-runtime.md "HUD and cursor"); the next click in the scene uses it
+  (`GameScene::useItem`) exactly like an item taken from the bar; `noitem` puts it back. `sel` is the HUD's held item.
+* Scene and chapter names: no name table known; shows "Chapter N" / "Level L, Scene S".
+* Hint: first `help.sb2` entry of the chapter whose condition holds (`Hud::hintText`, an entry whose text is another entry's id follows it); how the exe picks one is unknown.
 * `skip`: goes to `Game::switchTo("skip")` -> `SceneScriptHost::gameSkip` (itself a stub). `menu`: logs only (no menu).
 * `cut` (cutscene flag) and `caption` (comment text) are never set: `Game` has no getters yet.
 * Map: only the list of scenes visited (no scene-name table, no layout); chips are not tappable.

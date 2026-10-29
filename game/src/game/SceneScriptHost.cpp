@@ -1,6 +1,7 @@
 #include "SceneScriptHost.h"
 #include "DialogueUI.h"
 #include "World3D.h"
+#include "Hud.h"                   // port: hud
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
@@ -267,6 +268,7 @@ void SceneScriptHost::progressGiveItem(const char* n) { g_->state().giveItem(n);
 void SceneScriptHost::uiAddItem(const char* name, const char* arg2, bool flag)
 {
     g_->log("      HUD: add item %s (%s) flag=%d\n", name, arg2, flag ? 1 : 0);
+    if (g_->hud()) g_->hud()->addItem(name, arg2);      // port: hud (0x41f2d0)
     uiMs_ = 1200.0f;     // the HUD's pickup animation (0x41f2d0); port: fixed wait
 }
 void SceneScriptHost::uiAddItemRefresh() {}

@@ -5,6 +5,7 @@
 #pragma once
 #include "Companion.h"
 #include "../game/Game.h"
+#include "../game/Hud.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,14 +18,13 @@ struct CompanionFeedState {
     CompanionFeedState() : lastScene(0) {}
     unsigned lastScene;
     std::vector<std::string> visited;
-    std::string selected;          // the item taken in hand from the panel
 };
 
 inline CompanionFeedState& companionFeed() { static CompanionFeedState s; return s; }
 
-// The item the panel put in hand ("" none).  STUB: the game's inventory bar / cursor object (game+0x88, 0x4201c0) is
-// not reconstructed yet; when it is, it reads this and calls GameScene::useItem(object, item) on the next click.
-inline const std::string& companionSelectedItem() { return companionFeed().selected; }
+// The item in hand ("" none): the HUD's (game/src/game/Hud.cpp).  The panel's taps put an item in hand there; the next
+// click in the scene uses it (GameScene::useItem), exactly like an item taken from the bar.
+inline std::string companionSelectedItem(sbgame::Game* g) { return g->hud() ? g->hud()->heldName() : std::string(); }
 
 inline std::string companionSceneName(unsigned id)    // "c1l2s6" (chapter in the low nibble, see script.md)
 {
@@ -41,11 +41,9 @@ inline void companionCommands(sbgame::Game* g)
         sbgame::GameScene* sc = g->scene();
         sbgame::DialogueUI* d = sc ? sc->dialogue() : 0;
         if (cmd.compare(0, 5, "item:") == 0) {
-            const std::vector<std::string>& have = g->state().items();
-            std::string id = cmd.substr(5);
-            for (size_t i = 0; i < have.size(); ++i) if (have[i] == id) f.selected = id;
+            if (g->hud()) g->hud()->holdFromPanel(cmd.substr(5));
         } else if (cmd == "noitem") {
-            f.selected.clear();
+            if (g->hud()) g->hud()->onEscape();
         } else if (cmd.compare(0, 7, "choice:") == 0) {
             if (d) d->pickChoice(atoi(cmd.c_str() + 7));
         } else if (cmd == "advance") {
@@ -81,12 +79,16 @@ inline void companionTick(sbgame::Game* g, float /*dtMs*/)
         // STUB: the scenes' real names are not read yet (no name table found in sb2.omt / scn); "Level L, Scene S"
         snprintf(b, sizeof b, "Level %u, Scene %u", (id >> 8) & 0xf, (id >> 16) & 0xf);
         s.sceneTitle = b;
-        s.items = g->state().items();
-        // the held item must still be held
-        bool held = false;
-        for (size_t i = 0; i < s.items.size(); ++i) if (s.items[i] == f.selected) held = true;
-        if (!held) f.selected.clear();
-        s.selected = f.selected;
+        if (g->hud()) {                          // the inventory as the bar has it (items used up are gone), with the 'add' text as name
+            std::vector<sbgame::Hud::Entry> e = g->hud()->items();
+            for (size_t i = 0; i < e.size(); ++i) {
+                s.items.push_back(e[i].name);
+                s.itemNames.push_back(e[i].desc);
+                g->hud()->ensureIcon(e[i].name);   // the 96x96 picture of the model, rendered once, read by the panel from iconDir
+            }
+            s.iconDir = g->hud()->iconDir();
+            s.selected = g->hud()->heldName();
+        }
         s.visited = f.visited;
         sbgame::DialogueUI* d = sc->dialogue();
         if (d && d->busy()) {
@@ -96,10 +98,8 @@ inline void companionTick(sbgame::Game* g, float /*dtMs*/)
             s.text = d->currentText();
             if (s.choiceMode) s.choices = d->choiceTexts();
         }
-        // hint: the first help line of the chapter whose condition holds.  STUB: how the exe picks one is unknown
-        const std::vector<sbscript::HelpEntry>& h = g->help().entries();
-        for (size_t i = 0; i < h.size(); ++i)
-            if (!h[i].condition.empty() && g->cond(h[i].condition.c_str())) { s.hint = h[i].text; break; }
+        // hint: the first help line of the chapter whose condition holds (the HUD's hint button shows the same).  STUB: how the exe picks one is unknown
+        if (g->hud()) s.hint = g->hud()->hintText();
     }
     CompanionPublish(s);
 }

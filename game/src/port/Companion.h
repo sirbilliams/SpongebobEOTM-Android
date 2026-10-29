@@ -10,6 +10,7 @@
       game 1 once a scene is running (0: nothing yet)      chapter_title "Chapter 1"     scene_title "Level 2, Scene 6"
       cut  1 in a cutscene (a movie plays)                  hint  the current help line   caption  the comment being shown
       items ["isp1", ...] the inventory                     sel   the item held as the cursor ("" none)
+      names ["Shovel and Pail", ...] display names, parallel to items     icons  folder holding <id>.png pictures of the items
       visited ["c1l2s5", ...] scenes entered, oldest first
       dlg  {"choice":0/1, "speaker", "text", "choices":["...", ...]} while a dialogue is open
     Commands (CompanionPop): "item:<id>", "noitem", "choice:<n>", "advance", "menu", "skip".  */
@@ -23,7 +24,8 @@ struct CompanionState {
     CompanionState() : inGame(false), cutscene(false), dialogue(false), choiceMode(false) {}
     bool inGame, cutscene, dialogue, choiceMode;
     std::string chapterTitle, sceneTitle, hint, caption, selected, speaker, text;
-    std::vector<std::string> items, choices, visited;
+    std::vector<std::string> items, itemNames, choices, visited;   // itemNames: the display name of each item (parallel to items)
+    std::string iconDir;           // folder with <item id>.png pictures (small, rendered at run time from the player's game files)
 };
 
 void CompanionSetEnabled(bool on);                  // any thread (the panel is up)
