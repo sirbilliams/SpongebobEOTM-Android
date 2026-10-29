@@ -70,7 +70,7 @@ private:
     std::set<std::string> seen_, flags_;
     std::vector<std::string> items_;
     std::set<unsigned long long> blocked_;
-    struct DEntry { std::string key; short a, b; };
+    struct DEntry { std::string key; short a, b; std::string group; };   // group: the key as stored (the map key is lower case: 0x416e50 uses _stricmp)
     std::map<std::string, DEntry> dialogue_;
     std::map<std::string, std::string> textures_;
     std::set<unsigned> scen_;                       // progress+0x14 list: 24-bit flag ids (0x416ad0 decodes a 'C' term)

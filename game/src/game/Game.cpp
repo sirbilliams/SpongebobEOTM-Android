@@ -153,6 +153,7 @@ void Game::listen_to_message(omt_Message msg, void* param)
 void Game::mouseDown(int x, int y)
 {
     mx_ = x; my_ = y;
+    log("mouse down %d,%d\n", x, y);
     if (!scene_) return;
     if (scene_->dialogue() && scene_->dialogue()->busy()) { scene_->dialogue()->onClick(x, y); return; }
     if (hud_ && hud_->onMouseDown(x, y)) return;                // port: hud (0x420d50)

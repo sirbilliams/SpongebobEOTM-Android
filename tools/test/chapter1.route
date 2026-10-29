@@ -61,4 +61,35 @@ use ikp6 fish
 idle
 expect scustomer 121CAA
 shot 07-c1l2s1-served
+click "Walk to Other Side"
+scene c1l2s2
+idle
+click "Walk to Hungry Customer"
+scene c1l2s1
+idle
+click "Exit The Krusty Krab"
+scene c1l2s6
+idle
+click "Walk to Bikini Bottom"
+scene c1l1s1
+idle
+shot 08-c1l1s1-map
+click chap102
+scene c1l6s1
+idle
+shot 09-c1l6s1-downtown
+click "Walk to The Bus Stop"
+scene c1l6s4
+idle
+shot 10-c1l6s4-busstop
+talk patalt CAA CAA CBA CXA
+idle
+expect 164CAA 164CBA
+map
+scene c1l1s1
+idle
+click chap103
+scene c1l5s1
+idle
+shot 11-c1l5s1-goolagoon
 end

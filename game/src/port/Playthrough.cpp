@@ -119,6 +119,17 @@ bool Playthrough::locate(Game* g, const std::string& target, int* x, int* y)
                 if (l > r || t > b) return false;
                 *x = (l + r) / 2; *y = (t + b) / 2;
             } else { *x = (o->x1 + o->x2) / 2; *y = (o->y1 + o->y2) / 2; }
+            // a point of the target that really picks it (not covered by the player or something in front), centre first
+            int l = o->x1, t = o->y1, r = o->x2, b = o->y2;
+            if (o->kind == SceneObject::Char || o->kind == SceneObject::Item) { l = *x - 40; r = *x + 40; t = *y - 60; b = *y + 60; }
+            if (s->pickAll(*x, *y) == o) return true;
+            for (int k = 1; k <= 6; ++k)
+                for (int j = 0; j <= 2 * k; ++j)
+                    for (int i = 0; i <= 2 * k; ++i) {
+                        int px = (l + r) / 2 + (r - l) * (i - k) / (2 * 6 + 1), py = (t + b) / 2 + (b - t) * (j - k) / (2 * 6 + 1);
+                        if (px < 0 || py < 0 || px > 639 || py > 479) continue;
+                        if (s->pickAll(px, py) == o) { *x = px; *y = py; return true; }
+                    }
             return true;
         }
     }
