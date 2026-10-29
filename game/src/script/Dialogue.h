@@ -75,8 +75,12 @@ public:
     static std::string voiceName(const std::string& id);
     const std::vector<CommentEntry>& entries() const { return entries_; }
     const CommentEntry* find(const std::string& id) const;   // strcmp
+    // 0x410450: the leading rows whose id is "H000.." (the comments of every chapter, voice bank sounds/comments.omt);
+    // 0x410a60 looks an id with id[1] == '0' up there
+    bool loadGlobal(FileSource& fs, std::string* err);
+    const std::vector<CommentEntry>& globals() const { return globals_; }
 private:
-    std::vector<CommentEntry> entries_;
+    std::vector<CommentEntry> entries_, globals_;
 };
 
 struct HelpEntry {               // 0x130-byte node payload

@@ -51,6 +51,12 @@ public:
     // port: companion (docs/companion.md): the open choice list as text, and picking the n-th eligible choice
     std::vector<std::string> choiceTexts();
     bool pickChoice(int n);
+    // vt+0x20 (0x411820): the conversation `key` has something to say (an eligible group that is not a lone "X" one)
+    bool hasSomething(const char* key);
+    // vt+0x64 (0x414030): a refusal group of the character `speaker` (key letter after 'P', first line spoken by it); one at
+    // random into *key.  false: none
+    bool refusal(const char* speaker, std::string* key);
+    std::vector<std::string> choiceKeys();               // port (tests): the group keys of the open choice list, in order
     // test hooks
     int eligibleCount();
     sbscript::DialogueGroup* groupByKey(const std::string& key);
@@ -58,6 +64,7 @@ public:
 
 private:
     bool eligible(const sbscript::DialogueGroup& g, bool flagZ);   // vt+0x40 (0x411aa0)
+    bool hasDecision(const sbscript::DialogueGroup& g);            // vt+0x48 (0x4117f0)
     static bool isAnim(const std::string& action);                 // 0x411b40
     void confirm();                                                // vt+0x28 (0x412bb0)
     void playLine();                                               // vt+0x50 (0x412d00)

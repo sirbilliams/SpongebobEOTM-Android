@@ -102,6 +102,9 @@ static void omf_test_hooks(SDL_Window *win)
 
 // port: test-only; the frame (buffer flip) count, so a test can ask for a screenshot of the next frame
 int omf_SDLFrameCount(void) { return omg_frame; }
+// port: test-only; the next presented frame is saved as `path` (BMP)
+static string omg_shot_request;
+void omf_request_shot(const char *path) { omg_shot_request = path ? path : ""; }
 
 // Called by OMediaGLRenderTarget::flip_buffers before swapping.
 void omf_SDLFrameHook(SDL_Window *win)
@@ -109,6 +112,7 @@ void omf_SDLFrameHook(SDL_Window *win)
 	omg_frame++;
 #ifndef __ANDROID__
 	omf_test_hooks(win);
+	if (!omg_shot_request.empty()) { omf_save_shot(win, omg_shot_request.c_str()); omg_shot_request.clear(); }
 #endif
 	// OMT_SCREENSHOT saves frame OMT_FRAMES (default 30) and quits; OMT_FRAMES alone just quits there
 	const char *shot = getenv("OMT_SCREENSHOT");

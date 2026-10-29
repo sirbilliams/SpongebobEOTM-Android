@@ -220,7 +220,7 @@ void SaveGame::capture(GameState& st, unsigned sceneId, const char* name, const 
         SaveFile::Thrd t; memset(&t, 0, sizeof t);
         t.scene = (unsigned)strtoul(it->first.c_str(), NULL, 16);
         size_t c = it->first.find(':');
-        copyStr(t.group, sizeof t.group, c == std::string::npos ? std::string() : it->first.substr(c + 1));
+        copyStr(t.group, sizeof t.group, !it->second.group.empty() ? it->second.group : c == std::string::npos ? std::string() : it->first.substr(c + 1));
         copyStr(t.cur, sizeof t.cur, it->second.key);
         t.a = it->second.a; t.b = it->second.b;
         f.thrd.push_back(t);

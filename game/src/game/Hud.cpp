@@ -127,6 +127,8 @@ Hud::Spot Hud::spotAt(int x, int y, int* slot)      // 0x4201c0 / 0x420d50 bound
     return None;
 }
 
+int Hud::slotOf(const std::string& name) { HudItem* it = find(name); return it ? it->slot : -1; }
+
 HudItem* Hud::itemInSlot(int slot)
 {
     for (size_t i = 0; i < items_.size(); ++i) if (items_[i]->slot == slot) return items_[i];
@@ -258,9 +260,7 @@ bool Hud::onEscape()
 
 static SceneObject* sceneObjectAt(Game* g, int x, int y)
 {
-    SceneObject* o = g->world3d() ? g->world3d()->pick(x, y) : 0;
-    if (!o && g->scene()) o = g->scene()->pick(x, y);
-    return o;
+    return g->scene() ? g->scene()->pickAll(x, y) : 0;         // 0x43a310: triggers, characters / items, 2D objects
 }
 
 void Hud::dropAt(int x, int y)          // 0x420b20: the item is let go at x,y

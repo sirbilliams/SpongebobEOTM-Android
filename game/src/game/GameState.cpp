@@ -58,7 +58,9 @@ static std::string dkey(unsigned scene, const std::string& g)
 {
     char b[16];
     sprintf(b, "%08x:", scene);
-    return std::string(b) + g;
+    std::string k = g;
+    for (size_t i = 0; i < k.size(); ++i) k[i] = (char)tolower((unsigned char)k[i]);
+    return std::string(b) + k;
 }
 
 bool GameState::dialogueStarted(unsigned sceneId_, const char* groupKey)
@@ -80,7 +82,7 @@ bool GameState::lookup(unsigned scene, const std::string& groupKey, std::string*
 void GameState::storeDialogue(unsigned scene, const std::string& groupKey, const std::string& currentKey, short a, short b)
 {
     DEntry e;
-    e.key = currentKey; e.a = a; e.b = b;
+    e.key = currentKey; e.a = a; e.b = b; e.group = groupKey;
     dialogue_[dkey(scene, groupKey)] = e;
 }
 
@@ -113,3 +115,11 @@ void GameState::setBlocked(unsigned scene, int x, int y, bool bl)
 bool GameState::isBlocked(unsigned scene, int x, int y) const { return blocked_.count(bkey(scene, x, y)) != 0; }
 
 }  // namespace sbgame
+
+namespace sbgame {
+void GameState::addChar(const char* name)       // 0x416c70: once per name
+{
+    for (size_t i = 0; i < chars_.size(); ++i) if (chars_[i] == name) return;
+    chars_.push_back(name);
+}
+}

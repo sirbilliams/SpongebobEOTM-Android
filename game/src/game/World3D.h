@@ -50,6 +50,11 @@ struct Actor3D {
     std::string shadowName;           // CHAR record "Shadow Name" (+0x204)
     OMedia3DGrannyModel* shadowModel; // char +0x22c of the 0x354 byte object: models/items/<name>_model
     OMedia3DShapeElement* shadowElem;
+    float arrive;                     // +0x3f0: the walk ends this close to the destination
+    std::vector<SceneObject*> touches;// +0x368: what the character touches (0x4313e0 / 0x431610)
+    SceneObject* pickupItem;          // +0x398: the item being picked up (0x433910)
+    bool doorWalk;                    // +0x356: walking straight ahead (through a door, into a scene)
+    float dirX, dirZ;                 // port: the straight-ahead direction of doorWalk
 };
 
 class World3D {
@@ -78,8 +83,8 @@ public:
     void climb(SceneObject* o, float h);                                        // vt+0x154 (0x4342a0)
     void moveGrid(SceneObject* o, int gx, int gy);
     void blockCell(int x, int z, bool blocked);
-    bool clickFloor(int x, int y);
-    bool approach(SceneObject* target);
+    bool clickFloor(int x, int y, SceneObject* target = 0);      // 0x4398f0 tail: walk to the floor point under x,y
+    bool turnToward(SceneObject* o, Actor3D* to);                // o's vt+0x13c toward `to` (500)
     void setRunning(SceneObject* o);
     void stopWalk(SceneObject* o);                                              // vt+0x184
     void moveTo(SceneObject* o, float x, float z);                              // vt+0x148 (no animation)
@@ -91,11 +96,26 @@ public:
     bool screenBounds(SceneObject* o, int& x1, int& y1, int& x2, int& y2);      // where the character is drawn
     OMedia3DWorld* world3d() { return w3_; }
 
+    // ---- the player (scene+0x248) as the object code uses it (character vtable 0x44e358) ----
+    Actor3D* player();
+    bool walkTo(SceneObject* target, float x, float z);      // vt+0x144 (x, z, target, -1, -1): true = walking there
+    bool rotateToward(SceneObject* target);                  // vt+0x13c (heading toward target, 500): true = turning
+    bool rotatePlayer(int heading);                          // vt+0x13c (heading, 500)
+    bool touching(SceneObject* o);                           // vt+0x128 (0x4318c0)
+    void startPickup(SceneObject* item);                     // vt+0x100 (0x433910)
+    void playerDoor();                                       // vt+0xb4 ("door", 0, 1.0)
+    void walkIn();                                           // DoSwitch tail (0x40b720): the player walks into the scene
+    bool doorBusy();                                         // DoSwitch head: the door / walk animation or a turn is running
+    bool playerBusy();                                       // port (tests): walking, turning or a one-shot animation
+    void clearTarget();                                      // vt+0x180 (0x4343d0)
+    bool samePlane(SceneObject* o);                          // player y == o y
+    bool project(float x, float y, float z, int& sx, int& sy);   // port: world -> logical screen (vt+0xe8 0x405fb0)
+
 private:
     friend class SceneScriptHost;
     const sb::scene::Grid* grid(float y) const;
     bool cell(const sb::scene::Grid& g, int x, int z) const;
-    bool gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run);
+    bool gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, bool neighbour = false);
     void setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m);
     void place(Actor3D* a);
     void updateIdle(Actor3D* a, float dtMs);                                    // lane f: the idle part of 0x42f1a0
@@ -103,6 +123,10 @@ private:
     void updateShadow(Actor3D* a);                                              // lane f: char +0x30c
     void finished(Actor3D* a);
     void finishInteraction(Actor3D* a);
+    void animEnded(Actor3D* a);                              // 0x405620 tail: what follows a one-shot animation
+    void updateTouches(Actor3D* a);                          // vt+0x11c (0x4313e0)
+    void addTouch(Actor3D* a, SceneObject* o);               // vt+0x120 (0x431610)
+    void runPending();                                       // port: the interaction left by game vt+0xac
     std::string animPath(Actor3D* a, const char* name);
     static OMedia3DAbstractRasterizer* rasterizer();
 

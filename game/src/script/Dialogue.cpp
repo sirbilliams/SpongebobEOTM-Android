@@ -172,6 +172,24 @@ bool CommentTable::load(FileSource& fs, int chapter, int level, std::string* err
     return true;
 }
 
+bool CommentTable::loadGlobal(FileSource& fs, std::string* err)
+{
+    globals_.clear();
+    std::vector<std::string> records;
+    if (!decodeFile(fs, "dialogue/comments.sb2", records, err)) return false;
+    for (size_t r = 1; r < records.size(); ++r) {          // after the header row, until the first id that is not H000..
+        SbTok tok(records[r]);
+        std::string id, text;
+        if (!tok.next(id)) continue;
+        if (id.size() < 4 || id[1] != '0' || id[2] != '0' || id[3] != '0') break;
+        CommentEntry e;
+        e.id = capped(id, 15);
+        if (tok.next(text)) e.text = capped(text, 239);
+        globals_.push_back(e);
+    }
+    return true;
+}
+
 const CommentEntry* CommentTable::find(const std::string& id) const
 {
     for (size_t i = 0; i < entries_.size(); ++i) if (entries_[i].id == id) return &entries_[i];

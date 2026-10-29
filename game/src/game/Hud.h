@@ -71,6 +71,9 @@ public:
     // the inventory as it is now (the companion panel)
     struct Entry { std::string name, desc; };
     std::vector<Entry> items() const;
+    int slotOf(const std::string& name);            // port (tests): the slot an item sits in, -1 none
+    bool isOpen() const { return open_; }
+    bool flying() const { return fly_ != 0; }
     // port: companion pictures.  A 96x96 PNG of the item's model, written to iconDir() once.  false: cannot (yet).
     std::string iconDir() const;
     bool ensureIcon(const std::string& name);
