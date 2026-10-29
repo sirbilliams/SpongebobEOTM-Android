@@ -99,6 +99,7 @@ bool Game::init(const std::string& root, OMediaCanvas* canvas)
     try { retail_ = new RetailData(root + "/sb2.exe"); } catch (std::exception&) { log("cannot read sb2.exe\n"); return false; }
     font_ = new GameFont(fontDb_.db, *retail_);          // lane C's font class (0x414820..0x414fe0)
     world_ = new OMedia2DWorld;
+    world_->set_sort_mode(omc2dsort_Z);             // 0x442010 (the exe's world class): [world+0x88] = 3, dirty; elements are drawn by z
     world_->set_framerate_mode(omfrc_Max);        // port: the headless test draws at every update
     OMediaRGBColor black(0, 0, 0);
     ((OMediaColorBackground*)world_->getbackground())->setcolor(&black);
@@ -183,6 +184,27 @@ void Game::exitScene(int dir)       // 0x40ac20 (the "M..." exit names would sta
     switchTo(e.c_str());
 }
 
+void Game::loadSkies(int chapter)       // chapter loader 0x40b090: sceneart\c%dskies.omt into game+0x64, sky cache cleared
+{
+    if (chapter == state_.chapter && skies_.db) return;
+    skies_.reset();
+    for (int i = 0; i < 10; i++) skyCache_[i] = 0;
+    char b[96];
+    sprintf(b, "%s/sceneart/c%dskies.omt", root_.c_str(), chapter);
+    skies_.open(b);
+}
+
+OMediaCanvas* Game::skyCanvas(int index)
+{
+    if (index < 0 || index > 9 || !skies_.db) return 0;
+    if (!skyCache_[index]) {
+        char n[16];
+        sprintf(n, "sky0%d", index);
+        skyCache_[index] = (OMediaCanvas*)skies_.db->get_object(OMediaCanvas::db_type, n);
+    }
+    return skyCache_[index];
+}
+
 void Game::loadSceneBanks(unsigned id)
 {
     char b[96];
@@ -213,6 +235,7 @@ void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without 
     delete scene_;
     scene_ = 0;
     int chapter = (int)(id & 0xf);
+    loadSkies(chapter);
     GameScene* s = new GameScene(this);
     state_.sceneId = id;
     if (!s->load(id)) { log("Couldn't find scene in DoSwitch ()\n"); delete s; return; }

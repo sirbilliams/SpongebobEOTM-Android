@@ -30,9 +30,10 @@ SceneObject::SceneObject()
 }
 
 GameScene::GameScene(Game* game)
-    : game_(game), sceneId_(0), artDb_(0), artFile_(0), background_(0), dialogue_(0), barTop_(0), barBot_(0),
+    : game_(game), sceneId_(0), artDb_(0), artFile_(0), background_(0), skyScroll_(0), dialogue_(0), barTop_(0), barBot_(0),
       barState_(0), barHold_(0), topY_(0), botY_(240), shake_(0), lock_(0), lastClicked_(0)
 {
+    sky_[0] = sky_[1] = 0; skyX_[0] = skyX_[1] = 0;
 }
 
 GameScene::~GameScene()
@@ -40,6 +41,7 @@ GameScene::~GameScene()
     delete dialogue_;
     // elements unlink themselves from the world; the objects own nothing else
     for (size_t i = 0; i < objects_.size(); ++i) { delete objects_[i]->elem; delete objects_[i]; }
+    delete sky_[0]; delete sky_[1];
     delete background_;
     delete barTop_;
     delete barBot_;
@@ -92,6 +94,7 @@ bool GameScene::load(unsigned id)
     enterEvent_ = cm.o0244.text(); // +0x4ac
     enterCond_ = cm.o0264.text();  // +0x4cc
     buildObjects();
+    buildSky();
     dialogue_ = new DialogueUI(game_);
     dialogue_->load(id);
     return true;
@@ -201,6 +204,42 @@ void GameScene::buildObjects()
             if (!o->startOn) setHidden(o, true);
         }
     }
+}
+
+// 0x43bb60 (sky setup) / 0x43ae70 (scroll): two 640-wide tiles of the camera's Sky Index canvas at x 0 and 640, y = Sky Offset, z -10100
+// (just behind the background, whose sky area is transparent); the scroll accumulates dt * Sky Speed and moves both tiles by whole
+// pixels (Sky Direction non-zero: right, else left), each tile wrapping inside +-640 (0x4022c0).
+void GameScene::buildSky()
+{
+    const Camera& cm = data_.camera.data.camera;
+    if (cm.o0238 == 0) return;
+    OMediaCanvas* c = game_->skyCanvas((short)cm.o0238);
+    if (!c) { game_->log("scene %s: sky %d not found\n", name_.c_str(), (int)cm.o0238); return; }
+    for (int i = 0; i < 2; ++i) {
+        sky_[i] = new OMediaCanvasElement(c);
+        sky_[i]->link(world());
+        skyX_[i] = i ? 640.0f : 0.0f;
+        sky_[i]->place(i ? 640.0f : 0.0f, (float)(short)cm.o023c, -10100.0f);
+    }
+}
+
+void GameScene::updateSky(float dt)
+{
+    if (!sky_[0] || !sky_[1]) return;
+    const Camera& cm = data_.camera.data.camera;
+    skyScroll_ += dt * cm.o0240;
+    if (skyScroll_ < 1.0f) return;
+    int px = (int)skyScroll_;
+    if (cm.o023a) px = -px;
+    for (int i = 0; i < 2; ++i) {
+        float x = skyX_[i], y = (float)(short)cm.o023c, z = -10100.0f;
+        x -= (float)px;                                  // 0x4022c0: x - delta, wrapped into (-640, 640]
+        if (x <= -640.0f) x += 1280.0f;
+        if (x > 640.0f) x -= 1280.0f;
+        skyX_[i] = x;
+        sky_[i]->place(x, y, z);
+    }
+    skyScroll_ -= (float)(short)(px < 0 ? -px : px);
 }
 
 void GameScene::place(SceneObject* o)
@@ -479,6 +518,7 @@ void GameScene::update(float dt)
     }
     if (lock_ > 0) { lock_ -= dt; if (lock_ < 0) lock_ = 0; }
     if (shake_ > 0) { shake_ -= dt; if (shake_ <= 0) { shake_ = 0; game_->wake(); } }
+    updateSky(dt);
     for (size_t i = 0; i < objects_.size(); ++i)
         if (objects_[i]->kind == SceneObject::Anim2D) tickAnim(objects_[i], dt);
 
