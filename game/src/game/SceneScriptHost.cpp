@@ -327,6 +327,6 @@ void SceneScriptHost::miniSlotsSpin() { g_->miniGame()->slotsSpin(); }
 void SceneScriptHost::miniMaze(int n) { g_->miniGame()->maze(n); }
 void SceneScriptHost::miniPhoneKey(int n) { stub("phone key %d 0x436640", n); }
 void SceneScriptHost::miniPhoneReset() { stub("phone reset 0x436610"); }
-void SceneScriptHost::miniDarts(int op) { stub("darts %d (0x436990 / 0x4369c0)", op); }
+void SceneScriptHost::miniDarts(int op) { if(g_->miniGame()) g_->miniGame()->darts(op); } // lane c: 0x436990 / 0x4369c0
 
 }  // namespace sbgame
