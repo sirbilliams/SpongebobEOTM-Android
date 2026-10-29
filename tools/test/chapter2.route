@@ -217,4 +217,36 @@ maze
 scene c2l5s5
 idle
 shot 36-c2l5s5-patrick
+save 0
+click "Walk Up Stairs"
+idle
+shot 37-c2l5s5-upstairs
+click "Walk to Marlin"
+scene c2l5s6
+idle
+shot 38-c2l5s6-marlin
+talk marlin AAA ABA ACA ADA AXA
+idle
+have imw1
+shot 39-c2l5s6-wand
+save 0
+map
+scene c2l1s1
+idle
+click chap202
+scene c2l4s1
+idle
+click "Enter WSEA TV"
+scene c2l4s3
+idle
+shot 40-c2l4s3-reception
+use imw1 "Control Room"
+idle
+scene c2l4s6
+idle
+shot 41-c2l4s6-control
+click "Fiddle With Weather Controls"
+scene c3l0s1
+idle
+shot 42-c3l0s1-chapter3
 end
