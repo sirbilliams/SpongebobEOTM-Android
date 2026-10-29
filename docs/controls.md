@@ -18,6 +18,10 @@ Touch is the main control on the AYN Thor; the gamepad is a pointer. Code: `engi
 - Right stick moves the pointer: 20% radial dead zone, square acceleration curve, 3/4 of the logical width (480 px) per second at full tilt,
   clamped to the logical screen; the pointer is warped (window = `omgl_logical_to_window`), so it works in every widescreen mode and the fill mode
   pans to follow it. Moving a real mouse or a finger re-syncs the pad position.
+- `SB_WIDESCREEN=panels`: the pad pointer is clamped to the 640x480 picture and cannot enter the side panels. That is intended: the panels are decoration
+  with no click targets (a mouse or finger click there is outside the logical screen and does nothing). The cursor sprite is a world element of the 640x480
+  picture, so at the right / bottom edge `Cursor::update` keeps it fully inside the picture (`// port:`; the click point stays at the pointer).
+  Verified at 1920x1080 with `SB_TEST_PAD=40:rx=1,ry=1` (sprite at the picture's bottom-right corner, not cut).
 - R3 (`SDL_CONTROLLER_BUTTON_RIGHTSTICK`) and A (`SDL_CONTROLLER_BUTTON_A`) are both the left mouse button: press = button down, release = up
   (so dragging an item from the HUD bar works). Either held keeps it down. The repo has no A/B swap; SDL's A is used as reported
   (Thor: the button labelled A). The polled state is reported through `OMediaEventManager::pad_button_down()` to `mouse_down()`.
