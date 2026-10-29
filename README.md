@@ -67,6 +67,16 @@ Cursor themes: Spatula, Net, Bubble and Classic, each with pointer, hover, item-
 - A nautical launcher (drawn in code): Play, Import game, Captain's settings (widescreen, bottom screen, cursor),
   Engine room (Share log with device and touch diagnostics, Touch test, app version, reset settings) and About.
 - All five mini-games: darts, kick, slots, the maze and the phone.
+- Background music, as the original plays it (a song per area, carried across scenes, the jukebox).
+- A living underwater launcher: Play with a Continue preview, Saves (export / import a .zip with a preview),
+  your own box art, and on the Thor's bottom screen a Harbour office with the last save and settings dials.
+- Bottom-screen tabs: Pocket (inventory, drag to combine), Map (travel where the game allows), Talk (the
+  dialogue so far, replay a line's voice), Goals (chapter progress and what to do next), and REVEAL.
+- Hotspot reveal (hold L1 or tap REVEAL) shows everything you can click in the scene.
+- A port menu (hold Back): bottom screen, cursor theme, widescreen, right-stick cursor, diagnostics overlay.
+- Closing the Thor's lid pauses the game and the music.
+- Tools: a model viewer and scene explorer, and optional HD background packs made from your own copy.
+- View Movies also lists the voices you have heard.
 
 ## Installing
 
