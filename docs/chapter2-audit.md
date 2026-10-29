@@ -1,5 +1,7 @@
 # Chapter 2 readiness audit (lane f, base integ 2cf1640)
 
+Lane d follow-up: slots and maze are now implemented in `MiniGame.{h,cpp}`; the stub findings below describe the audit baseline. Reconstruction and replay details: [chapter2-minigames.md](chapter2-minigames.md).
+
 Method: the real `spongebob` binary, headless (Xvfb in the omtbuild box), 1920x1080 window, fill mode, 400 frames,
 `SB_SKIP_MOVIES=1 SB_TEST_NEWGAME=1 SB_TEST_SCENE=<scene> SB_GAME_LOG=1`, screenshot of the last frame. Then every one of
 the 50 `scripts/c2/*.sb2` scripts started 60 game frames into its home scene with the new test hook

@@ -1,4 +1,5 @@
 #include "Scene.h"
+#include "MiniGame.h" // chapter 2: maze TRIG picking pass (0x43a310)
 #include <stdlib.h>
 #include "Game.h"
 #include "World3D.h"
@@ -259,12 +260,14 @@ void GameScene::setHidden(SceneObject* o, bool hide)
     else while (o->elem->get_hide_count() > 0) o->elem->hide(false);
 }
 
+// Chapter 2: 0x43ad10 / 0x438fa0 / 0x439110 use case-insensitive 0x44b2d0.
+// Required by sdrapes (252drapes vs the authored 252Drapes).
 SceneObject* GameScene::find(const char* name, int kindMask)
 {
     for (size_t i = 0; i < objects_.size(); ++i) {
         SceneObject* o = objects_[i];
         if (kindMask && !(kindMask & (1 << o->kind))) continue;
-        if (strcmp(o->art.c_str(), name) == 0) return o;
+        if (strcasecmp(o->art.c_str(), name) == 0) return o;
     }
     return 0;
 }
@@ -303,13 +306,13 @@ void GameScene::show(const char* name)          // 0x438fa0
     for (size_t i = 0; i < objects_.size(); ++i) {
         SceneObject* o = objects_[i];
         if (o->kind == SceneObject::Anim2D || o->kind == SceneObject::Obj2D) {
-            if (strcmp(o->art.c_str(), name) == 0) {
+            if (strcasecmp(o->art.c_str(), name) == 0) {
                 if (o->elem && o->elem->get_hide_count() != 0) {
                     setHidden(o, false);
                     if (o->kind == SceneObject::Anim2D) startAnim(o);    // vt+0xb0
                 }
             }
-        } else if (o->is3D() && strcmp(o->art.c_str(), name) == 0) {
+        } else if (o->is3D() && strcasecmp(o->art.c_str(), name) == 0) {
             if (game_->world3d()) game_->world3d()->setHidden(o, false);
         }
     }
@@ -319,10 +322,10 @@ void GameScene::hide(const char* name)          // 0x439110
 {
     for (size_t i = 0; i < objects_.size(); ++i) {
         SceneObject* o = objects_[i];
-        if ((o->kind == SceneObject::Anim2D || o->kind == SceneObject::Obj2D) && strcmp(o->art.c_str(), name) == 0) {
+        if ((o->kind == SceneObject::Anim2D || o->kind == SceneObject::Obj2D) && strcasecmp(o->art.c_str(), name) == 0) {
             if (o->elem && o->elem->get_hide_count() == 0) setHidden(o, true);
             if (o->kind == SceneObject::Anim2D) o->playing = false;      // vt+0xb4 also stops its sound
-        } else if (o->is3D() && strcmp(o->art.c_str(), name) == 0) {
+        } else if (o->is3D() && strcasecmp(o->art.c_str(), name) == 0) {
             if (game_->world3d()) game_->world3d()->setHidden(o, true);
         }
     }
@@ -432,7 +435,8 @@ SceneObject* GameScene::pick(int x, int y)      // 0x43a310, third pass
 
 SceneObject* GameScene::hover(int x, int y)
 {
-    SceneObject* o = game_->world3d() ? game_->world3d()->pick(x, y) : 0;      // the 3D passes come first (0x43a310)
+    SceneObject* o = game_->miniGame() ? game_->miniGame()->pickMazeDoor(x, y) : 0;
+    if (!o && game_->world3d()) o = game_->world3d()->pick(x, y);      // the 3D passes come first (0x43a310)
     return o ? o : pick(x, y);
 }
 
@@ -483,7 +487,8 @@ void GameScene::click(int x, int y)    // 0x4398f0 for 2D objects (the 3D passes
     // "if (runner != 0 && !runner->control) || shaking -> ignore"
     if ((r && !r->keepControl()) || lock_ > 0) return;
     game_->inputConsumed = false;
-    SceneObject* o = game_->world3d() ? game_->world3d()->pick(x, y) : 0;
+    SceneObject* o = game_->miniGame() ? game_->miniGame()->pickMazeDoor(x, y) : 0;
+    if (!o && game_->world3d()) o = game_->world3d()->pick(x, y);
     if (!o) o = pick(x, y);
     if (!o) {
         if (game_->world3d()) game_->world3d()->clickFloor(x,y);
