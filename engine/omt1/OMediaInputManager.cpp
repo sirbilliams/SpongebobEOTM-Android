@@ -223,7 +223,11 @@ OMediaInputDriver::~OMediaInputDriver()
 bool OMediaInputDriver::mouse_down(void)
 {
 	omf_start_touch_watch();
-	if (omg_touch.down || OMediaEventManager::pad_button_down()) return true;
+#ifdef OMT1_ENGINE
+	if (omg_touch.down || OMediaEventManager::pad_button_down()) return true;	// port: R3 / A (omt1 event manager only)
+#else
+	if (omg_touch.down) return true;	// (also built into the OMT 2.5 'omt' library, whose event manager has no pad state)
+#endif
 	return (SDL_GetMouseState(NULL, NULL) & SDL_BUTTON(SDL_BUTTON_LEFT)) != 0;
 }
 
