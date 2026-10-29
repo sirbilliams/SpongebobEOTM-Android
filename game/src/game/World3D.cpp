@@ -22,7 +22,7 @@ static const float kWalkSpeed = 150.0f;      // 0x42f1a0: 0.15 world units per e
 static const float kRunSpeed = 300.0f;
 
 Actor3D::Actor3D()
-    : obj(0), model(0), elem(0), mode(Idle), x(0), y(0), z(0), heading(0), kicking(false), walking(false), tx(0), tz(0), speed(0), rotating(false),
+    : obj(0), model(0), elem(0), mode(Idle), x(0), y(0), z(0), prevX(0), prevY(0), prevZ(0), heading(0), kicking(false), walking(false), tx(0), tz(0), speed(0), rotating(false),
       rotTarget(0), rotTolerance(0), idling(false), idleLeft(0), waited(false), scheduled(false), shadowOn(true), climbing(false), climbTarget(0), climbPrev(0),
       idleWanted(true), idleSuspended(false), idleHost(0), idleRunner(0), wakeIdle(false), animSnd(false), fidgetAcc(0), fidgetNext((float)(7 + rand() % 8)),   // lane f: ctor 0x42e150
       shadowModel(0), shadowElem(0)
@@ -181,8 +181,20 @@ void World3D::setTexture(SceneObject* o, const char* name)
         a->model->set_texture(lower(name)) ? "bound" : "material missing");
 }
 
+// 0x42e560 (the character's place, vtable 0x44e4b4): when the previous position (+0x404..+0x40c) is set (x and z non zero), the click
+// rectangle (+0xf4..+0xfa, empty = none) moves by the screen delta of the projected positions (vt+0xec), then the model is placed and
+// the previous position becomes the current one.  The authored rectangle belongs to the authored start position.
 void World3D::place(Actor3D* a)
 {
+    if (a->prevX != 0 && a->prevZ != 0 && a->obj->x1 < a->obj->x2 && a->obj->y1 < a->obj->y2 &&
+        !(a->prevX == a->x && a->prevY == a->y && a->prevZ == a->z)) {
+        int sx0, sy0, sx1, sy1;
+        if (project(a->prevX, a->prevY, a->prevZ, sx0, sy0) && project(a->x, a->y, a->z, sx1, sy1)) {
+            a->obj->x1 += sx1 - sx0; a->obj->x2 += sx1 - sx0;
+            a->obj->y1 += sy1 - sy0; a->obj->y2 += sy1 - sy0;
+        }
+    }
+    a->prevX = a->x; a->prevY = a->y; a->prevZ = a->z;
     a->obj->px = a->x; a->obj->py = a->y; a->obj->pz = a->z;
     a->elem->place(a->x, a->y, a->z);
     a->elem->set_angle(0, (short)(a->heading & 0x3fff), 0);
@@ -328,7 +340,7 @@ static int gridIndex(float v, float origin, float size, float half)
     return v <= edge ? 29 : -1;
 }
 
-// 0x418460 accepts fractional cell coordinates; scripts pass them unchanged (zero based).
+// 0x418460 accepts fractional cell coordinates (the script walkgrid is one based: World3D::walkGrid takes cell - 1, 0x43483b).
 static void gridPoint(const sb::scene::Grid& g, float gx, float gz, float& x, float& z)
 {
     x = g.o000c + (gx - g.halfSize) * g.o0008;
@@ -464,6 +476,9 @@ bool World3D::walk(SceneObject* o, float x, float z, bool run)
 bool World3D::walkGrid(SceneObject* o, int gx, int gz)
 {
     Actor3D* a = actorFor(o);
+    // 0x434650 (0x43483b / 0x43484b): the script's grid cell is one based, the walk takes (cell - 1) (lane a, chapter 3: every c3 walkgrid
+    // target was a closed cell as zero based)
+    if (gx != -1 && gz != -1) { --gx; --gz; }
     return a && gridWalk(a, 0, 0, gx, gz, false);
 }
 

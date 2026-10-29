@@ -117,4 +117,46 @@ scene c3l4s3
 idle
 shot 21-c3l4s3-awake
 have icl1
+save 2
+click "Walk Down Stairs"
+scene c3l4s2
+idle
+click "Exit Squidward's House"
+scene c3l4s1
+idle
+click "Enter SpongeBob's House"
+scene c3l4s8
+idle
+shot 22-c3l4s8-house
+click "Walk to Sitting Area"
+scene c3l4s9
+idle
+shot 23-c3l4s9-snakey
+use icl1 snakey
+idle
+shot 24-c3l4s9-charmed
+grab iwh1
+idle
+have iwh1
+shot 25-c3l4s9-helmet
+click "Walk to Living Room"
+scene c3l4s8
+idle
+map
+scene c3l1s1
+idle
+click "Go to Sandy's House"
+scene c3l6s0
+idle
+shot 26-c3l6s0
+use iwh1 SpongeBob
+scene c3l6s0
+idle
+shot 27-c3l6s0-helmet
+click "Sandy's Tree Dome"
+scene c3l6s1
+idle
+shot 28-c3l6s1
+talk sandress AAA
+idle
 end

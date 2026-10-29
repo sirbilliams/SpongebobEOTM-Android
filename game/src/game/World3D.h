@@ -27,6 +27,7 @@ struct Actor3D {
     enum Mode { Idle, Loop, OneShot, Talk };
     Mode mode;
     float x, y, z;                    // world position
+    float prevX, prevY, prevZ;        // 0x404..: the position of the last place (the click rectangle follows the screen delta)
     int heading;                      // 0x4000 = 360 degrees
     bool kicking; // lane d: 0x410 kick movement, handled by Kick.cpp
     bool walking; float tx, tz, speed;
