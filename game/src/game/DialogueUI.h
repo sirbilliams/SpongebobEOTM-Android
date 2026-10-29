@@ -41,7 +41,7 @@ public:
     bool busy() const { return active_; }                 // vt+0x18 (0x411790), byte +0x19
     void update(float dtMs);                              // vt+0x54 (0x412c00)
     void render();                                        // vt+0x08 (0x4128d0)
-    void onMove(int x, int y);                            // vt+0x14 / 0x4129e0 hover
+    bool onMove(int x, int y);                            // vt+0x14 / 0x4129e0 hover; true: on a choice
     void onClick(int x, int y);                           // the click that ends a line or picks a choice
     void onKey(int key);                                  // 0x413e90: Up/Down/Enter/Space
     void stop();                                          // 0x411ba0 (end of conversation)

@@ -349,9 +349,9 @@ void DialogueUI::render()               // 0x4128d0
     }
 }
 
-void DialogueUI::onMove(int x, int y)   // 0x412af0
+bool DialogueUI::onMove(int x, int y)   // 0x412af0: true if the pointer is on a choice
 {
-    if (!choice_) return;
+    if (!choice_) return false;
     int yy = 450;
     for (size_t i = 0; i < groups_.size(); ++i) {
         if (!eligible(groups_[i], false)) continue;
@@ -361,10 +361,11 @@ void DialogueUI::onMove(int x, int y)   // 0x412af0
         int h = rows * game_->font()->get_font_height();
         if (x > 1 && x < std::min(w, 630) + 9 && y >= yy - 2 && y < yy + h + 2) {
             if (cur_ != (int)i) { cur_ = (int)i; dirty_ = true; }
-            return;
+            return true;
         }
         yy -= h + 12;
     }
+    return false;
 }
 
 void DialogueUI::onClick(int x, int y)  // 0x4129e0
@@ -375,11 +376,7 @@ void DialogueUI::onClick(int x, int y)  // 0x4129e0
         if (!r || r->waitingTalk()) { stopVoice(); advance(); }        // click skips the line
         return;
     }
-    onMove(x, y);
-    if (cur_ >= 0 && eligible(groups_[cur_], false)) {
-        // only if the pointer is on the choice
-        confirm();
-    }
+    if (onMove(x, y) && cur_ >= 0 && eligible(groups_[cur_], false)) confirm();
 }
 
 void DialogueUI::onKey(int key)         // 0x413e90

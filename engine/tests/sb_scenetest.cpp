@@ -1,7 +1,7 @@
 /*  sb_scenetest: the 2D scene runtime of the reconstructed game (game/src/game) on lane A's OMT 1.x layer, headless.
     Starts the first scene (c1l0s1) with its script, lets the script switch to c1l2s6, clicks objects with
     synthetic SDL mouse events, then enters c1l2s1 and runs a dialogue; frames are saved to <shots dir>.
-    usage: sb_scenetest <game folder> [frames=1100] [shots dir=.shots]      env: OMT_WINDOW_SIZE=640x480 SDL_AUDIODRIVER=dummy
+    usage: sb_scenetest <game folder> [frames=1600] [shots dir=.shots]      env: OMT_WINDOW_SIZE=640x480 SDL_AUDIODRIVER=dummy
     A step list "frame:action" can replace the default run: SBT_STEPS="120:click 140 80,200:key 3,..." (actions:
     click X Y | move X Y | key N | scene NAME | event NAME | shot) ; SBT_SCENE picks the first scene.            */
 
@@ -63,11 +63,15 @@ static std::vector<Step> default_steps()
 		{"680", "scene c1l2s1"},                 // the Krusty Krab
 		{"700", "shot"},
 		{"730", "click 560 200"}, {"740", "shot"}, // the weirdo in the window (ANIM, click to play)
-		{"790", "event AAA"}, {"800", "shot"},   // the hungry customer: dialogue
-		{"830", "shot"},
-		{"880", "move 200 440"}, {"890", "shot"},
-		{"900", "key 3"}, {"930", "shot"},
-		{"1000", "click 60 440"}, {"1020", "shot"},
+		{"790", "event AAA"}, {"800", "shot"},   // the hungry customer: dialogue, the opening statement (voice)
+		{"880", "shot"},
+		{"1050", "click 300 100"},               // a click skips the line that is still playing
+		{"1100", "shot"},                        // the choice list
+		{"1110", "move 100 458"}, {"1115", "shot"},   // hover on a choice
+		{"1120", "click 100 458"}, {"1130", "shot"},  // pick it: its lines play
+		{"1300", "shot"},
+		{"1500", "key 1"}, {"1510", "shot"},     // Escape ends the conversation
+		{"1560", "click 60 440"}, {"1570", "shot"},
 	};
 	std::vector<Step> v;
 	for (size_t i = 0; i < sizeof(s) / sizeof(s[0]); ++i) { Step st; st.frame = atoi(s[i][0]); st.what = s[i][1]; v.push_back(st); }
@@ -94,7 +98,7 @@ void omt_main(void)
 {
 	if (omt_argc < 2) { printf("usage: sb_scenetest <game folder> [frames] [shots dir]\n"); return; }
 	std::string folder = omt_argv[1];
-	int frames = omt_argc > 2 ? atoi(omt_argv[2]) : 1100;
+	int frames = omt_argc > 2 ? atoi(omt_argv[2]) : 1600;
 	std::string shots = omt_argc > 3 ? omt_argv[3] : ".shots";
 	setenv("SDL_AUDIODRIVER", "dummy", 0);
 	try
@@ -123,6 +127,7 @@ void omt_main(void)
 		int pendingIter = 0;
 		setenv("OMT_FRAMES", "99999999", 1);		// the engine hook quits at OMT_FRAMES (default 30) when OMT_SCREENSHOT is set
 
+		unsigned last = 0;
 		for (int frame = 1; frame <= frames; ++frame)
 		{
 			if (pendingShot) {
@@ -154,6 +159,7 @@ void omt_main(void)
 				} else if (sscanf(w.c_str(), "key %d", &k) == 1) {
 					printf("[%d] key %d\n", frame, k);
 					if (k == 3) send_key(em, SDLK_RETURN);
+					else if (k == 1) send_key(em, SDLK_ESCAPE);
 					else if (k == 8) send_key(em, SDLK_UP);
 					else if (k == 9) send_key(em, SDLK_DOWN);
 				} else if (sscanf(w.c_str(), "scene %63s", name) == 1) {
@@ -173,10 +179,14 @@ void omt_main(void)
 						   game->scene() && game->scene()->dialogue() && game->scene()->dialogue()->busy() ? "on" : "off");
 				}
 			}
-			game->update(33.0f);
+			unsigned now = SDL_GetTicks();
+			float dt = last ? (float)(now - last) : 16.0f;
+			last = now;
+			if (dt > 66.0f) dt = 66.0f;		// frames the machine could not render in time do not skip a script
+			game->update(dt);
 			OMediaPeriodical::devote_time();
 			game->world()->update();
-			SDL_Delay(1);
+			SDL_Delay(10);
 		}
 		printf("stub calls (3D/character): %u, movies: %u\n", game->host()->stubCalls(), (unsigned)game->movieLog.size());
 		delete game;
