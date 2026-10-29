@@ -69,4 +69,88 @@ use ikb1 teller
 idle
 expect 222BAA
 shot 10-c2l2s2-unlock
+map
+scene c2l1s1
+idle
+shot 11-c2l1s1-map
+click chap202
+scene c2l4s1
+idle
+shot 12-c2l4s1-wsea
+click "Walk Behind the Scenes"
+scene c2l4s9
+idle
+shot 13-c2l4s9-meanwhile
+scene c2l4s2
+idle
+shot 14-c2l4s2-jojo
+talk jojo AAA ACA ACA AXA
+idle
+expect 242ACA
+map
+scene c2l1s1
+idle
+shot 15-c2l1s1-map2
+click chap203
+scene c2l3s1
+idle
+shot 16-c2l3s1-rusty
+click "Walk to Parking Lot"
+scene c2l3s2
+idle
+shot 17-c2l3s2-parking
+talk bb AAA ABA ACA AXA
+idle
+talk mm BAA BBA BXA
+idle
+click "Walk to The Rusty Anchor"
+scene c2l3s1
+idle
+click "Enter The Rusty Anchor"
+scene c2l3s3
+idle
+shot 18-c2l3s3-bar
+talk mack AAA ABA ACA ADA
+idle
+click "Walk to Pictures"
+scene c2l3s4
+idle
+shot 19-c2l3s4-pictures
+click iem1
+idle
+have iem1
+click "Walk to Cola Bar"
+scene c2l3s3
+idle
+click "Walk to Kegs"
+scene c2l3s5
+idle
+shot 20-c2l3s5-kegs
+use iem1 "Diet Coral-Cola Spout"
+idle
+have ifm1
+combine ifm1 ikc1
+idle
+have ikc2
+shot 21-c2l3s5-fullcan
+click "Exit Kegs"
+scene c2l3s3
+idle
+click "Exit The Rusty Anchor"
+scene c2l3s1
+idle
+map
+scene c2l1s1
+idle
+click chap202
+scene c2l4s1
+idle
+click "Walk Behind the Scenes"
+scene c2l4s2
+idle
+use ikc2 jojo
+idle
+shot 22-c2l4s2-jojo-drink
+expect 242CAA
+save 0
 end
