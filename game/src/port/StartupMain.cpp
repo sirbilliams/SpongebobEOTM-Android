@@ -488,7 +488,8 @@ class StartupApp : public MenuHost
         bool result=true, keep=false;
         try {
             if(launch==L_RESUME && paused) {            // 0x4248b0: the menu closes and the game in progress goes on
-                game=paused; paused=NULL; game->suspended=false; apply_settings(); game->optText=text; game->optShadows=shadows;
+                game=paused; paused=NULL; game->suspended=false; game->pauseMusic(false); apply_settings();   // port: music paused behind the menu (0x40c780)
+                game->optText=text; game->optShadows=shadows;
                 game->forceRedraw();
             } else {
                 delete paused; paused=NULL;
@@ -567,7 +568,7 @@ class StartupApp : public MenuHost
                 if(leave) {                              // the game stays alive behind the menu (Save Game, Resume Game)
                     sbgame::SaveGame::grabThumb(screen->getdefaultdrawgfxworld(),paused_thumb);
                     test_dump(game,"SB_TEST_DUMP_PAUSE");
-                    game->suspended=true; paused=game; keep=true; break;
+                    game->suspended=true; game->pauseMusic(true); paused=game; keep=true; break;   // port: 0x40c730
                 }
                 if(movie_done) {
                     movie_done=false;

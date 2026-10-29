@@ -95,6 +95,7 @@ bool GameScene::load(unsigned id)
     exits_[1] = cm.o01b2.text();   // +0x41a
     exits_[2] = cm.o01d2.text();   // +0x43a
     exits_[3] = cm.o01f2.text();   // +0x45a
+    musicTrack_ = cm.o0218.text(); // +0x480
     enterEvent_ = cm.o0244.text(); // +0x4ac
     enterCond_ = cm.o0264.text();  // +0x4cc
     buildObjects();
@@ -284,6 +285,7 @@ void GameScene::enter(int startPoint)
     game_->state().sceneId = sceneId_;
     if (game_->world3d()) game_->world3d()->enter(startPoint);       // 0x437cf0 "here 1".."3": the player to the start point
     refreshVisibility();                                // vt+0x100 at "here 4"
+    game_->sceneMusic();                                // vt+0x108 at "here 5" (0x4385c0): the scene's song
     game_->log("scene %s entered (start point %d)\n", name_.c_str(), startPoint);
     if (getenv("SB_TEST_DUMPOBJS")) {        // port: tests only: every object of the scene with its events (route planning)
         static const char* kn[] = { "2DOB", "ANIM", "SPOT", "ITEM", "CHAR", "TRIG" };

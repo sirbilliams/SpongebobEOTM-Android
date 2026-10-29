@@ -298,16 +298,12 @@ void SceneScriptHost::sceneSparkle(int x, int y) { if (g_->hud()) g_->hud()->spa
 
 // ------------------------------------------------------------------------------------------ game
 void SceneScriptHost::gameSwitch(const char* t) { g_->switchTo(t); }
-// lane e: game vt+0xfc (0x40c860): in c3l2s3 / c7l5s1 the level "c<chapter>l<n>" of the current scene is kept (game+0x1e6 / +0x206) for the
-// scene's leave handler (0x4385c0).  The trailing level load (vt+0xc4) is a no-op for the current level.
+// game vt+0xfc (0x40c860): the next level's song (Game::skipMusic); in c1l5s7 / c3l2s3 the name is kept for the scene's leave
+// handler (0x4385c0, Game::sceneMusic)
 void SceneScriptHost::gameSkip()
 {
-    unsigned id = sceneId();
-    char b[16];
-    snprintf(b, sizeof b, "c%dl%d", g_->state().chapter, (int)((id >> 8) & 0xf));
-    if (id == 0x70501) g_->levelRet206 = b;
-    else if (id == 0x30203) g_->levelRet1e6 = b;
-    g_->log("      skip: level %s kept\n", b);
+    g_->skipMusic();
+    g_->log("      skip: music '%s'\n", g_->musicName().c_str());
 }
 void SceneScriptHost::gameSetBlending(bool on) { g_->blending = on; }      // game+0x251
 void SceneScriptHost::gameComment(const char* id) { g_->showComment(id); }

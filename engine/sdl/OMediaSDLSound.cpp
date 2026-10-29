@@ -120,6 +120,7 @@ struct OMediaSDLVoice
 	int					channels, bits;
 	float				gain_l, gain_r;		// from the channel's volume and pan
 	bool				loop, active;
+	bool				paused;			// port: the Game pauses the music while the menu is up (0x40c730)
 };
 
 static SDL_AudioDeviceID	omg_audio_dev = 0;
@@ -197,7 +198,7 @@ static void SDLCALL omf_audio_cb(void *, Uint8 *stream, int len)
 		for (size_t vi = 0; vi < omg_voices.size(); vi++)
 		{
 			OMediaSDLVoice *v = omg_voices[vi];
-			if (!v->active || !v->frames) continue;
+			if (!v->active || v->paused || !v->frames) continue;
 			unsigned int f = (unsigned int)v->pos;
 			if (f >= v->frames)
 			{
@@ -258,7 +259,7 @@ class OMediaSDLSoundChannel : public OMediaSoundChannel
 	public:
 	OMediaSDLSoundChannel()
 	{
-		voice.active = false; voice.frames = 0; voice.pcm = NULL;
+		voice.active = false; voice.paused = false; voice.frames = 0; voice.pcm = NULL;
 		ds_volume = 0; ds_pan = 0;
 		update_gains();
 		if (omg_audio_dev) SDL_LockAudioDevice(omg_audio_dev);
@@ -286,7 +287,7 @@ class OMediaSDLSoundChannel : public OMediaSoundChannel
 		voice.frames = s->pcm_length / (s->channels * (s->bits / 8));
 		voice.pos = 0;
 		voice.step = double(frequence ? frequence : s->freq) / double(omg_out_freq);
-		voice.loop = loop; voice.active = true;
+		voice.loop = loop; voice.active = true; voice.paused = false;
 		if (omg_audio_dev) SDL_UnlockAudioDevice(omg_audio_dev);
 		last_played = sound;
 		current_looped = loop;
@@ -367,6 +368,16 @@ class OMediaSDLSoundChannel : public OMediaSoundChannel
 	OMediaSDLVoice voice;
 	long ds_volume, ds_pan;				// what DirectSound accepted last
 };
+
+// port: pause / resume one channel's voice (DirectSound buffer Stop / Play, game vt+0x7c / +0x80 -> 0x40c730 / 0x40c780)
+void omf_SDLPauseChannel(OMediaSoundChannel *c, bool pause)
+{
+	OMediaSDLSoundChannel *ch = dynamic_cast<OMediaSDLSoundChannel*>(c);
+	if (!ch) return;
+	if (omg_audio_dev) SDL_LockAudioDevice(omg_audio_dev);
+	ch->voice.paused = pause;
+	if (omg_audio_dev) SDL_UnlockAudioDevice(omg_audio_dev);
+}
 
 // ---------------------------------------------------------------------------
 // Engine

@@ -82,6 +82,7 @@ public:
     std::vector<SceneObject*>& objects() { return objects_; }
     SceneObject* find(const char* name, int kindMask = 0);            // scene vt+0xe4 (characters) and by-name lookups
     const std::string& exit(int dir) const { return exits_[dir & 3]; }   // camera +0x3fa .. +0x45a (0x40ac20)
+    const std::string& musicTrack() const { return musicTrack_; }       // camera +0x218 (scene+0x480), "Music Track"
     const std::string& enterEvent() const { return enterEvent_; }        // camera +0x4ac, condition +0x4cc
     OMedia2DWorld* world();                                            // the game's display world
 
@@ -165,7 +166,7 @@ private:
     void updateSky(float dtMs);
     std::vector<SceneObject*> objects_;
     std::string exits_[4];
-    std::string enterEvent_, enterCond_;
+    std::string enterEvent_, enterCond_, musicTrack_;
     DialogueUI* dialogue_;
     OMediaBoxElement* barTop_;
     OMediaBoxElement* barBot_;

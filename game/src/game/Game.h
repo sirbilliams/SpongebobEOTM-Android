@@ -119,6 +119,13 @@ public:
     bool playOnChannel(int ch, OMediaSound* s, int pan);
     bool channelBusy(int ch);
     void stopChannel(int ch);
+    // music (docs/music.md): the song plays on channel 3, looped, from the chapter's music\c<n>.omt (game+0x60); song name game+0x1c6, song object game+0x6c
+    bool playMusic(const char* name);               // game vt+0xc4, 0x40ca60 (true: it plays now, or already played)
+    void sceneMusic();                              // scene vt+0x108, 0x4385c0 (called by 0x437cf0 "here 5")
+    void skipMusic();                               // game vt+0xfc, 0x40c860 (script `skip`: the next level's song)
+    void stopMusic();                               // the music part of 0x40c620
+    void pauseMusic(bool pause);                    // 0x40c730 / 0x40c780 (the port: while the game sits behind the menu)
+    const std::string& musicName() const { return musicName_; }
     // Mouse position for tests / synthetic events
     void mouseDown(int x, int y);
     void mouseMove(int x, int y);
@@ -140,6 +147,7 @@ private:
     friend class SceneScriptHost;
     void doSwitch();
     void loadSceneBanks(unsigned sceneId);
+    void loadMusicBank(int chapter);                // 0x40b1c4: music\c%d.omt on a chapter change
     void loadSkies(int chapter);
     void runScript(const char* name);
     void updateComment(float dt);
@@ -150,6 +158,10 @@ private:
     OMediaViewPort* vp_;
     OmtFile skies_;                         // game+0x64: sceneart/c%dskies.omt
     OMediaCanvas* skyCache_[10];            // game+0x70 + index*4
+    OmtFile musicBank_;                     // game+0x60: music\c%d.omt
+    OMediaSound* music_;                    // game+0x6c: the song on channel 3 (owned by the bank)
+    std::string musicName_;                 // game+0x1c6
+    int musicChapter_;
     OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_, helpBank_, globalCommentBank_;
     RetailData* retail_;
     GameFont* font_;
