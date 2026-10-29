@@ -5,6 +5,8 @@
 #include "OMediaDisplay.h"
 #include "OMediaViewPort.h"
 #include <dirent.h>
+#include <algorithm>
+#include <limits.h>
 #include <math.h>
 #include <stdio.h>
 #include <string.h>
@@ -13,14 +15,14 @@
 
 namespace sbgame {
 
-static const float kWalkSpeed = 220.0f;      // port: units per second (the exe walks by the animation's root motion)
-static const float kRunSpeed = 380.0f;
-static const double kPi = 3.14159265358979;
+static const float kWalkSpeed = 150.0f;      // 0x42f1a0: 0.15 world units per elapsed millisecond
+static const float kRunSpeed = 300.0f;
 
 Actor3D::Actor3D()
     : obj(0), model(0), elem(0), mode(Idle), x(0), y(0), z(0), heading(0), walking(false), tx(0), tz(0), speed(0), rotating(false),
-      rotTarget(0), rotMs(0), rotLeft(0), idling(false), idleLeft(0), waited(false), scheduled(false)
+      rotTarget(0), rotTolerance(0), idling(false), idleLeft(0), waited(false), scheduled(false)
 {
+    waypoint = 0; interaction = 0; radius = 50; control = true; useGrid = false;
 }
 
 static std::string lower(std::string s)
@@ -46,7 +48,11 @@ OMedia3DAbstractRasterizer* World3D::rasterizer()
 World3D::World3D(Game* game, GameScene* scene)
     : game_(game), scene_(scene), w3_(0), vp_(0), vpe_(0), wake_(false)
 {
+    // Match sb2 startup (also StartupApp): zero disables OMT database eviction.
+    // The direct scene-test entry bypasses StartupApp; Granny material cookies retain these objects.
+    OMediaDataBase::set_cache_size(0);
     dir_ = game->root();
+    grids_[0] = scene->data().grids[0]; grids_[1] = scene->data().grids[1];
     OMedia3DAbstractRasterizer* ras = rasterizer();
     if (!ras) { game_->log("3D: no rasterizer\n"); return; }
     omd_REGISTERCLASS(OMedia3DMaterial);
@@ -103,6 +109,7 @@ World3D::World3D(Game* game, GameScene* scene)
             }
         }
         a->heading = (rec && rec->tag == sb::scene::CharacterTag) ? (rec->data.character.o0240 & 0x3fff) : 0;
+        if (rec && rec->tag == sb::scene::CharacterTag) { a->radius = rec->data.character.o023c; a->useGrid = rec->data.character.o0280 != 0; }
         a->model = new OMedia3DGrannyModel;
         std::string sub = o->kind == SceneObject::Char ? "/models/people/" : "/models/items/";
         if (!a->model->load(dir_ + sub + a->name + "_model")) {
@@ -210,34 +217,228 @@ void World3D::talkAll(bool on)
     for (size_t i = 0; i < actors_.size(); i++) if (actors_[i]->mode == Actor3D::Talk) talk(actors_[i]->obj, on);
 }
 
-// Facing of a walk: heading 0 looks along -z (towards the camera), a turn to the right (+x) is positive.
+// OMedia3DVector::angles, then sb2 0x434650: integer degrees, subtract 90.
 static int headingOf(float dx, float dz)
 {
-    double a = atan2((double)dx, (double)-dz);          // 0 at -z
-    int h = (int)floor(a * 16384.0 / (2.0 * kPi) + 0.5);
-    return h & 0x3fff;
+    OMedia3DVector direction(dx,0,dz);
+    short pitch, yaw; direction.angles(pitch,yaw);
+    int d = ((int)yaw * 360 >> 14) - 90;
+    if (d < 0) d += 360;
+    return (d * 16384 / 360) & 0x3fff;
+}
+
+const sb::scene::Grid* World3D::grid(float y) const
+{
+    for (int i = 0; i < 2; ++i) {
+        const sb::scene::Grid& g = grids_[i];
+        if (g.present && g.o0014 == y) return &g;
+    }
+    return 0;
+}
+
+// 0x4183d0: a boundary belongs to the cell on its lower side.
+static int gridIndex(float v, float origin, float size, float half)
+{
+    if (size <= 0 || !isfinite(v)) return -1;
+    float edge = origin - half * size;
+    for (int i = 0; i < 30; ++i) {
+        if (v <= edge) return i - 1;
+        edge += size;
+    }
+    return v <= edge ? 29 : -1;
+}
+
+// 0x418460 accepts fractional cell coordinates; scripts pass them unchanged (zero based).
+static void gridPoint(const sb::scene::Grid& g, float gx, float gz, float& x, float& z)
+{
+    x = g.o000c + (gx - g.halfSize) * g.o0008;
+    z = g.o0010 + (gz - g.halfSize) * g.o0008;
+}
+
+void World3D::blockCell(int x, int z, bool blocked)
+{
+    if (x < 0 || z < 0 || x >= 30 || z >= 30) return;
+    float y = 0;
+    for (size_t i = 0; i < actors_.size(); ++i) if (actors_[i]->obj->userCtl) { y=actors_[i]->y; break; }
+    for (int i=0; i<2; ++i) if (grids_[i].present && grids_[i].o0014 == y) {
+        grids_[i].cells[x][z] = blocked ? 1 : 0; break;
+    }
+}
+
+bool World3D::cell(const sb::scene::Grid& g, int x, int z) const
+{
+    return x >= 0 && z >= 0 && x < (int)g.side && z < (int)g.side &&
+        !g.cells[x][z] && !game_->state().isBlocked(scene_->sceneId(), x, z);
+}
+
+bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run)
+{
+    const sb::scene::Grid* g = grid(a->y);
+    std::vector< std::pair<float,float> > route;
+    if (g && a->useGrid && (!game_->runner() || game_->runner()->terrain())) {
+        if (gx < 0 || gz < 0) {
+            gx = gridIndex(x, g->o000c, g->o0008, g->halfSize);
+            gz = gridIndex(z, g->o0010, g->o0008, g->halfSize);
+        }
+        int sx = gridIndex(a->x, g->o000c, g->o0008, g->halfSize);
+        int sz = gridIndex(a->z, g->o0010, g->o0008, g->halfSize);
+        if (!cell(*g, gx, gz) || sx < 0 || sz < 0 || sx >= 30 || sz >= 30) return false;
+        // 0x42af50: eight neighbours, cardinal cost 64, diagonal 90.
+        // port: bounded A* storage replaces the exe's pointer-linked open list.
+        const int dx[8] = {0,1,0,-1,1,1,-1,-1};
+        const int dz[8] = {-1,0,1,0,-1,1,1,-1};
+        int cost[900], parent[900], order[900]; bool closed[900];
+        int serial = 1;
+        for (int i = 0; i < 900; ++i) { cost[i] = INT_MAX; parent[i] = -1; closed[i] = false; order[i] = INT_MAX; }
+        // 0x439e20/0x4181e0: other visible characters occupy their centre and four +/-20 corners.
+        bool occupied[900]; memset(occupied,0,sizeof occupied);
+        const float ox[5] = {0,20,20,-20,-20}, oz[5] = {0,20,-20,20,-20};
+        for (size_t i = 0; i < actors_.size(); ++i) {
+            Actor3D* other = actors_[i];
+            if (other == a || other->obj->kind != SceneObject::Char || other->y != a->y || other->elem->get_hide_count()) continue;
+            for (int k=0;k<5;++k) {
+                int cx=gridIndex(other->x+ox[k],g->o000c,g->o0008,g->halfSize);
+                int cz=gridIndex(other->z+oz[k],g->o0010,g->o0008,g->halfSize);
+                if(cx>=0 && cx<30 && cz>=0 && cz<30) occupied[cx*30+cz]=true;
+            }
+        }
+        int source = sx * 30 + sz, target = gx * 30 + gz;
+        cost[source] = 0; order[source] = 0;
+        for (int n = 0; n < 900; ++n) {
+            int best = -1;
+            for (int i = 0; i < 900; ++i)
+                if (!closed[i] && cost[i] != INT_MAX) {
+                    int hx = i/30-gx, hz = i%30-gz;
+                    int score = cost[i] + (int)(sqrt((double)(hx*hx+hz*hz))*64);
+                    int bx = best < 0 ? 0 : best/30-gx, bz = best < 0 ? 0 : best%30-gz;
+                    int prev = best < 0 ? INT_MAX : cost[best] + (int)(sqrt((double)(bx*bx+bz*bz))*64);
+                    if (best < 0 || score < prev || (score == prev && order[i] < order[best])) best = i;
+                }
+            if (best < 0 || best == target) break;
+            closed[best] = true;
+            for (int d = 0; d < 8; ++d) {
+                int nx = best / 30 + dx[d], nz = best % 30 + dz[d];
+                if (!cell(*g, nx, nz) || occupied[nx*30+nz]) continue;
+                int next = nx * 30 + nz, c = cost[best] + (d < 4 ? 64 : 90);
+                if (c < cost[next]) { cost[next] = c; parent[next] = best; if (order[next] == INT_MAX) order[next] = serial++; }
+            }
+        }
+        if (cost[target] == INT_MAX) return false;
+        for (int i = target; i != source; i = parent[i]) {
+            float px, pz; gridPoint(*g, i / 30 + 0.5f, i % 30 + 0.5f, px, pz);
+            route.push_back(std::make_pair(px, pz));
+        }
+        std::reverse(route.begin(), route.end());
+        // The exe walks through cell centres after route search.
+        if (route.empty()) return false;
+    } else {
+        if (gx >= 0 && gz >= 0) { if (!g) return false; gridPoint(*g,(float)gx,(float)gz,x,z); }
+        if ((x-a->x)*(x-a->x)+(z-a->z)*(z-a->z) < 1) return false;
+        route.push_back(std::make_pair(x,z));
+    }
+    a->route = route; a->waypoint = 0; a->interaction = 0;
+    a->walking = true; a->tx = route[0].first; a->tz = route[0].second;
+    a->speed = run ? kRunSpeed : kWalkSpeed;
+    a->rotating = false;
+    int targetHeading = headingOf(a->tx - a->x, a->tz - a->z);
+    int diff = ((targetHeading - a->heading + 8192) & 16383) - 8192;
+    if (abs(diff) >= 500 && exists(a, "rotate")) {
+        a->rotating = true; a->rotTarget = targetHeading; a->rotTolerance = 500;
+        setAnim(a, "rotate", 9999, 1, Actor3D::Loop);
+    } else {
+        a->heading = targetHeading;
+        setAnim(a, run && exists(a,"run") ? "run" : "walk", 9999, 1, Actor3D::Loop);
+    }
+    a->waited = true;
+    game_->log("walk %s: %u waypoints, destination %g,%g\n", a->name.c_str(), (unsigned)route.size(), a->route.back().first, a->route.back().second);
+    return true;
 }
 
 bool World3D::walk(SceneObject* o, float x, float z, bool run)
 {
     Actor3D* a = actorFor(o);
+    return a && gridWalk(a, x, z, -1, -1, run);
+}
+
+bool World3D::walkGrid(SceneObject* o, int gx, int gz)
+{
+    Actor3D* a = actorFor(o);
+    return a && gridWalk(a, 0, 0, gx, gz, false);
+}
+
+void World3D::moveGrid(SceneObject* o, int gx, int gz)
+{
+    Actor3D* a = actorFor(o);
+    const sb::scene::Grid* g = a ? grid(a->y) : 0;
+    if (!g || gx < 0 || gz < 0 || gx >= (int)g->side || gz >= (int)g->side) return;
+    float x,z; gridPoint(*g, (float)gx, (float)gz, x,z); moveTo(o,x,z);
+}
+
+void World3D::setRunning(SceneObject* o)
+{
+    Actor3D* a = actorFor(o);
+    if (!a || !a->walking) return;
+    a->speed = kRunSpeed;
+    if (!a->rotating && exists(a,"run")) setAnim(a,"run",9999,1,Actor3D::Loop);
+}
+
+bool World3D::clickFloor(int x, int y)
+{
+    Actor3D* a = 0;
+    for (size_t i = 0; i < actors_.size(); ++i)
+        if (actors_[i]->obj->userCtl && actors_[i]->control) { a = actors_[i]; break; }
     if (!a) return false;
-    float dx = x - a->x, dz = z - a->z;
-    if (dx * dx + dz * dz < 1.0f) return false;
-    a->walking = true; a->tx = x; a->tz = z; a->speed = run ? kRunSpeed : kWalkSpeed;
-    a->heading = headingOf(dx, dz);
-    a->rotating = false;
-    if (exists(a, run ? "run" : "walk")) setAnim(a, run ? "run" : "walk", 9999, 1.0f, Actor3D::Loop);
-    else if (exists(a, "walk")) setAnim(a, "walk", 9999, 1.0f, Actor3D::Loop);
-    a->waited = true;
-    return true;
+    const sb::scene::Grid* g = grid(a->y);
+    if (!g) return false;
+    const sb::scene::Camera& c = scene_->data().camera.data.camera;
+    if (c.o0188 <= 0) return false;
+    OMedia3DVector ray((float)x - 320, 240 - (float)y, c.o0188);
+    // Inverse of the renderer's world -> view transform; input already mapped to logical pixels.
+    ray.rotate((short)(c.o0180*16384/360), (short)(c.o0182*16384/360), (short)(c.o0184*16384/360));
+    if (fabs(ray.y) < 0.00001) return false;
+    float t = (g->o0014 - c.o0178) / ray.y;
+    if (t <= 0) return false;
+    bool result = walk(a->obj, c.o0174 + t*ray.x, c.o017c + t*ray.z, false);
+    if (result) a->waited = false;
+    return result;
+}
+
+bool World3D::approach(SceneObject* target)
+{
+    if (target->gridX == -1 && target->gridY == -1) return false;
+    for (size_t i = 0; i < actors_.size(); ++i) {
+        Actor3D* a = actors_[i];
+        if (!a->obj->userCtl || !a->control || a->obj == target) continue;
+        bool started = false;
+        if (target->gridX > 0 && target->gridY > 0)
+            started = walkGrid(a->obj, target->gridX-1, target->gridY-1);
+        else if (target->kind == SceneObject::Char || target->kind == SceneObject::Item)
+            started = walk(a->obj, target->px, target->pz, false);
+        if (started) { a->interaction = target; a->waited = false; return true; }
+    }
+    return false;
+}
+
+void World3D::finishInteraction(Actor3D* a)
+{
+    SceneObject* target = a->interaction;
+    if (!target) return;
+    if (target->kind == SceneObject::Char || target->kind == SceneObject::Item) {
+        int heading = headingOf(target->px-a->x,target->pz-a->z);
+        if (rotate(a->obj,heading,500)) { a->interaction = target; a->waited = false; return; }
+    }
+    a->interaction = 0;
+    scene_->pickEvent(target,true);
 }
 
 void World3D::stopWalk(SceneObject* o)
 {
     Actor3D* a = actorFor(o);
-    if (!a || !a->walking) return;
-    a->walking = false; a->waited = false;
+    if (!a) return;
+    bool active = a->walking || a->rotating;
+    a->rotating = false;
+    a->walking = false; a->waited = false; a->interaction = 0; a->route.clear();
+    if (!active) return;
     setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
 }
 
@@ -245,17 +446,20 @@ void World3D::moveTo(SceneObject* o, float x, float z)
 {
     Actor3D* a = actorFor(o);
     if (!a) return;
-    a->x = x; a->z = z; a->walking = false;
+    a->x = x; a->z = z;
     place(a);
 }
 
-bool World3D::rotate(SceneObject* o, int angle, int ms)
+bool World3D::rotate(SceneObject* o, int angle, int tolerance)
 {
     Actor3D* a = actorFor(o);
     if (!a) return false;
     angle &= 0x3fff;
-    if (a->heading == angle) return false;
-    a->rotating = true; a->rotTarget = angle; a->rotMs = a->rotLeft = (float)(ms > 0 ? ms : 1);
+    int diff = ((angle - a->heading + 8192) & 16383) - 8192;
+    if (!diff || abs(diff) < tolerance) return false;
+    stopWalk(o);
+    setAnim(a,"rotate",9999,1,Actor3D::Loop);
+    a->rotating = true; a->rotTarget = angle; a->rotTolerance = (float)(tolerance > 0 ? tolerance : 1);
     a->waited = true;
     return true;
 }
@@ -301,21 +505,35 @@ void World3D::update(float dtMs)
     for (size_t i = 0; i < actors_.size(); i++) {
         Actor3D* a = actors_[i];
         bool moved = false;
-        if (a->walking) {
+        if (a->walking && !a->rotating) {
             float dx = a->tx - a->x, dz = a->tz - a->z, d = sqrtf(dx * dx + dz * dz), step = a->speed * dt;
-            if (d <= step) {
-                a->x = a->tx; a->z = a->tz; a->walking = false;
-                setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
-                finished(a);
+            float tolerance = a->radius * 0.5f; if (tolerance < 25) tolerance = 25;
+            if (d <= step || d <= tolerance) {
+                if (d <= step) { a->x = a->tx; a->z = a->tz; }
+                if (++a->waypoint < a->route.size()) {
+                    a->tx = a->route[a->waypoint].first; a->tz = a->route[a->waypoint].second;
+                    a->heading = headingOf(a->tx-a->x, a->tz-a->z);
+                } else {
+                    a->walking = false;
+                    setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
+                    game_->log("walk stopped %s at %g,%g heading %d: idle1\n", a->name.c_str(),a->x,a->z,a->heading);
+                    finished(a);
+                    finishInteraction(a);
+                }
             } else { a->x += dx / d * step; a->z += dz / d * step; }
             moved = true;
         }
         if (a->rotating) {
-            a->rotLeft -= dtMs;
+
             int diff = ((a->rotTarget - a->heading) & 0x3fff);
             if (diff > 0x2000) diff -= 0x4000;
-            if (a->rotLeft <= 0) { a->heading = a->rotTarget; a->rotating = false; finished(a); }
-            else a->heading = (a->heading + (int)((float)diff * (dtMs / (a->rotLeft + dtMs)))) & 0x3fff;
+            // 0x42ee80: eight increments of elapsed-ms angle units (sixteen when running).
+            int step = (int)(dtMs * (a->speed == kRunSpeed && a->walking ? 16 : 8));
+            if (abs(diff) <= step || abs(diff) < a->rotTolerance) {
+                a->heading = a->rotTarget; a->rotating = false;
+                if (a->walking) setAnim(a, a->speed == kRunSpeed && exists(a,"run") ? "run" : "walk",9999,1,Actor3D::Loop);
+                else { setAnim(a,"idle1",9999,1,Actor3D::Idle); finished(a); finishInteraction(a); }
+            } else a->heading = (a->heading + (diff < 0 ? -step : step)) & 0x3fff;
             moved = true;
         }
         if (moved) place(a);

@@ -71,7 +71,7 @@ swapped on one `OMediaCanvasElement` instead of an `OMedia2DAnim` + `OMediaAnim`
 2 close, 3 transition close, 4 transition open (bars to -240 and 480), 5 hold 250 ms; speed 0.25 px per ms; every state end wakes the script.
 **Waits and wake-ups**: `step()` clears all waits, so a wake is `Game::wake()` = `runUntilWait` and deleting the runner when finished. Callers:
 bar states, ANIM end (`anim2d`), dialogue end (0x411ba0 / 0x439890), comment end, sound channel idle, the runner's idle timer, the HUD pickup timer, and
-the 3D stubs (a script waiting for a walk, rotate or character animation is woken after `sim3dMs` = 700 ms, `// 3D:`).
+character completion (`World3D` calls `actorDone` when walking, turning or a one-shot animation ends). Remaining unimplemented character commands still use simulated waits.
 **Sounds**: sound manager with 15 channels, 4 = voice, 5 = script `sound` / object sounds, 8 = comments, 9 = idle scripts. Bank lookups check
 `object_exists` first (`get_object` by a missing name creates an empty object), exact / lower / upper case.
 
@@ -102,7 +102,7 @@ script go on. `voiceBusy` = dialogue active (+0x19), `voiceDone` = 0x4371c0 (tru
 * stand-in font (`GlyphFont`, Font.omt glyph canvases) until lane C's font class (vtable 0x44dd78) lands; same `OMediaTextFont` interface.
 * one scene at a time; text wrapping by `TextBlock` (one caption per row), highlight is a box; hover text placement is approximate (cursor + 14, 16).
 * not done: the HUD / inventory bar (0x4201c0, 0x420b20, 0x420d50: item drag, "Show Inventory", map, hint), the cursor object (game+0x88), the 3D
-  world, characters, grid walking, triggers/doors, save games (0x416ed0), mini games, `shock` / `sparkle` effects, movies (hook only), scene switch
+  triggers/doors, save games (0x416ed0), mini games, `shock` / `sparkle` effects, movies (hook only), scene switch
   "loading" cover, dialogue specials per scene id (0x411ba0 tail), the speaker camera/actor swapping in 0x412d00.
 
 ## sb_scenetest
@@ -122,14 +122,12 @@ ITEM record an `OMedia3DGrannyModel` (`models/people|items/<name>_model`) + `OMe
 0x4000 = 360). Characters start with `<name>_idle1`. `World3D::update` (from `Game::update`): Granny clock, walks, rotations, pose copy, 3D render.
 * The scene's player start point (`pN`) moves the `User Controlled` character when the point is not all zero (c1l0s1's are zero: the CHAR position).
 * SceneScriptHost: `play` (one-shot `<name>_<anim>.grn`, waits until the Granny control expires, then back to idle1), `loop`, `talk` anim, `walk` / `run`
-  (straight line, 220 / 380 units per second, walk anim, facing from the direction), `move`, `rotate` (absolute heading, shortest way, 500 ms), `show` /
+  (grid route, 150 / 300 world units per second, walk/run animation), `walkgrid`, `movegrid`, `move`, `movey`, `rotate` (absolute heading, shortest way, 500 angle-unit tolerance), `show` /
   `hide` / Visible Condition on characters. The dialogue speaker loops `<name>_talk` while a line plays (`speakersIdle` on line end).
 * Picking: `OMedia3DVPModel` records the screen rectangle of each element's visible polygons in the last render (`get_element_bounds`); `World3D::pick`
   returns the nearest clickable CHAR / ITEM whose rectangle holds the pointer. `GameScene::click` / `hover` ask it before the 2D objects (the exe's
   3D passes come first, 0x43a310). A click on a character runs its `Event` through the classifier: the dialogue starts (no `event AAA` stand-in).
-* Simplified (port): walking is a straight line without the terrain grid (`walkgrid` finishes at once, grid cells are not decoded), no player walk
-  input / click-to-walk (a click on an object with a grid cell runs its event at once), walk speed is fixed instead of root motion, `moveY` / `climb` /
-  `attach` / `kick` / shadows / camera shake are not done (`attach`, `kick` only log), headings of walks assume heading 0 = facing -z.
+* Walking/grid reconstruction and remaining differences are detailed below. `climb`, `attach`, `kick`, shadows and camera shake remain incomplete.
 * Fonts: `Game` uses lane C's `GameFont` (0x414820..0x414fe0; `GlyphFont` is deleted).
 
 ## Game binary
@@ -182,3 +180,31 @@ local/UNIX sockets under this session's sandbox, and `import -display :83
 1920x1080 with SDL's headless fallback, then ImageMagick BMP-to-PNG conversion.
 The distrobox entry command is unavailable inside this already provisioned
 build environment. No Android device/launcher execution was available.
+
+## Lane D: walking and grid (2026-10-28)
+
+`World3D.cpp` now consumes the loaded GRID records, selects the plane by the actor's exact Y, searches eight neighbours, follows cell-centre waypoints, and switches walk/run/rotate/idle animations. The player's floor clicks use the existing logical-coordinate mapping followed by inverse camera projection onto that plane. Object approach cells defer the event until arrival; CHAR/ITEM approaches turn to face the object before dispatch. No SDL coordinate mapping was changed.
+
+Recovered meanings and routines:
+
+| Retail address | Meaning / implementation |
+|---|---|
+| `0x418140`, `0x4181c0` | Cell address is `x*30+z`, zero is open; `block`/`unblock` modify the selected plane. The second 900 bytes at grid+0x39c are temporary character occupancy, not another terrain height. |
+| `0x4183d0` | World -> cell: start at `(origin - halfSize*cellWidth)`, increment until the first boundary >= the coordinate. Exact boundaries belong to the lower cell; the outer lower boundary returns -1. |
+| `0x418460` | Cell -> world: X=`o000c + (gx-halfSize)*o0008`, Y=`o0014`, Z=`o0010 + (gz-halfSize)*o0008`. Fractional coordinates are allowed. |
+| `0x439e20`, `0x4181e0` | Select a grid by height; temporary occupancy of other visible characters uses the centre and four corners offset by 20 world units. |
+| `0x434650`, `0x42af50` | Walk setup and eight-neighbour search. Cardinal edge cost 64, diagonal 90; waypoints are cell centres. CHAR `o0280` and runner `terrain` enable terrain routing. `terrain off` walks directly; grid targets then use `0x418460` directly. |
+| `0x42f1a0`, `0x434ec0` | Speed is **0.15 units/ms walking, 0.30 running**, not root motion. Arrival threshold is max(radius/2,25). Heading derives from OMT vector yaw, converts to integer degrees, subtracts 90, then converts back to 16384 units/turn. |
+| `0x42ed80`, `0x42ee80` | Rotate uses shortest signed difference. The second argument (scripts pass 500) is **angular tolerance**, not milliseconds. Turning advances eight elapsed-ms angle increments, sixteen when running. |
+| `0x434390`, `0x4343b0`, `0x4342e0` | `move`, `movey`, `movegrid` place the character without a wait. `movegrid` uses the supplied coordinates unchanged. |
+| `0x4398f0`, `0x4184f0`, `0x433a60` | Floor click selects a projected grid cell; object approach uses positive object grid coordinates minus one, then defers interaction. |
+
+Important remaining reconstruction work (this lane is **not yet a fully faithful movement replacement**):
+
+* The bounded A* implementation uses the recovered eight neighbours and edge costs, but does not reproduce every open-list tie or the retail curve/clearance postprocessor (`0x42c450` and `0x42cc50` onward). It retains cell-centre waypoints. Exact paths and corner turns can differ from retail.
+* `checkgrid` is **not reconstructed**: its existing host still repositions at the same X/Z. The exe instead calls `0x434450`, chooses an up/down connector with `0x43a7a0`, and queues travel through it. Cross-height connectors, door animations, radius-based object approaches without an explicit grid cell, blocked interaction-cell neighbour fallback (`0x417f10`), and explicit object facing overrides are still required. Do not treat those as verified.
+* Player floor input is verified on the current plane. This does not establish cross-height routing, scene-edge exits, or every interaction case.
+
+Validation artifacts (local, ignored): `.shots/walk-*.png` are desktop captures of `c1l2s6` using `SB_TEST_GAME_CLICKS=100:450:395,700:500:435,1100:190:440`. The first destination routes around the blocked rectangle at cells X=8..9, Z=4..5. Xvfb could not bind :84; SDL offscreen OpenGL plus the existing `OMT_SHOTS` hook produced the captures. Use `OMT_DATA=$PWD/.game`, `SB_TEST_NEWGAME=1`, `SB_SKIP_MOVIES=1`, and `LD_LIBRARY_PATH=$HOME/Projects/sbeotm-private/ffmpeg/lib`.
+
+The custom script test in ignored `.shots/testdata` symlinks the installed assets and adds a generated script exercising `movegrid`, two waiting `walkgrid` commands, `rotate`, `move`, `movey`, and `walk`. `.shots/asan-script.log` records both grid walks completing and the script ending with zero stub calls. `sb_scripttest`, `sb_scenetest`, and `spongebob` build. ASan/UBSan checks use `detect_leaks=0` (process/global engine caches are retained); movement runs report no memory/undefined-behaviour errors. The direct scene entry initially exposed a database eviction use-after-free; `World3D` now applies the same cache-disable initialization as desktop startup before loading Granny materials.

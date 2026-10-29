@@ -146,16 +146,16 @@ ScriptActor* SceneScriptHost::findActor(const char* name)
 {
     return g_->scene() ? actorFor(g_->scene()->find(name, 1 << SceneObject::Char)) : 0;
 }
-void SceneScriptHost::actorBeginScript(ScriptActor* a) { (void)a; }      // char+0x37c = 0, +0x3cc = 0, +0x358 = 0: no walk state to reset
-void SceneScriptHost::actorSetControl(ScriptActor* a, bool on) { (void)a; (void)on; }   // char+0x32a: player walk input is not in this port yet
+void SceneScriptHost::actorBeginScript(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->stopWalk(a->obj); }
+void SceneScriptHost::actorSetControl(ScriptActor* a, bool on) { Actor3D* actor = a && g_->world3d() ? g_->world3d()->actorFor(a->obj) : 0; if (actor) actor->control = on; }
 bool SceneScriptHost::actorWalk(ScriptActor* a, float x, float y, int flag, int gx, int gy)
 {
     (void)flag;
     if (!a || !a->obj) return false;
-    if (gx >= 0 && gy >= 0) { stub("%s walkgrid %d,%d: simplified, the grid is not reconstructed (stays)", an(a), gx, gy); return false; }
+
     World3D* w = g_->world3d();
     if (w && w->hasModel(a->obj)) {
-        bool wait = w->walk(a->obj, x, y, false);
+        bool wait = gx >= 0 && gy >= 0 ? w->walkGrid(a->obj, gx, gy) : w->walk(a->obj, x, y, false);
         if (wait) wait3d_ = true;
         return wait;
     }
@@ -163,7 +163,7 @@ bool SceneScriptHost::actorWalk(ScriptActor* a, float x, float y, int flag, int 
     return false;
 }
 void SceneScriptHost::actorPrepareWalkGrid(ScriptActor* a) { (void)a; }
-void SceneScriptHost::actorSetRunning(ScriptActor* a) { (void)a; }      // port: walk() above has no run flag; the speed stays the walk speed
+void SceneScriptHost::actorSetRunning(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->setRunning(a->obj); }
 void SceneScriptHost::actorPosition(ScriptActor* a, float* x, float* y, float* z)
 {
     if (a && a->obj) { *x = a->obj->px; *y = a->obj->py; *z = a->obj->pz; }
@@ -176,8 +176,8 @@ void SceneScriptHost::actorMove(ScriptActor* a, float x, float y)
     if (g_->world3d() && g_->world3d()->hasModel(a->obj)) g_->world3d()->moveTo(a->obj, x, y);
     else { a->obj->px = x; a->obj->pz = y; }
 }
-void SceneScriptHost::actorMoveY(ScriptActor* a, float y) { (void)a; (void)y; stub("moveY (vt+0x14c): not done"); }
-void SceneScriptHost::actorMoveGrid(ScriptActor* a, int gx, int gy) { stub("%s moveGrid %d,%d (vt+0x150)", an(a), gx, gy); }
+void SceneScriptHost::actorMoveY(ScriptActor* a, float y) { Actor3D* actor = a && g_->world3d() ? g_->world3d()->actorFor(a->obj) : 0; if (actor) { actor->y = y; g_->world3d()->place(actor); } else if (a) a->obj->py = y; }
+void SceneScriptHost::actorMoveGrid(ScriptActor* a, int gx, int gy) { if (a && g_->world3d()) g_->world3d()->moveGrid(a->obj,gx,gy); }
 void SceneScriptHost::actorClimb(ScriptActor* a, float h) { stub("%s climb %g (vt+0x154)", an(a), h); }
 bool SceneScriptHost::actorRotate(ScriptActor* a, int angle, int time)
 {
@@ -251,7 +251,7 @@ void SceneScriptHost::sceneSpeak(const char* key)
         g_->wake();                              // port: the exe would wait for a dialogue that never starts
     }
 }
-void SceneScriptHost::sceneBlock(int x, int y, bool b) { g_->state().setBlocked(sceneId(), x, y, b); stub("block cell %d,%d %d (terrain grid 0x4181c0)", x, y, b ? 1 : 0); }
+void SceneScriptHost::sceneBlock(int x, int y, bool b) { g_->state().setBlocked(sceneId(), x, y, b); if (g_->world3d()) g_->world3d()->blockCell(x,y,b); }
 void SceneScriptHost::sceneSparkle(int x, int y) { stub("sparkle at %d,%d (HUD object 0x457334, 0x41ebe0)", x, y); }
 
 // ------------------------------------------------------------------------------------------ game

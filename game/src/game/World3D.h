@@ -27,7 +27,12 @@ struct Actor3D {
     float x, y, z;                    // world position
     int heading;                      // 0x4000 = 360 degrees
     bool walking; float tx, tz, speed;
-    bool rotating; int rotTarget; float rotMs, rotLeft;
+    std::vector< std::pair<float,float> > route;
+    size_t waypoint;
+    SceneObject* interaction;
+    float radius;
+    bool control, useGrid;
+    bool rotating; int rotTarget; float rotTolerance;
     bool idling; float idleLeft;
     bool waited;                      // the script waits for this actor's walk / rotate / animation
     bool scheduled;                   // the idle animation switch is due next frame
@@ -53,9 +58,15 @@ public:
     void talk(SceneObject* o, bool on);                                         // vt+0xc0("talk")
     void talkAll(bool on);
     bool walk(SceneObject* o, float x, float z, bool run);                      // vt+0x144
+    bool walkGrid(SceneObject* o, int gx, int gy);
+    void moveGrid(SceneObject* o, int gx, int gy);
+    void blockCell(int x, int z, bool blocked);
+    bool clickFloor(int x, int y);
+    bool approach(SceneObject* target);
+    void setRunning(SceneObject* o);
     void stopWalk(SceneObject* o);                                              // vt+0x184
     void moveTo(SceneObject* o, float x, float z);                              // vt+0x148 (no animation)
-    bool rotate(SceneObject* o, int angle, int ms);                             // vt+0x13c
+    bool rotate(SceneObject* o, int angle, int tolerance);                             // vt+0x13c
     bool idle(SceneObject* o, float seconds);                                   // vt+0x168
     void setHidden(SceneObject* o, bool hide);
     void refreshVisibility();                                                   // scene vt+0x100, CHAR / ITEM part
@@ -65,9 +76,13 @@ public:
 
 private:
     friend class SceneScriptHost;
+    const sb::scene::Grid* grid(float y) const;
+    bool cell(const sb::scene::Grid& g, int x, int z) const;
+    bool gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run);
     void setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m);
     void place(Actor3D* a);
     void finished(Actor3D* a);
+    void finishInteraction(Actor3D* a);
     std::string animPath(Actor3D* a, const char* name);
     static OMedia3DAbstractRasterizer* rasterizer();
 
@@ -79,6 +94,7 @@ private:
     OMediaVPElement* vpe_;
     std::vector<OMedia3DLight*> lights_;
     std::vector<Actor3D*> actors_;
+    sb::scene::Grid grids_[2];
     bool wake_;
 };
 

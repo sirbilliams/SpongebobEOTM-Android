@@ -461,7 +461,7 @@ bool ScriptRunner::step()
         host_->sceneBlock(atoi(a1) - 1, atoi(a2) - 1, false);
         return false;
     }
-    if (is(c, "rotate")) {                                       // 0x43edf9: degrees -> 1/16384 turn, 500 ms
+    if (is(c, "rotate")) {                                       // 0x43edf9: degrees -> 1/16384 turn, 500 angle-unit tolerance
         A_OR_RETURN;
         int32_t t = (int32_t)((uint32_t)atoi(a1) << 14);
         return host_->actorRotate(actor_, t / 360, 500);
