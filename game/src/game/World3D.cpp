@@ -76,7 +76,8 @@ World3D::World3D(Game* game, GameScene* scene)
     OMediaRect b3(0, 0, 640, 480);
     vp_->setbounds(&b3);
     vp_->place(cam.o0174, cam.o0178, cam.o017c);
-    vp_->set_angle((short)((cam.o0180 * 0x4000) / 360), (short)((cam.o0182 * 0x4000) / 360), (short)((cam.o0184 * 0x4000) / 360));
+    // 0x4033f0: the angles are signed degrees (movsx of scene+0x3e8..+0x3ec; c1l2s1 tilts -25)
+    vp_->set_angle((short)(((short)cam.o0180 * 0x4000) / 360), (short)(((short)cam.o0182 * 0x4000) / 360), (short)(((short)cam.o0184 * 0x4000) / 360));
     vpe_ = new OMediaVPElement;
     vpe_->set_viewport(vp_);
     vpe_->link(scene->world());
@@ -405,7 +406,7 @@ bool World3D::clickFloor(int x, int y, SceneObject* target)
     if (c.o0188 <= 0) return false;
     OMedia3DVector ray((float)x - 320, 240 - (float)y, c.o0188);
     // Inverse of the renderer's world -> view transform; input already mapped to logical pixels.
-    ray.rotate((short)(c.o0180*16384/360), (short)(c.o0182*16384/360), (short)(c.o0184*16384/360));
+    ray.rotate((short)((short)c.o0180*16384/360), (short)((short)c.o0182*16384/360), (short)((short)c.o0184*16384/360));
     if (fabs(ray.y) < 0.00001) return false;
     float t = (g->o0014 - c.o0178) / ray.y;
     if (t <= 0) return false;

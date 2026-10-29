@@ -112,6 +112,11 @@ bool Playthrough::locate(Game* g, const std::string& target, int* x, int* y)
             if (o->kind == SceneObject::Char || o->kind == SceneObject::Item) {
                 int l, t, r, b;
                 if (!g->world3d() || !g->world3d()->screenBounds(o, l, t, r, b)) return false;
+                int px = -1, py = -1, fx = -1, fy = -1; g->world3d()->project(o->px, o->py, o->pz, px, py);
+                g->world3d()->project(o->px, -100, o->pz, fx, fy);
+                fprintf(stdout, "PLAYTHROUGH: %s drawn at %d,%d-%d,%d (origin %d,%d floor %d,%d)\n", o->art.c_str(), l, t, r, b, px, py, fx, fy);
+                if (l < 0) l = 0; if (t < 0) t = 0; if (r > 639) r = 639; if (b > 479) b = 479;     // the part on the screen
+                if (l > r || t > b) return false;
                 *x = (l + r) / 2; *y = (t + b) / 2;
             } else { *x = (o->x1 + o->x2) / 2; *y = (o->y1 + o->y2) / 2; }
             return true;

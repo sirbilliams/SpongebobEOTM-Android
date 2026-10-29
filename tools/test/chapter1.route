@@ -12,4 +12,53 @@ expect 121AAA 121ABA
 click ikp4
 idle
 have ikp4
+click "Walk to Other Side"
+scene c1l2s2
+idle
+shot 03-c1l2s2-register
+talk squid AAA
+idle
+click "Walk to Salad Bar"
+scene c1l2s3
+idle
+shot 04-c1l2s3-saladbar
+click ikp2
+idle
+have ikp2
+click "Exit Salad Bar#2"
+scene c1l2s2
+idle
+click "Enter Kitchen"
+scene c1l2s4
+idle
+shot 05-c1l2s4-kitchen
+click ikp1
+idle
+have ikp1
+click "Walk to Other Side"
+scene c1l2s5
+idle
+shot 06-c1l2s5-sink
+use ikp4 Sink
+idle
+have ikp5
+combine ikp1 ikp2
+idle
+have ikp3
+combine ikp3 ikp5
+idle
+have ikp6
+click "Walk to Grill Area"
+scene c1l2s4
+idle
+click "Exit Kitchen"
+scene c1l2s2
+idle
+click "Walk to Hungry Customer"
+scene c1l2s1
+idle
+use ikp6 fish
+idle
+expect scustomer 121CAA
+shot 07-c1l2s1-served
 end
