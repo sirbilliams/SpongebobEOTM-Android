@@ -100,6 +100,9 @@ static void omf_test_hooks(SDL_Window *win)
 }
 #endif
 
+// port: test-only; the frame (buffer flip) count, so a test can ask for a screenshot of the next frame
+int omf_SDLFrameCount(void) { return omg_frame; }
+
 // Called by OMediaGLRenderTarget::flip_buffers before swapping.
 void omf_SDLFrameHook(SDL_Window *win)
 {

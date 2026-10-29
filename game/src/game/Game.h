@@ -1,0 +1,138 @@
+/*  The game object of sb2.exe (global 0x457310, vtable 0x44db24), 2D side: scene switching, the event
+    classifier (vt+0xb0), the script runner of the current scene (scene+0x1c7c), sound banks, the hover
+    caption and the mouse input of the scene.  The interpreter itself is game/src/script.  */
+#pragma once
+#include "GameState.h"
+#include "GlyphFont.h"
+#include "DialogueUI.h"
+#include "Scene.h"
+#include "../script/ScriptRunner.h"
+#include "../script/Dialogue.h"
+#include "../script/ScriptCondition.h"
+#include "OMedia2DWorld.h"
+#include "OMediaViewPort.h"
+#include "OMediaCCaption.h"
+#include "OMediaDataBase.h"
+#include "OMediaFileStream.h"
+#include "OMediaSound.h"
+#include "OMediaListener.h"
+#include <map>
+#include <string>
+#include <vector>
+
+namespace sbscript { class ScriptHost; }
+
+namespace sbgame {
+
+class SceneScriptHost;
+
+// A file-backed OMT database kept open (the exe keeps them for the whole scene).
+struct OmtFile {
+    OmtFile() : db(0), stream(0), path(0) {}
+    ~OmtFile();
+    bool open(const std::string& file);
+    void reset();
+    OMediaDataBase* db;
+    OMediaFileStream* stream;
+    OMediaFilePath* path;
+};
+
+class Game : public OMediaListener {
+public:
+    Game();
+    virtual ~Game();
+
+    // `root` is the game folder (sb2.exe, scenes/, scripts/, ...).  Creates the display world / viewport on
+    // `canvas` (the 640x480 back buffer).  Returns false if sb2.omt or Font.omt cannot be opened.
+    bool init(const std::string& root, OMediaCanvas* canvas);
+    // Listen to the event manager's mouse and key broadcasters.
+    void attachInput();
+
+    // ---- game vt+0x94 (0x40ab60) / 0x40ac20 / DoSwitch 0x40b720 ----
+    void requestScene(const char* name);            // "c1l2s6p1": scene id packed, start point after 'p'
+    void exitScene(int dir);                        // 0x40ac20: the camera record's exit string
+    // ---- game vt+0xb0 (0x40a230) the event classifier ----
+    void switchTo(const char* name);
+    // ---- per frame: DoSwitch, the scene update, script wake-ups, the world ----
+    void update(float dtMs);
+
+    // ---- accessors ----
+    GameState& state() { return state_; }
+    // game vt+0xb8 (0x40a6b0): is the condition expression true ("", "0" and " " are true)
+    bool cond(const char* expr, bool touching = false) { return sbscript::evalCondition(expr, touching, state_); }
+    // wake the scene's script after a wait (scene vt+0xe0 = 0x43aa80: do step() while no wait; delete when finished)
+    void wake();
+    GameScene* scene() { return scene_; }
+    OMedia2DWorld* world() { return world_; }
+    OMediaViewPort* viewport() { return vp_; }
+    OMediaDataBase* sb2Db() { return sb2_.db; }
+    OMediaDataBase* sceneSoundDb() { return sceneBank_.db; }     // game+0x5c
+    OMediaDataBase* sharedSoundDb() { return sharedBank_.db; }   // game+0x68
+    OMediaDataBase* commentDb() { return commentBank_.db; }
+    OMediaTextFont* font() { return font_; }
+    sbscript::ScriptRunner* runner() { return runner_; }          // scene+0x1c7c
+    SceneScriptHost* host() { return host_; }
+    const std::string& root() const { return root_; }
+    sbscript::CommentTable& comments() { return comments_; }
+    sbscript::HelpTable& help() { return help_; }
+    int mouseX() const { return mx_; }
+    int mouseY() const { return my_; }
+    std::string chained;                            // game+0x186: the target to go to after a movie / script
+    bool inputConsumed;                             // game+0x24e
+    bool letterboxIn;                               // game+0x25c
+    // Show a comment / hover caption line (game+0xc4 vt+0x14 draws a comment: bottom-line caption)
+    void showComment(const char* id);
+    bool commentActive() const { return commentMs_ > 0; }
+    // Sound helpers (OMT sound manager, 15 channels like the exe)
+    OMediaSound* findSound(const char* name, bool* shared);
+    OMediaSound* soundCI(OMediaDataBase* db, const std::string& name);
+    // sound manager channels: 4 = dialogue voice, 5 = script 'sound', 9 = idle scripts (as the exe)
+    bool playOnChannel(int ch, OMediaSound* s, int pan);
+    bool channelBusy(int ch);
+    void stopChannel(int ch);
+    // Mouse position for tests / synthetic events
+    void mouseDown(int x, int y);
+    void mouseMove(int x, int y);
+    // port: the movie player (Bink) is the startup's; a hook receives the movie name
+    void (*movieHook)(const char* name, void* data);
+    void* movieHookData;
+    virtual void listen_to_message(omt_Message msg, void* param = NULL);
+
+    // movies the classifier would start (the Bink player is lane C's / the startup's): recorded for the host
+    std::vector<std::string> movieLog;
+    void log(const char* fmt, ...);
+    FILE* logFile;
+
+private:
+    friend class GameScene;
+    friend class SceneScriptHost;
+    void doSwitch();
+    void loadSceneBanks(unsigned sceneId);
+    void runScript(const char* name);
+    void updateComment(float dt);
+
+    std::string root_;
+    GameState state_;
+    OMedia2DWorld* world_;
+    OMediaViewPort* vp_;
+    OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_;
+    GlyphFont* font_;
+    GameScene* scene_;
+    GameScene* pending_;
+    unsigned pendingId_;          // game+0x158: scene requested (nonzero: a switch is pending)
+    int pendingStart_;            // game+0x160
+    sbscript::ScriptRunner* runner_;
+    SceneScriptHost* host_;
+    sbscript::CommentTable comments_;
+    sbscript::HelpTable help_;
+    OMediaCCaption* hoverCap_;
+    OMediaCCaption* commentCap_;
+    float commentMs_;
+    int mx_, my_;
+    bool inputAttached_;
+    TextBlock* commentBlock_;
+    bool commentVoice_;
+    std::string hoverText_;
+};
+
+}  // namespace sbgame
