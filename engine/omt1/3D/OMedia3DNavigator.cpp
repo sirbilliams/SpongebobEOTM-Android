@@ -1,5 +1,7 @@
 /*  OMT 1.x engine layer (OMT.dll, Aug 2002), rebuilt from the retail DLL's code. LGPL like OMT. */
 #include "OMedia3DNavigator.h"
+#include "OMedia3DVector.h"
+#include <stdio.h>
 
 // 0x1001daf0
 OMedia3DNavigator::OMedia3DNavigator()
@@ -23,9 +25,22 @@ void OMedia3DNavigator::set_move_on_axis(omt_3DAxis axis, float speed)
 	move_changed = true;
 }
 
-// phase 2 (3D layer): 0x1001df70 update, 0x1001e1a0 set_angle, 0x1001db60 find_direction_vector,
-// 0x1001dc50 update_angles. Only viewports in navigator mode (+0x94) reach them; the 2D layer does not.
-void OMedia3DNavigator::update(OMediaWorldPosition *, OMediaWorldAngle *, OMediaAutoMove *, OMediaAutoRotate *, OMediaTimer *) {}
-void OMedia3DNavigator::set_angle(short, short, short) { angle_changed = true; }
-void OMedia3DNavigator::find_direction_vector(omt_3DAxis, float, short, short, short, OMedia3DVector &) {}
-void OMedia3DNavigator::update_angles(OMediaWorldAngle *, OMediaAutoMove *) {}
+// 0x1001db60: the axis vector of length 'speed' turned by the angles (rotation order z, x, y)
+void OMedia3DNavigator::find_direction_vector(omt_3DAxis axis, float speed, short ax, short ay, short az, OMedia3DVector &v)
+{
+	if (axis == omc3daxis_X) v.set(speed, 0, 0);
+	else if (axis == omc3daxis_Y) v.set(0, speed, 0);
+	else if (axis == omc3daxis_Z) v.set(0, 0, speed);
+	v.rotate(ax, ay, az);
+}
+
+// The navigator only runs for a viewport/element in navigator mode (+0x94 / +0xd0); sb2.exe never switches it on.
+// TODO (log): 0x1001df70 update, 0x1001dc50 update_angles, 0x1001e1a0 set_angle's matrix; the x87 code of these
+// (angle-from-matrix) is not rebuilt.
+void OMedia3DNavigator::update(OMediaWorldPosition *, OMediaWorldAngle *, OMediaAutoMove *, OMediaAutoRotate *, OMediaTimer *)
+{
+	static bool once = false;
+	if (!once) {once = true; printf("OMedia3DNavigator::update: TODO (navigator mode is not used by sb2.exe)\n");}
+}
+void OMedia3DNavigator::update_angles(OMediaWorldAngle *, OMediaAutoMove *) {printf("OMedia3DNavigator::update_angles: TODO\n");}
+void OMedia3DNavigator::set_angle(short, short, short) {angle_changed = true; printf("OMedia3DNavigator::set_angle: TODO\n");}
