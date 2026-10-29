@@ -148,6 +148,7 @@ private:
     GameState state_;
     OMedia2DWorld* world_;
     OMediaViewPort* vp_;
+    int skyChapter_;                        // port: HD pack: the chapter of skies_
     OmtFile skies_;                         // game+0x64: sceneart/c%dskies.omt
     OMediaCanvas* skyCache_[10];            // game+0x70 + index*4
     OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_, helpBank_, globalCommentBank_;

@@ -17,8 +17,9 @@ struct OMediaGfxPixels;
 struct OMediaGLSurface
 {
 	unsigned int	fbo, tex, depth;
-	int				width, height;
+	int				width, height;		// logical size (what the game draws in)
 	bool			primary;
+	int				scale;				// port: HD pack: the texture is width*scale x height*scale (the primary surface only)
 };
 
 // Window and context
@@ -47,6 +48,11 @@ void omgl_blit(OMediaGfxWorld *src, OMediaGfxWorld *dest, const OMediaRect &src_
 void omgl_fill(OMediaGfxWorld *dest, const OMediaRect &r, unsigned int argb);
 void omgl_read_into(OMediaGfxWorld *src, const OMediaRect &src_rect, OMediaGfxPixels *dest,
 					long dx, long dy, long dw, long dh);
-void omgl_forget(OMediaGfxPixels *p);			// the memory world is gone: delete its texture
+void omgl_forget(OMediaGfxPixels *p);
+
+// port: HD background pack (engine/sdl/SbHd.h). Standing in for the memory world's pixels, the pack picture
+// 'key' ("sceneart/c1l0s1/background") is drawn when the world is blitted into a GL surface; the layout stays
+// that of the world (same size, same coordinates).  Any problem leaves the world as it was.
+void omgl_hd_attach(OMediaGfxWorld *w, const char *key);			// the memory world is gone: delete its texture
 
 #endif

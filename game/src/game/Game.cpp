@@ -13,6 +13,7 @@
 #include "OMediaRGBColor.h"
 #include "OMediaCanvas.h"
 #include "OMediaError.h"
+#include "OMediaGLBackend.h"   // port: HD pack
 #include <exception>
 #include <ctype.h>
 #include <stdarg.h>
@@ -55,7 +56,7 @@ bool OmtFile::open(const std::string& file)
 
 // ------------------------------------------------------------------------------------------- Game
 Game::Game()
-    : blending(true), optText(1), optShadows(1), movieHook(0), movieHookData(0), warpHook(0), suspended(false), inputConsumed(false), letterboxIn(false), pendingObj(0), pendingEvent(false), walkInMs(0), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
+    : blending(true), optText(1), optShadows(1), movieHook(0), movieHookData(0), warpHook(0), suspended(false), inputConsumed(false), letterboxIn(false), pendingObj(0), pendingEvent(false), walkInMs(0), logFile(stdout), world_(0), vp_(0), skyChapter_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
       pendingId_(0), pendingStart_(0), runner_(0), host_(0), hoverCap_(0), commentCap_(0), commentMs_(0), mx_(320), my_(240),
       inputAttached_(false), commentBlock_(0), commentVoice_(false), hud_(0), mini_(0), cursor_(0)
 {
@@ -213,6 +214,7 @@ void Game::loadSkies(int chapter)       // chapter loader 0x40b090: sceneart\c%d
 {
     if (chapter == state_.chapter && skies_.db) return;
     skies_.reset();
+    skyChapter_ = chapter;
     for (int i = 0; i < 10; i++) skyCache_[i] = 0;
     char b[96];
     sprintf(b, "%s/sceneart/c%dskies.omt", root_.c_str(), chapter);
@@ -226,6 +228,11 @@ OMediaCanvas* Game::skyCanvas(int index)
         char n[16];
         sprintf(n, "sky0%d", index);
         skyCache_[index] = (OMediaCanvas*)skies_.db->get_object(OMediaCanvas::db_type, n);
+        if (skyCache_[index] && skyCache_[index]->getgfxworld()) {    // port: HD pack (docs/hd-pack.md): the sky's picture
+            char k[48];
+            sprintf(k, "sceneart/c%dskies/%s", skyChapter_, n);
+            omgl_hd_attach(skyCache_[index]->getgfxworld(), k);
+        }
     }
     return skyCache_[index];
 }

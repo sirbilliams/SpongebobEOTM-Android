@@ -6,6 +6,9 @@
 #include "OMediaSysDefs.h"
 #include "OMediaGLBackend.h"
 #include "OMediaGfxWorld.h"
+#include "SbHd.h"
+#include <map>
+#include <string>
 #include <SDL.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -137,6 +140,7 @@ bool omgl_open_window(const char *title, int width, int height)
 
 void omgl_close_window(void)
 {
+	sbhd::log_summary();
 	if (omg_ctx) SDL_GL_DeleteContext(omg_ctx);
 	if (omg_win) SDL_DestroyWindow(omg_win);
 	omg_ctx = NULL;
@@ -154,23 +158,32 @@ void omgl_surface_create(OMediaGLSurface *s, int width, int height, bool primary
 	s->width = width;
 	s->height = height;
 	s->primary = primary;
+	s->scale = 1;
 	if (!omg_win || width <= 0 || height <= 0) return;
+	if (primary)		// port: HD pack: the screen surface is rendered at a multiple of the logical size
+	{
+		GLint mt = 0;
+		glGetIntegerv(GL_MAX_TEXTURE_SIZE, &mt);
+		s->scale = sbhd::scale((int)mt);
+		if (s->scale > 1) SDL_Log("HD: screen surface %dx%d (x%d)", width * s->scale, height * s->scale, s->scale);
+	}
+	const int pw = width * s->scale, ph = height * s->scale;
 	glGenTextures(1, &s->tex);
 	glBindTexture(GL_TEXTURE_2D, s->tex);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, s->scale > 1 ? GL_LINEAR : GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, s->scale > 1 ? GL_LINEAR : GL_NEAREST);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pw, ph, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glGenFramebuffers(1, &s->fbo);
 	glBindFramebuffer(GL_FRAMEBUFFER, s->fbo);
 	glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, s->tex, 0);
 	glGenRenderbuffers(1, &s->depth);
 	glBindRenderbuffer(GL_RENDERBUFFER, s->depth);
-	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, width, height);
+	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT16, pw, ph);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, s->depth);
-	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) SDL_Log("OMT: framebuffer %dx%d incomplete", width, height);
-	glViewport(0, 0, width, height);
+	if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) SDL_Log("OMT: framebuffer %dx%d incomplete", pw, ph);
+	glViewport(0, 0, pw, ph);
 	glClearColor(0, 0, 0, 1);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -194,7 +207,7 @@ void omgl_surface_bind(OMediaGLSurface *s)
 {
 	if (!s->fbo) return;
 	glBindFramebuffer(GL_FRAMEBUFFER, s->fbo);
-	glViewport(0, 0, s->width, s->height);
+	glViewport(0, 0, s->width * s->scale, s->height * s->scale);		// the projection below stays in logical pixels
 	glMatrixMode(GL_PROJECTION);
 	glLoadIdentity();
 	glOrtho(0, s->width, 0, s->height, -1, 1);		// bottom-up in the texture
@@ -215,15 +228,19 @@ void omgl_surface_bind(OMediaGLSurface *s)
 void omgl_surface_read(OMediaGLSurface *s, unsigned int *argb)
 {
 	if (!s->fbo) return;
-	std::vector<unsigned char> tmp(s->width * s->height * 4);
+	const int k = s->scale, pw = s->width * k, ph = s->height * k;
+	std::vector<unsigned char> tmp(pw * ph * 4);
 	glBindFramebuffer(GL_FRAMEBUFFER, s->fbo);
 	glPixelStorei(GL_PACK_ALIGNMENT, 1);
-	glReadPixels(0, 0, s->width, s->height, GL_RGBA, GL_UNSIGNED_BYTE, &tmp[0]);
+	glReadPixels(0, 0, pw, ph, GL_RGBA, GL_UNSIGNED_BYTE, &tmp[0]);
 	for (int y = 0; y < s->height; y++)
 	{
-		const unsigned char *src = &tmp[(s->height - 1 - y) * s->width * 4];	// bottom-up
-		for (int x = 0; x < s->width; x++, src += 4)
+		const unsigned char *row = &tmp[(ph - 1 - (y * k + k / 2)) * pw * 4];	// bottom-up; port: HD: the centre sample of the k x k block
+		for (int x = 0; x < s->width; x++)
+		{
+			const unsigned char *src = row + (x * k + k / 2) * 4;
 			*argb++ = ((unsigned int)src[3] << 24) | (src[0] << 16) | (src[1] << 8) | src[2];
+		}
 	}
 	omg_bound = NULL;
 }
@@ -231,22 +248,92 @@ void omgl_surface_read(OMediaGLSurface *s, unsigned int *argb)
 void omgl_surface_write(OMediaGLSurface *s, const unsigned int *argb)
 {
 	if (!s->tex) return;
-	std::vector<unsigned char> tmp(s->width * s->height * 4);
+	const int k = s->scale, pw = s->width * k, ph = s->height * k;
+	std::vector<unsigned char> tmp(pw * ph * 4);
 	for (int y = 0; y < s->height; y++)
 	{
-		unsigned char *d = &tmp[(s->height - 1 - y) * s->width * 4];
-		for (int x = 0; x < s->width; x++, d += 4)
+		for (int x = 0; x < s->width; x++)
 		{
-			unsigned int p = *argb++;
-			d[0] = (unsigned char)(p >> 16); d[1] = (unsigned char)(p >> 8); d[2] = (unsigned char)p; d[3] = 0xFF;
+			const unsigned int p = *argb++;
+			for (int j = 0; j < k; j++)		// port: HD: each logical pixel fills a k x k block
+				for (int i = 0; i < k; i++)
+				{
+					unsigned char *d = &tmp[((ph - 1 - (y * k + j)) * pw + x * k + i) * 4];
+					d[0] = (unsigned char)(p >> 16); d[1] = (unsigned char)(p >> 8); d[2] = (unsigned char)p; d[3] = 0xFF;
+				}
 		}
 	}
 	glBindTexture(GL_TEXTURE_2D, s->tex);
 	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, s->width, s->height, GL_RGBA, GL_UNSIGNED_BYTE, &tmp[0]);
+	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, pw, ph, GL_RGBA, GL_UNSIGNED_BYTE, &tmp[0]);
 }
 
 // --------------------------------------------------------------------------- textures of memory worlds
+
+// --------------------------------------------------------------------------- HD pack pictures (port)
+
+// A memory world with a pack picture: the picture's texture is drawn in place of the world's own.
+struct OmfHd
+{
+	std::string		key;
+	unsigned int	tex;			// 0: not loaded (failed or dropped)
+	unsigned int	version;		// the world's version when the picture was attached: a change means the game drew into it
+	double			bytes;
+	OmfHd() : tex(0), version(0), bytes(0) {}
+};
+static std::map<OMediaGfxPixels *, OmfHd> omf_hd;
+
+static void omf_hd_drop(std::map<OMediaGfxPixels *, OmfHd>::iterator it)
+{
+	if (it->second.tex && omg_win) glDeleteTextures(1, &it->second.tex);
+	if (it->second.bytes > 0) sbhd::budget_sub(it->second.bytes);
+	omf_hd.erase(it);
+}
+
+void omgl_hd_attach(OMediaGfxWorld *w, const char *key)
+{
+	if (!w || !key || !omg_win || !sbhd::enabled()) return;
+	OMediaGfxPixels *p = w->port_pixels();
+	if (!p || !p->pix || p->width <= 0 || p->height <= 0) return;
+	std::map<OMediaGfxPixels *, OmfHd>::iterator old = omf_hd.find(p);
+	if (old != omf_hd.end())
+	{
+		if (old->second.key == key && old->second.tex && old->second.version == p->version) return;		// already there
+		omf_hd_drop(old);
+	}
+	if (!sbhd::has(key)) return;
+	std::vector<unsigned char> rgba;
+	int hw = 0, hh = 0;
+	if (!sbhd::load(key, p->width, p->height, rgba, hw, hh)) return;
+	GLint mt = 0;
+	glGetIntegerv(GL_MAX_TEXTURE_SIZE, &mt);
+	if (hw > mt || hh > mt) { SDL_Log("HD: %s is %dx%d, over GL_MAX_TEXTURE_SIZE %d - using the original", key, hw, hh, (int)mt); return; }
+	const double bytes = (double)hw * hh * 4.0;
+	if (!sbhd::budget_add(key, bytes)) return;
+	OmfHd e;
+	e.key = key;
+	e.version = p->version;
+	e.bytes = bytes;
+	glGenTextures(1, &e.tex);
+	glBindTexture(GL_TEXTURE_2D, e.tex);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, hw, hh, 0, GL_RGBA, GL_UNSIGNED_BYTE, &rgba[0]);
+	omf_hd[p] = e;
+}
+
+// The pack texture for a world, or 0 (none, or the game drew into the world since: the picture is dropped).
+static unsigned int omf_hd_texture(OMediaGfxPixels *p)
+{
+	if (omf_hd.empty()) return 0;
+	std::map<OMediaGfxPixels *, OmfHd>::iterator it = omf_hd.find(p);
+	if (it == omf_hd.end()) return 0;
+	if (it->second.version != p->version) { omf_hd_drop(it); return 0; }
+	return it->second.tex;
+}
 
 static void omf_upload(OMediaGfxPixels *p)
 {
@@ -276,6 +363,7 @@ static void omf_upload(OMediaGfxPixels *p)
 
 void omgl_forget(OMediaGfxPixels *p)
 {
+	if (!omf_hd.empty()) { std::map<OMediaGfxPixels *, OmfHd>::iterator it = omf_hd.find(p); if (it != omf_hd.end()) omf_hd_drop(it); }
 	if (p->gl_tex && omg_win) glDeleteTextures(1, &p->gl_tex);
 	if (p->gl_3d_tex && omg_win) glDeleteTextures(1, &p->gl_3d_tex);
 	p->gl_tex = p->gl_3d_tex = 0;
@@ -298,10 +386,12 @@ void omgl_blit(OMediaGfxWorld *src, OMediaGfxWorld *dest, const OMediaRect &sr, 
 	OMediaGfxPixels *p = src->port_pixels();
 	OMediaGLSurface *ss = src->port_surface();
 	float tw, th, v0, v1;
+	unsigned int hdtex = 0;
 	if (p)
 	{
 		if (!p->pix || p->width <= 0 || p->height <= 0) return;
-		omf_upload(p);
+		hdtex = omf_hd_texture(p);
+		if (!hdtex) omf_upload(p);
 		tw = (float)p->width; th = (float)p->height;
 		v0 = sr.top / th; v1 = sr.bottom / th;			// memory textures are top-down
 	}
@@ -315,7 +405,7 @@ void omgl_blit(OMediaGfxWorld *src, OMediaGfxWorld *dest, const OMediaRect &sr, 
 	else return;
 	omgl_surface_bind(d);
 	glEnable(GL_TEXTURE_2D);
-	glBindTexture(GL_TEXTURE_2D, p ? p->gl_tex : ss->tex);
+	glBindTexture(GL_TEXTURE_2D, hdtex ? hdtex : (p ? p->gl_tex : ss->tex));
 	glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
 	if (keyed)
 	{
