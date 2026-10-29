@@ -123,10 +123,25 @@ public class SetupActivity extends Activity {
         mPage = "main";
         LinearLayout root = page("SpongeBob EOTM");
         Button play = button(root, "Play", v -> play(false));
+        final Button panel = button(root, panelLabel(), null);
+        panel.setOnClickListener(v -> { setPanelOn(!panelOn()); panel.setText(panelLabel()); });
         button(root, "Test", v -> showTest());
         button(root, "Quit", v -> finish());
         setContentView(root);
         play.requestFocus();                                // so the Thor's A button works without touching the screen
+    }
+
+    // port: the bottom-screen companion panel (docs/companion.md). On by default; the choice is remembered.
+    private boolean panelOn() {
+        return CompanionPanel.wanted(getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE), true);
+    }
+
+    private void setPanelOn(boolean on) {
+        getSharedPreferences(CompanionPanel.PREFS, MODE_PRIVATE).edit().putBoolean(CompanionPanel.KEY_ON, on).apply();
+    }
+
+    private String panelLabel() {
+        return "Bottom screen panel: " + (panelOn() ? "ON" : "OFF");
     }
 
     private void showTest() {

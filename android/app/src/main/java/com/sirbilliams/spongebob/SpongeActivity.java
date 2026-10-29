@@ -20,6 +20,8 @@ public class SpongeActivity extends SDLActivity {
     /** Intent extra: run the crash-backtrace test (OMT_CRASHTEST: the game raises SIGSEGV at startup). */
     static final String EXTRA_CRASH_TEST = "crash_test";
 
+    private CompanionPanel mPanel;
+
     @Override
     protected String[] getLibraries() {
         return new String[] { "SDL2", "spongebob" };
@@ -39,5 +41,20 @@ public class SpongeActivity extends SDLActivity {
         }
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    }
+
+    // ------------------------------------------------------------------ port: companion panel (docs/companion.md)
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        if (mPanel == null) mPanel = new CompanionPanel(this);
+        mPanel.resume();                                    // the bottom-screen panel, when a second screen is there
+    }
+
+    @Override
+    protected void onPause() {
+        if (mPanel != null) mPanel.pause();
+        super.onPause();
     }
 }

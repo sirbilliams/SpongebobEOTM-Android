@@ -391,4 +391,27 @@ void DialogueUI::onKey(int key)         // 0x413e90
     else if (key == omck_Down || key == omck_PageDown) selectNext(-1);
 }
 
+// port: companion -- the choices in the order the screen stacks them (y = 450 upwards)
+std::vector<std::string> DialogueUI::choiceTexts()
+{
+    std::vector<std::string> out;
+    if (!active_ || !choice_) return out;
+    for (size_t i = 0; i < groups_.size(); ++i) {
+        if (!eligible(groups_[i], false)) continue;
+        out.push_back(groups_[i].lines[groups_[i].current >= 0 ? groups_[i].current : 0].text);
+    }
+    return out;
+}
+
+// port: companion -- a tap on the n-th choice = hover it, then confirm (0x4129e0)
+bool DialogueUI::pickChoice(int n)
+{
+    if (!active_ || !choice_ || n < 0) return false;
+    for (size_t i = 0; i < groups_.size(); ++i) {
+        if (!eligible(groups_[i], false)) continue;
+        if (n-- == 0) { cur_ = (int)i; dirty_ = true; confirm(); return true; }
+    }
+    return false;
+}
+
 }  // namespace sbgame

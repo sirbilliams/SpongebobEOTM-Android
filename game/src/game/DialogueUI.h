@@ -48,6 +48,9 @@ public:
     bool choiceMode() const { return choice_; }           // byte +0x18
     const std::string& currentText() const { return curText_; }
     const std::string& currentSpeaker() const { return curSpeaker_; }
+    // port: companion (docs/companion.md): the open choice list as text, and picking the n-th eligible choice
+    std::vector<std::string> choiceTexts();
+    bool pickChoice(int n);
     // test hooks
     int eligibleCount();
     sbscript::DialogueGroup* groupByKey(const std::string& key);
