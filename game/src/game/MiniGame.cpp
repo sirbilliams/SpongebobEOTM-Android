@@ -6,7 +6,7 @@
 #include <stdio.h>
 
 namespace sbgame {
-MiniGame::MiniGame(Game* g) : game_(g), step_(0), spins_(0), armed_(false), failed_(false), resultPending_(false), elapsed_(0)
+MiniGame::MiniGame(Game* g) : game_(g), step_(0), spins_(0), armed_(false), failed_(false), resultPending_(false), elapsed_(0), phone_(g)
 {
     throws_=dartX_=dartY_=score_=hit_=highScore_=0;
     dartPending_=bullSound_=false; hitMs_=0;
@@ -78,6 +78,7 @@ void MiniGame::slotsSpin() // 0x436090
 void MiniGame::update(float dt) // slots branch of 0x435830
 {
     updateDarts(dt); // lane c: 0x435830 darts branch
+    phone_.update(dt); // chapter 4 phone (Phone.cpp)
     GameScene* s=game_->scene(); if(!s || s->name()!="c2l5s3") return;
     if(running_[2]) {
         elapsed_+=dt;
