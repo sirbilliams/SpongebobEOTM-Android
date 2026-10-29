@@ -297,3 +297,17 @@ the exe: the D3D blend mode; the port alpha-blends the grey texture (light patch
 
 Verified (1920x1080, in the box): c1l3s5 (`sgran_idle`: walks between points with no input), c2l4s2 (`sjojo_idle242`), c2l4s4 (`sgaryg_idle`); shadows under
 SpongeBob and NPCs in all three; c2l2s3 `sflush` (`shadow off` -> no shadow, `shadow on` -> back), logs and PNGs in `.shots/lf/`.
+
+## Lane i: walking leftovers analysed, not reconstructed (2026-10-28)
+* **`checkgrid` (script command 0x43e23c -> char vt+0x178 = 0x434450; 0x434520 is the same with an object id).** No installed script uses the command (docs/script.md).
+  0x434450(x, z): stores the target (+0x3c4/+0x3c8), asks the scene vt+0x144 (**0x43a7a0**) for the nearest TRIG object named `up` / `down` (+0x20) on the
+  character's current plane (`+0x314`, grid height) to that world point (squared distance; a connector with object +0x4c set is skipped), then: if the character's
+  vt+0x128 (**0x4318c0**: the object is in the character's contact list +0x368, or a SPOT-class object that vt+0x4c accepts) holds, it fires the connector
+  (`obj vt+0x40(1,1)`) and returns 1; else it walks (0x434650 via vt+0x144) to the connector's x/z (+0x310 / +0x318) with the connector as target. The contact
+  list is filled by the 3D collision callback 0x431610 (see the lane f section), which the port does not have; the up/down triggers exist only in c4l2s1, c4l2s3,
+  c4l3s1, c4l4s2, c4l4s4, c4l5s1. So both belong to one missing piece (3D contact events) and nothing in chapters 1 and 2 reaches them.
+* **Path post-processing 0x42c450** (from the A* wrapper 0x42acd0 when pathfinder `+0x39c` is set; the ctor 0x42a680 sets `+0x398` and `+0x39c` to 1, so retail always
+  runs it): builds a 24-byte node list (x, z, ... doubles) from the cell path, then per segment picks a curve with 0x42cc50 / 0x42cd70 / 0x42cbb0 (turn arcs with
+  radius `+0x398`), optionally 0x42d090 (`+0x39a`), validates each with 0x42c920 (clearance against the grid) and drops nodes that fail, finally reverses the list.
+  That is a steering-arc generator of five more functions; the port still walks cell-centre waypoints. Not reconstructed (needs an arc geometry reading of
+  0x42cbb0..0x42d090 and a visual comparison with retail paths, which cannot be made here).
