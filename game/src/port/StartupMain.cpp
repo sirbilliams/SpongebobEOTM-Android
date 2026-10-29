@@ -15,6 +15,7 @@
 #include "../game/World3D.h"
 #include "OMediaGLBackend.h"
 #include "../game/SceneScriptHost.h"
+#include "../game/SaveGame.h"
 #include <stdexcept>
 #include "CrashLog.h"
 #include <stdio.h>
@@ -45,11 +46,17 @@ class StartupApp : public MenuHost
     OMediaDataBase *font_database;
     GameFont *font;
     RetailData retail;
+    // ---- save games (lane b): the game kept alive behind the menu, and what the next run_game() does ----
+    sbgame::Game *paused;
+    std::vector<unsigned char> paused_thumb;        // the screen when the game was left for the menu (0x41db50 saves it)
+    enum { L_NEW, L_RESUME, L_LOAD } launch;
+    int launch_slot;
     bool start_game;          // New Game was chosen: the menu loop ends and the scene runtime starts
     bool skip_movies;         // port: SB_SKIP_MOVIES=1, tests only
 
-	StartupApp() : start_game(false), skip_movies(getenv("SB_SKIP_MOVIES") != NULL)
+	StartupApp() : paused(NULL), launch(L_NEW), launch_slot(-1), start_game(false), skip_movies(getenv("SB_SKIP_MOVIES") != NULL)
 	{
+		sbgame::SaveGame::setDir(".");
 		SDL_Log("0x4097d0: application constructor");
 		// register_object and cache=0 match OMT.dll; the shared implementation checks
 		// !cache_size before purging just as 0x10054d30 does.
@@ -137,7 +144,27 @@ class StartupApp : public MenuHost
     }
     virtual bool menu_movie(const char *name) { return skip_movies ? true : play_movie(SDL_GL_GetCurrentWindow(),name); }
     // 0x4248b0 -> 0x41c1c0 -> 0x40a090: New Game. The menu ends, then run_game() starts chapter 1 (intro movie, c1l0s1, its script).
-    virtual bool menu_new_game() { start_game = true; return true; }
+    virtual bool menu_new_game() { launch = L_NEW; start_game = true; return true; }
+    // ---- save games (docs/saves.md) ----
+    virtual bool menu_game_active() { return paused != NULL; }
+    virtual bool menu_can_resume() { return paused != NULL || (save >= 0 && sbgame::SaveGame::exists(save)); }
+    // 0x4248b0: back to the game in progress; with none, the last used slot (port: the Save value of the settings, game+0x26c)
+    virtual void menu_resume() {
+        if (paused) launch = L_RESUME;
+        else if (save >= 0 && sbgame::SaveGame::exists(save)) { launch = L_LOAD; launch_slot = save; }
+        else return;
+        start_game = true;
+    }
+    virtual bool menu_save(int slot, const char *name) {     // 0x428740 -> 0x41db50
+        if (!paused) return false;
+        sbgame::SaveFile f;
+        sbgame::SaveGame::capture(paused->state(), paused->state().sceneId, name, paused_thumb, f);
+        if (!sbgame::SaveGame::write(sbgame::SaveGame::slotPath(slot), f)) return false;
+        save = slot; menu_settings_changed();                // game+0x26c: the slot Load Game and Resume start from
+        SDL_Log("0x41db50: saved slot %d scene %08x", slot, f.sceneId);
+        return true;
+    }
+    virtual bool menu_load(int slot) { launch = L_LOAD; launch_slot = slot; start_game = true; return true; }   // 0x429120
     virtual void menu_settings_changed() {
         // port: persist 0x409ed0's registry settings under SDL's per-user directory.
         char *pref=SDL_GetPrefPath("THQ","SpongeBob 2");
@@ -315,7 +342,9 @@ class StartupApp : public MenuHost
             while(SDL_PollEvent(&ev)) {
                 event_manager->handle_sdl_event(&ev);
                 if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); menu.hover(x,y); }
-                if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE) menu.back();
+                if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_ESCAPE) { if(menu.atTop() && paused) menu_resume(); else menu.back(); }
+                else if(ev.type==SDL_KEYDOWN) menu.key(ev.key.keysym.sym);
+                else if(ev.type==SDL_TEXTINPUT) menu.text(ev.text.text);
             }
 #ifndef __ANDROID__
             // port: deterministic desktop input replay, routed through the real SDL/OMT event path.
@@ -330,8 +359,20 @@ class StartupApp : public MenuHost
                 }
                 p=strchr(p,','); if(p) ++p;
             }
-            test_clicks(frame,"SB_TEST_CLICKS");
-            if(getenv("SB_TEST_NEWGAME") && frame==20) start_game=true;      // port: tests only
+            test_clicks(frame,paused?"SB_TEST_PCLICKS":"SB_TEST_CLICKS");      // port: tests only; PCLICKS: the menu over a paused game
+            static bool autoStarted=false;      // port: tests only, once per run
+            if(getenv("SB_TEST_NEWGAME") && frame==20 && !autoStarted) { autoStarted=true; launch=L_NEW; start_game=true; }
+            if(getenv("SB_TEST_RESUME") && frame==20 && !autoStarted) { autoStarted=true; menu_resume(); }
+            if(const char *k=getenv("SB_TEST_MENUKEYS")) {      // port: tests only, "frame:key,...": a key pressed in the menu (SDL key name; a single character is typed)
+                for(const char *p=k;p && *p;) {
+                    unsigned at=(unsigned)atoi(p); const char *c=strchr(p,':'); const char *e=strchr(p,','); std::string n=c?std::string(c+1,e?e:p+strlen(p)):std::string();
+                    if(c && at==frame && !n.empty()) {
+                        if(n.size()==1) menu.text(n.c_str());
+                        else { SDL_Keycode kc=SDL_GetKeyFromName(n.c_str()); if(kc!=SDLK_UNKNOWN) menu.key(kc); }
+                    }
+                    p=e?e+1:NULL;
+                }
+            }
 #endif
             world->update(); ++frame; SDL_Delay(16);
         }
@@ -349,20 +390,54 @@ class StartupApp : public MenuHost
     }
     bool movie_ok, movie_done;
 
+    // port: tests only. SB_TEST_DUMP_PAUSE / SB_TEST_DUMP_QUIT=<file>: the game state as a save file (no thumbnail), for comparing runs
+    void test_dump(sbgame::Game *game,const char *var) {
+        const char *path=getenv(var);
+        if(!path || !game) return;
+        sbgame::SaveFile f; std::vector<unsigned char> none;
+        sbgame::SaveGame::capture(game->state(),game->state().sceneId,"dump",none,f);
+        bool ok=sbgame::SaveGame::write(path,f);
+        SDL_Log("test dump %s: scene %08x %s",var,f.sceneId,ok?"written":"FAILED");
+    }
+
     // false: quit the application; true: back to the menu
     bool run_game(SDL_Window *win) {
         (void)win;
-        sbgame::Game *game=new sbgame::Game;
-        bool result=true;
+        sbgame::Game *game=NULL;
+        bool result=true, keep=false;
         try {
-            if(!game->init(".",screen)) { SDL_Log("game: init failed"); delete game; return true; }
-            game->attachInput();
-            movie_ok=true; movie_done=false;
-            game->movieHook=game_movie; game->movieHookData=this;
-            game->logFile=getenv("SB_GAME_LOG")?stdout:NULL;
+            if(launch==L_RESUME && paused) {            // 0x4248b0: the menu closes and the game in progress goes on
+                game=paused; paused=NULL; game->suspended=false;
+                game->forceRedraw();
+            } else {
+                delete paused; paused=NULL;
+                game=new sbgame::Game;
+                if(!game->init(".",screen)) { SDL_Log("game: init failed"); delete game; return true; }
+                game->attachInput();
+                movie_ok=true; movie_done=false;
+                game->movieHook=game_movie; game->movieHookData=this;
+                game->logFile=getenv("SB_GAME_LOG")?stdout:NULL;
+                SDL_ShowCursor(SDL_ENABLE);
+                const char *first=getenv("SB_TEST_SCENE");
+                std::string scene;
+                if(launch==L_LOAD) {                    // 0x417460: the state of the file replaces the game's, then its scene starts
+                    sbgame::SaveFile f;
+                    if(!sbgame::SaveGame::read(sbgame::SaveGame::slotPath(launch_slot),f)) {
+                        SDL_Log("0x417460: slot %d cannot be loaded",launch_slot); delete game; return true;
+                    }
+                    scene=sbgame::SaveGame::apply(f,game->state());
+                    save=launch_slot; menu_settings_changed();
+                    SDL_Log("0x417460: loaded slot %d \"%s\" -> %s",launch_slot,f.name,scene.c_str());
+                } else scene=first?first:"mintro c1l0s1";
+                if(getenv("SB_TEST_SEED")) {            // port: tests only: some progress to save
+                    sbgame::GameState &st=game->state();
+                    st.markScriptSeen("sload1"); st.markScriptSeen("sc1l2s6a"); st.giveItem("ikc1"); st.giveItem("ihat");
+                    st.storeDialogue(0x20201,"G001","H0021",3,7); st.storeDialogue(0x60201,"G010","H1002",1,0);
+                    st.setTexture("sandy","sandy2"); st.setBlocked(0x60201,12,34,true); st.setFlag("c1x2y3",true); st.lastScene=0x20201;
+                }
+                game->switchTo(scene.c_str());           // 0x40a230: movie, then the scene (game+0x186)
+            }
             SDL_ShowCursor(SDL_ENABLE);
-            const char *first=getenv("SB_TEST_SCENE");
-            game->switchTo(first?first:"mintro c1l0s1");           // 0x40a230: movie, then the scene (game+0x186)
             unsigned frame=0, last=0;
             for(;;) {
                 if(event_manager->quit_requested()) { result=false; break; }
@@ -374,7 +449,15 @@ class StartupApp : public MenuHost
                     if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); game->mouseMove(x,y); }
                     if(ev.type==SDL_KEYDOWN && (ev.key.keysym.sym==SDLK_F10 || ev.key.keysym.sym==SDLK_AC_BACK)) leave=true;   // port: back to the menu
                 }
-                if(leave) break;
+                const char *tf=getenv("SB_TEST_F10"), *tq=getenv("SB_TEST_GAMEQUIT");      // port: tests only
+                static bool f10Done=false;
+                if(tf && (unsigned)atoi(tf)==frame && !f10Done) { f10Done=true; leave=true; }
+                if(tq && (unsigned)atoi(tq)==frame) { test_dump(game,"SB_TEST_DUMP_QUIT"); result=false; break; }
+                if(leave) {                              // the game stays alive behind the menu (Save Game, Resume Game)
+                    sbgame::SaveGame::grabThumb(screen->getdefaultdrawgfxworld(),paused_thumb);
+                    test_dump(game,"SB_TEST_DUMP_PAUSE");
+                    game->suspended=true; paused=game; keep=true; break;
+                }
                 if(movie_done) {
                     movie_done=false;
                     if(!movie_ok) { result=false; break; }
@@ -402,7 +485,7 @@ class StartupApp : public MenuHost
             SDL_Log("game: OMT error %d at %s:%d",(int)e.errorcode,e.file.c_str(),e.line);
         }
         omgl_widescreen_scene(false);
-        delete game;
+        if(!keep) delete game;
         return result;
     }
 
@@ -424,6 +507,7 @@ void omt_main(void)
 	port_install_crash_log();
 	SDL_Log("0x42a540: WinMain -> 0x40e580 game entry; SDL data root is imported install");
 	if (getenv("OMT_CRASHTEST")) *(volatile int*)0 = 1;		// port: test hook for the crash backtrace
+	if (getenv("SB_TEST_SAVEFMT")) { int rc = sbgame::SaveGame::selfTest(); exit(rc); }		// port: tests only (docs/saves.md)
 	try
 	{
 		StartupApp *app = new StartupApp;
