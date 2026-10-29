@@ -74,6 +74,7 @@ public:
     OMedia2DWorld* world() { return world_; }
     OMediaViewPort* viewport() { return vp_; }
     OMediaDataBase* sb2Db() { return sb2_.db; }
+    OMediaCanvas* skyCanvas(int index);                    // 0x40b590 (vt+0xcc): canvas "sky0%d" of the chapter's skies database
     OMediaDataBase* sceneSoundDb() { return sceneBank_.db; }     // game+0x5c
     OMediaDataBase* sharedSoundDb() { return sharedBank_.db; }   // game+0x68
     OMediaDataBase* commentDb() { return commentBank_.db; }
@@ -117,6 +118,7 @@ private:
     friend class SceneScriptHost;
     void doSwitch();
     void loadSceneBanks(unsigned sceneId);
+    void loadSkies(int chapter);
     void runScript(const char* name);
     void updateComment(float dt);
 
@@ -124,6 +126,8 @@ private:
     GameState state_;
     OMedia2DWorld* world_;
     OMediaViewPort* vp_;
+    OmtFile skies_;                         // game+0x64: sceneart/c%dskies.omt
+    OMediaCanvas* skyCache_[10];            // game+0x70 + index*4
     OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_;
     RetailData* retail_;
     GameFont* font_;

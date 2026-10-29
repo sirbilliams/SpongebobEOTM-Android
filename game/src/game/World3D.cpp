@@ -48,6 +48,7 @@ OMedia3DAbstractRasterizer* World3D::rasterizer()
 World3D::World3D(Game* game, GameScene* scene)
     : game_(game), scene_(scene), w3_(0), vp_(0), vpe_(0), wake_(false)
 {
+    game->state().hasPlayer = false;
     // Match sb2 startup (also StartupApp): zero disables OMT database eviction.
     // The direct scene-test entry bypasses StartupApp; Granny material cookies retain these objects.
     OMediaDataBase::set_cache_size(0);
@@ -484,6 +485,19 @@ void World3D::refreshVisibility()
 void World3D::enter(int startPoint)
 {
     if (startPoint < 0 || startPoint > 9) startPoint = 0;
+    GameState& st = game_->state();
+    if (st.resumePos) {                                      // progress+0x64: a loaded save puts the player where he was
+        st.resumePos = false;
+        for (size_t i = 0; i < actors_.size(); i++) {
+            Actor3D* a = actors_[i];
+            if (a->obj->kind != SceneObject::Char || !a->obj->userCtl) continue;
+            a->x = st.playerX; a->y = st.playerY; a->z = st.playerZ;
+            a->heading = st.playerFacing & 0x3fff;
+            place(a);
+            game_->log("3D: %s restored from save: %g %g %g heading %d\n", a->name.c_str(), a->x, a->y, a->z, a->heading);
+            return;
+        }
+    }
     const sb::scene::StartPoint& sp = scene_->data().startPoints[startPoint];
     if (sp.x == 0 && sp.y == 0 && sp.z == 0) return;       // the CHAR record's own position (c1l0s1: all start points are zero)
     for (size_t i = 0; i < actors_.size(); i++) {
@@ -502,6 +516,13 @@ void World3D::update(float dtMs)
     if (!w3_) return;
     float dt = dtMs * 0.001f;
     OMedia3DGrannyModel::advance_time(dt);
+    for (size_t i = 0; i < actors_.size(); i++) {            // the save writer (0x416ed0) reads the controlled character's position
+        Actor3D* a = actors_[i];
+        if (a->obj->kind != SceneObject::Char || !a->obj->userCtl) continue;
+        GameState& st = game_->state();
+        st.hasPlayer = true; st.playerX = a->x; st.playerY = a->y; st.playerZ = a->z; st.playerFacing = (short)a->heading;
+        break;
+    }
     for (size_t i = 0; i < actors_.size(); i++) {
         Actor3D* a = actors_[i];
         bool moved = false;

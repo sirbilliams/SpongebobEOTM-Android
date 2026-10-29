@@ -134,6 +134,10 @@ private:
     OMediaDataBase* artDb_;
     void* artFile_;
     OMediaCanvasElement* background_;
+    OMediaCanvasElement* sky_[2];                      // scene+0x1c8c / +0x1c90: the scrolling sky tiles behind the background
+    float skyScroll_, skyX_[2];                                  // scene+0x1c94
+    void buildSky();
+    void updateSky(float dtMs);
     std::vector<SceneObject*> objects_;
     std::string exits_[4];
     std::string enterEvent_, enterCond_;

@@ -54,8 +54,7 @@ start point 1. When the saved position is not (0,0,0,0) the progress object reme
   dialogue progress, textures, blocked cells, flags) is saved and restored; the lists nothing in the port fills yet (item bar, `CHAR`, `POSI`,
   `PUZZ`, `HIGH`, flag ids set by id) are kept and written back unchanged. A flag set by name is saved as its 24-bit id.
   `BLOK` holds one cell, written as x, y, x, y.
-- The player position: `GameState::hasPlayer / playerX/Y/Z / playerFacing` are written when the walking code (World3D) fills them, and
-  `resumePos` + the same fields hold the position of a loaded save for `World3D::enter` to use. Neither is wired yet (lane d owns World3D).
+- The player position: `World3D::update` copies the controlled character's x/y/z and heading into `GameState::hasPlayer / playerX/Y/Z / playerFacing` every frame (the writer 0x416ed0 reads them); `resumePos` + the same fields hold the position of a loaded save and `World3D::enter` puts the player there (heading in the same 0x4000 units). Verified: walk, F10 dump, Resume -> `sb restored from save: 283.448 -400 210.693 heading 10012`.
 
 ## Screens and flow
 
