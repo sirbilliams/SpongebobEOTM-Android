@@ -1,0 +1,72 @@
+# Chapter 2 route (docs/chapter2.md), for SB_TEST_PLAYTHROUGH
+scene c2l2s7
+idle
+shot 00-c2l2s7-start
+click "Enter The Bus Station"
+scene c2l2s1
+idle
+shot 01-c2l2s1-station
+click "Walk to Window"
+scene c2l2s2
+idle
+shot 02-c2l2s2-window
+talk teller AAA ADA AEA AXA
+idle
+expect 222ADA
+click "Walk to Waiting Area"
+scene c2l2s1
+click "Exit The Bus Station"
+scene c2l2s7
+idle
+click "Walk Up Road"
+scene c2l2s4
+idle
+shot 03-c2l2s4-road
+click "Walk to The Bus Stop"
+scene c2l2s5
+idle
+shot 04-c2l2s5-leon
+talk leon AAA ABA ACA AXA
+grab ikc1
+idle
+shot 05-c2l2s5-after
+have ikc1
+click "Walk Down Road"
+scene c2l2s4
+idle
+click "Walk Down Road"
+scene c2l2s3
+idle
+shot 06-c2l2s3-storm
+click "Enter Restrooms"
+idle
+have iqu1
+shot 07-c2l2s3-quarter
+click "Walk Up Road"
+scene c2l2s4
+idle
+click "Walk to Machine"
+scene c2l2s6
+idle
+shot 08-c2l2s6-machine
+use iqu1 "Candy Machine"
+idle
+have ikb1
+shot 09-c2l2s6-kelpbar
+click "Walk Down Road"
+scene c2l2s4
+idle
+click "Walk to The Bus Station"
+scene c2l2s7
+idle
+click "Enter The Bus Station"
+scene c2l2s1
+idle
+click "Walk to Window"
+scene c2l2s2
+idle
+use ikb1 teller
+idle
+expect 222BAA
+shot 10-c2l2s2-unlock
+end

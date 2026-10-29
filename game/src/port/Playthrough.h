@@ -7,6 +7,8 @@
       click <target>         a click on the target: @x,y | an object's art name | "its description"
       talk <target> [KEY..]  click the target, then answer each choice list with the next KEY (none left: Escape); lines are
                              skipped with Space
+      grab <target>          click the target as soon as it can be picked, not waiting for idle (a script with `control on` still runs)
+      snap <name>            a shot without waiting for idle
       say [KEY..]            answer the next choice lists of a conversation a script started
       use <item> <target>    open the bar, pick the item up from its slot, click the target with it
       combine <a> <b>        open the bar, pick up a, click b's slot

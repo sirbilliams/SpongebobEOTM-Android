@@ -109,6 +109,15 @@ bool Playthrough::locate(Game* g, const std::string& target, int* x, int* y)
             SceneObject* o = s->objects()[i];
             const std::string& k = pass == 0 ? o->art : o->description;
             if (k.empty() || strcasecmp(k.c_str(), name.c_str()) != 0 || ++n != nth) continue;
+            if ((o->kind == SceneObject::Char || o->kind == SceneObject::Item) && o->x2 > o->x1 && o->y2 > o->y1) {
+                // the exe picks CHAR / ITEM by the authored click rectangle (0x43a310 / 0x415e00): a point of it that picks the target
+                for (int k = 0; k <= 8; ++k)
+                    for (int j = 0; j <= 8; ++j) {
+                        int px = o->x1 + (o->x2 - o->x1) * ((k % 2) ? 4 + (k + 1) / 2 : 4 - k / 2) / 8, py = o->y1 + (o->y2 - o->y1) * ((j % 2) ? 4 + (j + 1) / 2 : 4 - j / 2) / 8;
+                        if (px < 0 || py < 0 || px > 639 || py > 479) continue;
+                        if (s->pickAll(px, py) == o) { *x = px; *y = py; return true; }
+                    }
+            }
             if (o->kind == SceneObject::Char || o->kind == SceneObject::Item) {
                 int l, t, r, b;
                 if (!g->world3d() || !g->world3d()->screenBounds(o, l, t, r, b)) return false;
@@ -154,6 +163,27 @@ bool Playthrough::tick(Game* g, void (*click)(int, int), void (*move)(int, int),
     } else if (c == "scene") {                     // the scene is current (busy or not)
         if (g->scene() && !g->pendingScene() && !st.args.empty() && strcasecmp(g->scene()->name().c_str(), st.args[0].c_str()) == 0) done = true;
         else return true;
+    } else if (c == "snap") {                       // a shot without waiting for idle
+        const char* dir = getenv("SB_TEST_SHOTDIR");
+        std::string p = std::string(dir ? dir : ".") + "/" + (st.args.empty() ? "shot" : st.args[0]) + ".bmp";
+        omf_request_shot(p.c_str());
+        fprintf(stdout, "PLAYTHROUGH line %d: snap %s\n", st.line, p.c_str());
+        done = true;
+    } else if (c == "grab") {                       // click the target as soon as it can be picked (a script may still be running: control on)
+        int x, y;
+        GameScene* sc = g->scene();
+        if (st.args.empty() || !sc || g->pendingScene() || !locate(g, st.args[0], &x, &y)) {
+            if (frames_ % 120 == 0) fprintf(stdout, "PLAYTHROUGH: grab %s: not on screen yet%s\n", st.args.empty() ? "" : st.args[0].c_str(), g->runner() ? " (script runs)" : "");
+            return true;
+        }
+        SceneObject* hit = sc->pickAll(x, y);
+        if (!hit || !(hit->art == st.args[0] || hit->description == st.args[0]) || (g->runner() && !g->runner()->keepControl())) {
+            if (frames_ % 120 == 0) fprintf(stdout, "PLAYTHROUGH: grab %s waits (at %d,%d: hit '%s'%s)\n", st.args[0].c_str(), x, y, hit ? hit->art.c_str() : "-", g->runner() ? ", script runs" : "");
+            return true;
+        }
+        fprintf(stdout, "PLAYTHROUGH line %d: grab %s at %d,%d\n", st.line, st.args[0].c_str(), x, y);
+        click(x, y);
+        done = true;
     } else if (!isIdle) {
         return true;
     } else if (c == "idle") {
