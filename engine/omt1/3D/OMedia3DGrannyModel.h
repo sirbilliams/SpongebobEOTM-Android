@@ -30,6 +30,7 @@ class OMedia3DGrannyModel
 	// (GrannyGetToolCoordinateSystemForModel / RecommendTransform / TransformModel), open the sequence,
 	// 0x403e10: bind the textures to the .omt materials, 0x4039c0: build the shape (BuildShape).
 	bool load(const std::string &base_path);
+	bool set_texture(const std::string &name); // lane c: character vt+0xf0 (0x404070)
 	// 0x4048xx / 0x4033e0..: open an animation file (same transform) and start it as the playing control.
 	// speed: param 2, loops: param 3 (9999 = endless), blend_in: param 6; the previous control blends out.
 	bool play(const std::string &anim_path, float speed = 1.0f, int loops = 9999, float blend_in = 0.0f);

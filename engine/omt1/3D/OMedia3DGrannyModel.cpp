@@ -273,3 +273,26 @@ void OMedia3DGrannyModel::update_pose(void)
 	shape->scale(scale, scale, scale);
 	shape->prepare(0x20);
 }
+
+// lane c: 0x404070 -> vt+0xc8 (0x4053c0), named material from the model database.
+bool OMedia3DGrannyModel::set_texture(const std::string &name)
+{
+    if (!loaded || !db || !db->object_exists(OMedia3DMaterial::db_type, name)) return false;
+    OMedia3DMaterial *mat = (OMedia3DMaterial*)db->get_object(OMedia3DMaterial::db_type, name);
+    granny_uint32 lock[2], count = 0;
+    if (GrannyLockSequenceForRendering(sequence[0], sequence[1], 0x11, lock)) return false;
+    if (!GrannyGetRenderingStatesLeft(lock[0], lock[1], &count)) {
+        for (granny_uint32 i = 0; i < count; ++i) {
+            granny_rendering_state st;
+            if (GrannyLockNextRenderingState(lock[0], lock[1], &st)) continue;
+            granny_new_texture tex;
+            if (!GrannyLockRenderingStateTexture(&st, &tex))
+                GrannyUnlockRenderingStateTexture(&st, &tex, (granny_cookie)mat);
+            GrannyUnlockRenderingState(&st);
+        }
+    }
+    GrannyUnlockRendering(lock[0], lock[1]);
+    // port: rebuild the engine polygons from the updated Granny material cookies.
+    build_shape();
+    return true;
+}

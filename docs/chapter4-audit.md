@@ -6,6 +6,40 @@ window, fill mode, 400 frames, `SB_SKIP_MOVIES=1 SB_TEST_NEWGAME=1 SB_TEST_SCENE
 `SB_TEST_SCRIPT="60:<name>[@actor]"` (`.shots/c4/script-<name>.png|.log`; the five `*_idle` scripts with the character as actor).
 `sb_scripttest`: 52 dialogue files (14 are c4), 0 errors, 168 scripts, 0 parse errors. No game code changed (no new hooks needed).
 
+## Lane c fixes (2026-10-28)
+
+Items **1 (ending)** and **4 (texture)** are implemented. The original observations below describe the pre-fix audit.
+Phone and the character idle-script driver are already implemented in integ; they are not open lane c work.
+
+* `Game::movieFinished` reconstructs the game-mode branch of **0x40bcc0**. `mend` starts `mcredits`; credits
+  completion leaves the game loop, destroys the scene, and returns to the main menu as requested.
+  **Disassembly discrepancy:** vt+0xc0 is **0x40a090**; its +0x254 branch skips the progress clear and switches
+  to **c1l2s6p1** (literal 0x4544cc), while its ordinary New Game branch starts `mintro`. Thus returning
+  directly to the menu follows the requested task behavior, rather than that final executable restart.
+  The port keeps the explicitly requested menu behavior; the corresponding code is marked `// port:`.
+  Correction to the original offset note: `param_1[0x95]` is byte **game+0x254**, not game+0x95. That flag
+  prevents the progress clear at 0x40a147. Movie unlock progress therefore survives the ending; the last slot
+  (`game+0x26c`) is retained, Resume is disabled, and New Game / explicit Load remain available. A new game
+  clears progress normally. View Movies still takes its separate single-movie path.
+* **0x404070** (character vt+0xf0) looks up a named `3DMa` in the character model's database, then calls
+  **0x4053c0** (vt+0xc8) with the replacement material and force=true. The port updates each Granny rendering
+  state's texture cookie through Lock/UnlockRenderingStateTexture, then rebuilds the shape's material bindings.
+  `SceneScriptHost` now applies `texture` immediately; saved TEXT records reapply after scene/model loading.
+* `SB_SKIP_MOVIES=0` now actually enables playback (previously any value skipped movies). The smoke logo
+  check now allows 1050 frames because the five actual logo movies total 912 frames.
+* Captures/logs: `.shots/c4-fix/` on display :83, 1920x1080. `scoatcheck` belongs in **c4l4s6**, whose CAA
+  dialogue is the coat-check exchange; c4l4s4's CAA is the bouncer. `coat-on` runs the real coat script and
+  `coat-off` subsequently runs `snojac` to restore the ordinary texture. Both log successful material binding.
+* All desktop targets and ASan/UBSan targets build. `sb_unittest`: **72 checks, 0 failed**.
+  `tools/test/smoke.sh build .game .shots/smoke`: **SUMMARY: 16 passed, 0 failed**.
+  Sanitized ending (movies skipped) and `scoatcheck` runs exit cleanly with no ASan/UBSan diagnostics.
+  Full real-time playback (`SB_SKIP_MOVIES=0 SB_TEST_SCENE=c4l5s4 SB_TEST_SCRIPT=60:schap4end`,
+  4400 total frames including logos, display :83, 1920x1080) exits **rc 0**: mEND (2146 frames) finishes,
+  mCREDITS (882 frames) finishes, then the menu is reached cleanly. `ending-full.png` shows New Game
+  available and Resume greyed; last slot 0 is retained. `coat-comparison.png` shows ordinary / black jacket.
+  A further ASan/UBSan ending run opens View Movies after completion: `ending-unlocks.png` confirms
+  Neptune's Paradise (mend) and Credits available, with unseen chapter movies still locked; rc 0, no diagnostics.
+
 ## Summary
 * All 28 c4 scenes load, run 400 frames, exit rc 0; no crash, no missing-file message, no error. All 28 have `sceneart/c4*.omt`;
   the 14 scenes with a dialogue table have `dialogue/` (+ `sounds/`, except c4l2s3 which is comments only).
@@ -77,7 +111,7 @@ Scene c4l2s2 (phone close-up, keypad hotspots 1..9) runs `snum<n>` -> `phone n` 
 `miniPhoneKey(n)` -> exe 0x436640); `sphone1` -> `phone` reset (0x436610); `sphone3` / `sphone4` send `phone 10` (the dial / hang up key)
 from c4l2s1 / c4l2s2. Shares the 0x5c-byte mini game object with slots/darts (`game+0x12c`).
 
-## The end: does the game reach the credits and menu? NO
+## The end: original audit (fixed by lane c above)
 * Chain in the data: c4l5s4 event -> `schap4end`: `comment h454e`, `wait`, `transition close`, `movie mEnd`. Nothing follows in the script.
 * Exe (0x40bcc0, "movie finished" handler): in game mode, if the finished movie is `mend` (str 0x454690) it calls vt+0xb0 (`switchTo`)
   `"mcredits"`; if it is `mcredits` (0x454684) it sets `game+0x95 = 1` and calls vt+0xc0 (end the game, back to the main menu).
@@ -90,7 +124,7 @@ from c4l2s1 / c4l2s2. Shares the 0x5c-byte mini game object with slots/darts (`g
 * Movies in `movies/`: mEND, mCREDITS and mCHAPTER4 all present.
 
 ## Prioritised fix list (lane-sized)
-1. **End chain (blocker, small)** - in the port's movie-finished path (`StartupMain.cpp` game loop / `Game`), port 0x40bcc0: after `mend` start
+1. **FIXED — End chain (lane c)** - in the port's movie-finished path (`StartupMain.cpp` game loop / `Game`), port 0x40bcc0: after `mend` start
    `mcredits`; after `mcredits` end the game and return to the main menu (`game+0x95`, vt+0xc0). Also the c4 movie `schap4end` runs with
    `transition close` first (already ok). Verify by a real-time run and `SB_TEST_SCRIPT=60:schap4end`.
 2. **Global comments H000A..X (small, all chapters)** - exe 0x410450 (loads `dialogue/comments.sb2`, rows whose id starts `H000`, kept in
@@ -99,7 +133,7 @@ from c4l2s1 / c4l2s2. Shares the 0x5c-byte mini game object with slots/darts (`g
    Scene.cpp:479) and c4's `H000I` (coat comment) are missing. Needs the voice lookup too (Game.cpp:357).
 3. **Phone mini-game (Sonnet lane, in progress)** - 0x4354d0 / 0x436610 / 0x436640 / 0x440774 (+ update hook 0x4355a0 / 0x435830);
    the c4l2s2 keypad scripts and the sphone result branch (sphone3 `talk`, `switch`).
-4. **`texture` (actorSetTexture, vt+0xf0)** - small/medium. c4 uses it for the coat swap (`snojac` sponge, `scoatcheck` spongetux, c1 for
+4. **FIXED — `texture` (actorSetTexture, vt+0xf0, lane c)** - small/medium. c4 uses it for the coat swap (`snojac` sponge, `scoatcheck` spongetux, c1 for
    other swaps); the character's texture must be swapped (named texture of the model) and persist (`GameState::setTexture` exists for saves).
 5. **Idle-script driver** (char update 0x42f1a0, flag +0x1962) - already listed in the c2 audit; c4 has five idle scripts (san 421, carlton 434,
    timmy 443, fred 446/447) that run only through the test hook.

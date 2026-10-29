@@ -64,6 +64,10 @@ void SceneScriptHost::resetForScene()
 
 void SceneScriptHost::sceneLoaded()
 {
+    // lane c: 0x4166d0 TEXT records reapply when a character enters a scene.
+    const std::map<std::string, std::string>& textures = g_->state().textures();
+    for (std::map<std::string, std::string>::const_iterator i = textures.begin(); i != textures.end(); ++i)
+        actorSetTexture(findActor(i->first.c_str()), i->second.c_str());
     // 0x437cf0 "here 2": the first character the player controls becomes the active one (scene+0x248)
     GameScene* s = g_->scene();
     for (size_t i = 0; s && i < s->objects().size(); ++i) {
@@ -224,7 +228,10 @@ bool SceneScriptHost::actorGoalMissed(ScriptActor* a) {
 }
 void SceneScriptHost::actorStopWalk(ScriptActor* a) { if (a && g_->world3d()) g_->world3d()->stopWalk(a->obj); }
 void SceneScriptHost::actorShadow(ScriptActor* a, bool on) { if (a && g_->world3d()) g_->world3d()->setShadow(a->obj, on); }      // the shadow model is hidden / shown (World3D)
-void SceneScriptHost::actorSetTexture(ScriptActor* a, const char* t) { stub("%s texture %s (vt+0xf0)", an(a), t); }
+void SceneScriptHost::actorSetTexture(ScriptActor* a, const char* t) // lane c: 0x404070
+{
+    if (a && g_->world3d()) g_->world3d()->setTexture(a->obj, t);
+}
 void SceneScriptHost::swapPlayerHelmet() { stub("swapchar: sb <-> sbhelm"); }
 void SceneScriptHost::shockEffect() { stub("shock: 2D object \"elec\" at the player's screen position"); }
 

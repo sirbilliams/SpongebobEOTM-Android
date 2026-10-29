@@ -81,7 +81,8 @@ game() {
 }
 rm -f "$OUT/todo.all"; : > "$OUT/todo.all"
 SH="SB_TEST_NEWGAME=1"
-game logos-menu    700 'sb2\.omt menu dialog|main menu: clean exit' SB_SKIP_MOVIES=0
+# lane c: SB_SKIP_MOVIES=0 plays all 912 logo frames; leave time for the menu.
+game logos-menu    1050 'sb2\.omt menu dialog|main menu: clean exit' SB_SKIP_MOVIES=0
 game newgame-c1l0s1 400 'scene c1l0s1 entered' $SH
 game scene-c1l2s6   300 'scene c1l2s6 entered' $SH SB_TEST_SCENE=c1l2s6
 game click-dialogue 800 'event .AAA. \(Larry The Lobster\)|dialogue AAA|line AZA' $SH SB_TEST_SCENE=c1l5s4 SB_TEST_GAME_CLICKS=150:30:30,330:160:32,520:427:267

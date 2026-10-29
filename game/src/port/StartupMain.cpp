@@ -55,7 +55,7 @@ class StartupApp : public MenuHost
     bool start_game;          // New Game was chosen: the menu loop ends and the scene runtime starts
     bool skip_movies;         // port: SB_SKIP_MOVIES=1, tests only
 
-	StartupApp() : paused(NULL), launch(L_NEW), launch_slot(-1), start_game(false), skip_movies(getenv("SB_SKIP_MOVIES") != NULL)
+	StartupApp() : paused(NULL), launch(L_NEW), launch_slot(-1), start_game(false), skip_movies(getenv("SB_SKIP_MOVIES") && atoi(getenv("SB_SKIP_MOVIES")) != 0), completed(false)
 	{
 		sbgame::SaveGame::setDir(".");
 		SDL_Log("0x4097d0: application constructor");
@@ -149,9 +149,10 @@ class StartupApp : public MenuHost
     virtual bool menu_new_game() { launch = L_NEW; start_game = true; return true; }
     // ---- save games (docs/saves.md) ----
     virtual bool menu_game_active() { return paused != NULL; }
-    virtual bool menu_can_resume() { return paused != NULL || (save >= 0 && sbgame::SaveGame::exists(save)); }
+    virtual bool menu_can_resume() { return !completed && (paused != NULL || (save >= 0 && sbgame::SaveGame::exists(save))); }
     // 0x4248b0: back to the game in progress; with none, the last used slot (port: the Save value of the settings, game+0x26c)
     virtual void menu_resume() {
+        if (completed) return; // lane c: 0x40a090 has removed the resumable scene
         if (paused) launch = L_RESUME;
         else if (save >= 0 && sbgame::SaveGame::exists(save)) { launch = L_LOAD; launch_slot = save; }
         else return;
@@ -165,6 +166,7 @@ class StartupApp : public MenuHost
             if (l.find("," + n + ",") != std::string::npos) return true;
         }
         if (paused) return paused->state().scriptSeen(name);
+        if (completed) return completed_state.scriptSeen(name); // lane c: exe retains progress (+0x254)
         sbgame::SaveFile f;
         if (save >= 0 && sbgame::SaveGame::exists(save) && sbgame::SaveGame::read(sbgame::SaveGame::slotPath(save), f)) {
             for (size_t i = 0; i < f.scrp.size(); ++i) { std::string s = f.scrp[i]; for (size_t k = 0; k < s.size(); ++k) s[k] = (char)tolower((unsigned char)s[k]); if (s == n) return true; }
@@ -421,9 +423,13 @@ class StartupApp : public MenuHost
         sbport::CompanionMovie(true);    // port: companion (its SKIP is a key press while the movie holds the loop)
         if(!app->skip_movies) app->movie_ok=app->play_movie(SDL_GL_GetCurrentWindow(),buf) && app->movie_ok;
         sbport::CompanionMovie(false);
+        app->finished_movie=buf;
         app->movie_done=true;      // the classifier continues with game->chained after the movie (game+0x186)
     }
     bool movie_ok, movie_done;
+    bool completed; // lane c: ended games cannot Resume, even with a last save slot
+    sbgame::GameState completed_state;
+    std::string finished_movie;
 
     // port: tests only. SB_TEST_DUMP_PAUSE / SB_TEST_DUMP_QUIT=<file>: the game state as a save file (no thumbnail), for comparing runs
     void test_dump(sbgame::Game *game,const char *var) {
@@ -446,6 +452,7 @@ class StartupApp : public MenuHost
                 game->forceRedraw();
             } else {
                 delete paused; paused=NULL;
+                completed=false;
                 game=new sbgame::Game;
                 if(!game->init(".",screen)) { SDL_Log("game: init failed"); delete game; return true; }
                 apply_settings(); game->optText=text; game->optShadows=shadows;
@@ -512,8 +519,12 @@ class StartupApp : public MenuHost
                 if(movie_done) {
                     movie_done=false;
                     if(!movie_ok) { result=false; break; }
-                    std::string c=game->chained; game->chained.clear();
-                    if(!c.empty()) game->switchTo(c.c_str());
+                    std::string finished=finished_movie;
+                    if(game->movieFinished(finished.c_str())) {
+                        completed_state=game->state(); completed=true;
+                        SDL_Log("0x40a090: ending complete -> main menu (Resume disabled, last slot %d retained)", save);
+                        break;
+                    }
                 }
                 unsigned now=SDL_GetTicks();
                 float dt=last?(float)(now-last):16.0f; last=now;

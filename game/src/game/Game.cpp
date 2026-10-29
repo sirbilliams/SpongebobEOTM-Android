@@ -59,6 +59,7 @@ Game::Game()
       pendingId_(0), pendingStart_(0), runner_(0), host_(0), hoverCap_(0), commentCap_(0), commentMs_(0), mx_(320), my_(240),
       inputAttached_(false), commentBlock_(0), commentVoice_(false), hud_(0), mini_(0), cursor_(0)
 {
+    gameCompleted = false;
 }
 
 Game::~Game()
@@ -295,7 +296,7 @@ void Game::switchTo(const char* name)       // game vt+0xb0, 0x40a230
             chained = sp == std::string::npos ? std::string() : n.substr(sp + 1);
             // port: the Bink player is the startup's; without one the movie "ends" at once
             if (!movieHook) {
-                if (!chained.empty()) { std::string c = chained; chained.clear(); switchTo(c.c_str()); }
+                movieFinished(mv.c_str());
             } else movieHook(mv.c_str(), movieHookData);
         }
     } else if (toupper((unsigned char)n[0]) == 'S') {
@@ -486,3 +487,17 @@ void Game::update(float dt)
 }
 
 }  // namespace sbgame
+
+// lane c: 0x40bcc0 game-mode movie completion; View Movies uses its separate menu path.
+bool sbgame::Game::movieFinished(const char* name)
+{
+    std::string n = name ? name : "";
+    for (size_t i = 0; i < n.size(); ++i) n[i] = (char)tolower((unsigned char)n[i]);
+    if (n == "mend") { switchTo("mcredits"); return false; }
+    // 0x40bcc0: after the credits the exe keeps the progress (game+0x254 = 1, vt+0xc0) and the player
+    // continues in c1l2s6p1 (the Krusty Krab), as the original does; it does not return to the menu.
+    if (n == "mcredits") { chained.clear(); gameCompleted = true; switchTo("c1l2s6p1"); return false; }
+    std::string c = chained; chained.clear();
+    if (!c.empty()) switchTo(c.c_str());
+    return false;
+}

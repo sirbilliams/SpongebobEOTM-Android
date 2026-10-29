@@ -163,6 +163,14 @@ World3D::~World3D()
     delete w3_;
 }
 
+// lane c: 0x404070, named material in this character's model database.
+void World3D::setTexture(SceneObject* o, const char* name)
+{
+    Actor3D* a = actorFor(o);
+    if (a) game_->log("texture %s %s: %s\n", a->name.c_str(), name,
+        a->model->set_texture(lower(name)) ? "bound" : "material missing");
+}
+
 void World3D::place(Actor3D* a)
 {
     a->obj->px = a->x; a->obj->py = a->y; a->obj->pz = a->z;

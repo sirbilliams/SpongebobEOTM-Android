@@ -73,6 +73,7 @@ public:
     void oneShotAnim(SceneObject* o, const char* name);                         // vt+0xb4 (name, 0, 1.0)
     void talk(SceneObject* o, bool on);                                         // vt+0xc0("talk")
     void talkAll(bool on);
+    void setTexture(SceneObject* o, const char* name); // lane c: vt+0xf0
     bool walk(SceneObject* o, float x, float z, bool run);                      // vt+0x144
     bool walkGrid(SceneObject* o, int gx, int gy);
     void setShadow(SceneObject* o, bool on);                                    // 0x434410 / 0x434430
