@@ -1,6 +1,6 @@
 /*  OMT 1.x engine layer (OMT.dll, Aug 2002), rebuilt from the retail DLL's code. LGPL like OMT. */
 #include "OMediaCCaption.h"
-#include "OMediaQuickText.h"
+#include "OMediaTextFont.h"
 #include "OMedia2DWorld.h"
 #include "OMediaCanvas.h"
 
@@ -21,7 +21,7 @@ void OMediaCCaption::set_string(const string &s)
 	moved = true;
 }
 
-void OMediaCCaption::set_font(OMediaQuickText *f)
+void OMediaCCaption::set_font(OMediaTextFont *f)
 {
 	font = f;
 	compute_size();

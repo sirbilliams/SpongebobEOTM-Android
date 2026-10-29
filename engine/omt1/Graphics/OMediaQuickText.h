@@ -11,10 +11,11 @@
 #define OMEDIA1_QuickText_H
 
 #include "OMediaCanvas.h"
+#include "OMediaTextFont.h"
 #include "OMediaRect.h"
 #include <string>
 
-class OMediaQuickText
+class OMediaQuickText : public OMediaTextFont
 {
 	public:
 	omtshared OMediaQuickText();					// 0x10083fe0
@@ -31,7 +32,7 @@ class OMediaQuickText
 
 	inline OMediaCanvas *get_font_canvas(void) const {return font;}
 	inline short get_font_width(void) const {return fwidth;}
-	inline short get_font_height(void) const {return fheight;}
+	virtual short get_font_height(void) {return fheight;}
 	inline void set_proportional(bool p) {proportional = p;}
 	inline void set_char_space(short s) {char_space = s;}
 	inline void set_space_size(short s) {space_size = s;}

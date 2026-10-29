@@ -11,7 +11,7 @@
     +0xf8 activate message, +0xfc click message, +0x100 deselect message, +0x104 width, +0x106
     height, +0x108 margin (3), +0x10a shine, +0x110 dark, +0x116 back, +0x11c cursor colours,
     +0x124 string, +0x134 font, +0x138 cursor shown, +0x13c cursor time, +0x140 filter,
-    +0x144 background, +0x145 auto size, +0x146 double click, +0x148 maximum width (640),
+    +0x144 transparent when idle, +0x145 auto size, +0x146 double click, +0x148 maximum width (640),
     +0x14a cursor width (5), +0x14c last click, +0x150 owner, +0x154 click notifies,
     +0x158 select timer, +0x168 select delay, +0x16c waiting to be selected.                  */
 #pragma once
@@ -26,7 +26,7 @@
 #include "OMediaTimer.h"
 #include <string>
 
-class OMediaQuickText;
+class OMediaTextFont;
 class OMediaDrawPort;
 class OMediaEvent;
 
@@ -49,17 +49,18 @@ class OMediaCStringField : public OMediaUndiv2DElement, public OMediaBroadcaster
 	omtshared virtual void set_string(string s);							// 0x10052910  vt+0x98
 	omtshared virtual void select(void);									// 0x10053150  vt+0x9c
 	omtshared virtual void deselect(void);									// 0x100531c0  vt+0xa0
+	omtshared virtual void recalc_size(void);								// 0x10053750  vt+0xb4 (sb2.exe calls it)
 
 	inline const string &get_string(void) const {return text;}
 
 	// (sb2.exe sets the rest through inline code)
-	void set_font(OMediaQuickText *f);
+	void set_font(OMediaTextFont *f);
 	inline void set_dimensions(short w, short h) {width = w; height = h; moved = true;}
 	inline void set_margin(short m) {margin = m; moved = true;}
 	inline void set_max_width(short w) {max_width = w;}
 	inline void set_auto_size(bool a) {auto_size = a;}
-	inline void set_filter(omt_StringFieldFilter f) {filter = f;}
-	inline void set_has_background(bool b) {has_background = b; moved = true;}
+	inline void set_filter(int f) {filter = f;}
+	inline void set_transparent_idle(bool b) {transparent_idle = b; moved = true;}
 	inline void set_double_click(bool d) {double_click = d;}
 	inline void set_click_notifies(bool n) {click_notifies = n;}
 	inline void set_select_delay(float ms) {select_delay = ms;}
@@ -75,13 +76,13 @@ class OMediaCStringField : public OMediaUndiv2DElement, public OMediaBroadcaster
 	omtshared static OMediaCStringField	*select_waiting_field;		// 0x1041c9ac
 	omtshared static OMediaRGBColor		initback, initdark, initshine, initcursor;	// 0x1041c9a4 / 998 / 9b0 / 9b8
 
+	// filter 4 (what sb2.exe sets) is none of the others: any character
 	protected:
 	omtshared virtual void draw_full(OMediaGfxWorld *w, long x, long y);							// 0x10053520  vt+0x94
 	omtshared virtual void draw_text(OMediaDrawPort &dp, short x, short y);						// 0x100532d0  vt+0xa4
 	omtshared virtual void draw_back(OMediaDrawPort &dp, OMediaRect &r);							// 0x100534e0  vt+0xa8
 	omtshared virtual void draw_cursor(OMediaDrawPort &dp, short x, short y, OMediaRect &r);		// 0x10053220  vt+0xac
 	omtshared virtual bool isinbounds(short x, short y);											// 0x10053610  vt+0xb0
-	omtshared virtual void recalc_size(void);														// 0x10053750  vt+0xb4
 	omtshared virtual bool process_keyfilter(const OMediaEvent *e);								// 0x100538d0  vt+0xb8
 
 	void broadcast_to_owner(omt_Message m);
@@ -94,11 +95,11 @@ class OMediaCStringField : public OMediaUndiv2DElement, public OMediaBroadcaster
 	short				margin;				// +0x108
 	OMediaRGBColor		shine, dark, back, cursor;
 	string				text;				// +0x124
-	OMediaQuickText		*font;				// +0x134
+	OMediaTextFont		*font;				// +0x134
 	bool				cursor_shown;		// +0x138
 	float				cursor_time;		// +0x13c
-	omt_StringFieldFilter filter;			// +0x140
-	bool				has_background;		// +0x144
+	int					filter;			// +0x140
+	bool				transparent_idle;		// +0x144
 	bool				auto_size;			// +0x145
 	bool				double_click;		// +0x146
 	short				max_width;			// +0x148

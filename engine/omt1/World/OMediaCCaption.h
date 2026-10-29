@@ -8,7 +8,7 @@
 #include "OMedia2DElement.h"
 #include <string>
 
-class OMediaQuickText;
+class OMediaTextFont;
 
 class OMediaCCaption : public OMedia2DElement
 {
@@ -22,15 +22,16 @@ class OMediaCCaption : public OMedia2DElement
 
 	// (sb2.exe sets these through inline code: the string, then compute_size)
 	void set_string(const string &s);
-	void set_font(OMediaQuickText *f);
+	void set_font(OMediaTextFont *f);
 	inline const string &get_string(void) const {return text;}
-	inline OMediaQuickText *get_font(void) const {return font;}
+	inline OMediaTextFont *get_font(void) const {return font;}
+
+	omtshared virtual void compute_size(void);		// 0x1003ded0 (public: sb2.exe calls it after setting the font or string)
 
 	protected:
-	omtshared virtual void compute_size(void);		// 0x1003ded0
 
 	string				text;		// +0xc4
-	OMediaQuickText		*font;		// +0xd4
+	OMediaTextFont		*font;		// +0xd4
 	short				width;		// +0xd8
 	short				height;		// +0xda
 };

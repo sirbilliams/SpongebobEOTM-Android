@@ -1,6 +1,6 @@
 /*  OMT 1.x engine layer (OMT.dll, Aug 2002), rebuilt from the retail DLL's code. LGPL like OMT. */
 #include "OMediaCStringField.h"
-#include "OMediaQuickText.h"
+#include "OMediaTextFont.h"
 #include "OMediaDrawPort.h"
 #include "OMediaEventManager.h"
 #include "OMediaViewPort.h"
@@ -36,7 +36,7 @@ OMediaCStringField::OMediaCStringField()
 	cursor_shown = false;
 	cursor_time = -1.0f;
 	filter = omcsff_Any;
-	has_background = true;
+	transparent_idle = true;
 	auto_size = true;
 	double_click = false;
 	max_width = 0x280;
@@ -61,7 +61,7 @@ OMediaCStringField::~OMediaCStringField()
 		OMediaEventManager::get_event_manager()->set_focus_listener(NULL);
 }
 
-void OMediaCStringField::set_font(OMediaQuickText *f)
+void OMediaCStringField::set_font(OMediaTextFont *f)
 {
 	font = f;
 	recalc_size();
@@ -281,7 +281,7 @@ void OMediaCStringField::draw_full(OMediaGfxWorld *w, long x, long y)
 	dp.setgfxworld(w);
 	dp.lock();
 	OMediaRect r(x, y, x + width, y + height);
-	if (!has_background || focus_field == this || text.empty()) draw_back(dp, r);
+	if (!transparent_idle || focus_field == this || text.empty()) draw_back(dp, r);
 	draw_text(dp, (short)x, (short)y);
 	dp.unlock();
 }
