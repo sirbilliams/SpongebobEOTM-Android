@@ -1,12 +1,17 @@
 #include "MiniGame.h"
 #include "Game.h"
+#include "DialogueUI.h"
+#include "OMediaTextFont.h"
 #include <stdlib.h>
 #include <stdio.h>
 
 namespace sbgame {
 MiniGame::MiniGame(Game* g) : game_(g), step_(0), spins_(0), armed_(false), failed_(false), resultPending_(false), elapsed_(0)
 {
+    throws_=dartX_=dartY_=score_=hit_=highScore_=0;
+    dartPending_=bullSound_=false; hitMs_=0;
     for (int i=0;i<3;++i) { target_[i]=-1; running_[i]=false; }
+    for(int i=0;i<5;++i) dartText_[i]=new TextBlock;
 }
 void MiniGame::stopSound() { game_->stopChannel(7); } // 0x4368f0
 void MiniGame::sound(const char* name, int pan) // 0x4367a0
@@ -72,6 +77,7 @@ void MiniGame::slotsSpin() // 0x436090
 }
 void MiniGame::update(float dt) // slots branch of 0x435830
 {
+    updateDarts(dt); // lane c: 0x435830 darts branch
     GameScene* s=game_->scene(); if(!s || s->name()!="c2l5s3") return;
     if(running_[2]) {
         elapsed_+=dt;
@@ -129,5 +135,79 @@ void MiniGame::sceneEntered() // 0x436250 and 0x437cf0
         for(int i=0;i<3;++i) { if(second) { s->hide(hidden[i]); s->show(shown[i]); } else { s->show(hidden[i]); s->hide(shown[i]); } }
     }
     if(s->name()=="c2l5s2" && failed_) { failed_=false; game_->switchTo("h252d"); }
+}
+}
+
+// lane c: darts portion of the same persistent object, 0x436990..0x436cf2.
+namespace sbgame {
+MiniGame::~MiniGame() { for(int i=0;i<5;++i) delete dartText_[i]; }
+int MiniGame::dartsScore(int x, int y) // 0x436b70, nested GDI elliptic regions
+{
+    const int boxes[6][4]={{302,226,336,260},{275,201,360,285},
+        {234,162,400,323},{200,125,433,360},{161,90,475,398},{133,60,496,424}};
+    const int points[6]={50,25,20,15,10,5};
+    // port: replace Win32 PtInRegion with a pixel-centred ellipse test.
+    for(int i=0;i<6;++i) {
+        double rx=(boxes[i][2]-boxes[i][0])*0.5, ry=(boxes[i][3]-boxes[i][1])*0.5;
+        double dx=(x+0.5-boxes[i][0]-rx)/rx, dy=(y+0.5-boxes[i][1]-ry)/ry;
+        if(dx*dx+dy*dy<1.0) return points[i];
+    }
+    return 0;
+}
+void MiniGame::darts(int op)
+{
+    if(op==0) { // 0x436990: high score survives reset
+        throws_=dartX_=dartY_=score_=hit_=0; dartPending_=bullSound_=false;
+        sound("ready"); dartsText(); return;
+    }
+    GameScene* s=game_->scene(); if(!s || s->name()!="c3l2s5" || dartPending_ || bullSound_) return;
+    if(throws_==3) { // fourth click clears the board; it does not throw
+        s->hide("Darts"); s->hide("Darts01"); s->hide("Darts03"); s->hide("Darts05");
+        throws_=dartX_=dartY_=score_=hit_=0; dartPending_=bullSound_=false; dartsText(); return;
+    }
+    dartX_=(short)(game_->mouseX()-47+rand()%50-25);
+    dartY_=(short)(game_->mouseY()-66+rand()%50-25);
+    char name[16]; sprintf(name,"dart%d",rand()%3+1); sound(name);
+    SceneObject* o=s->find("Darts"); if(!o) return;
+    dartPending_=true; o->px=dartX_; o->py=dartY_; o->pz=dartY_-640;
+    if(o->elem) o->elem->place(o->px,o->py,o->pz);
+    s->animate("Darts");
+    game_->log("mini darts throw %d at %d,%d\n",throws_+1,dartX_+47,dartY_+66);
+}
+void MiniGame::dartsText() // 0x4355a0
+{
+    GameScene* s=game_->scene();
+    for(int i=0;i<5;++i) dartText_[i]->clear();
+    if(!s || s->name()!="c3l2s5") return;
+    char text[80];
+    OMediaTextFont* font=game_->font();
+    dartText_[0]->show(game_,20,435,10100,false,"Your Score",150);
+    sprintf(text,"%d",score_); dartText_[3]->show(game_,20+(font->get_text_length("Your Score")-font->get_text_length(text))/2,457,10100,false,text,100);
+    dartText_[1]->show(game_,620-font->get_text_length("High Score"),435,10100,false,"High Score",120);
+    sprintf(text,"%d",highScore_); dartText_[4]->show(game_,620-(font->get_text_length("High Score")+font->get_text_length(text))/2,457,10100,false,text,80);
+    if(hit_>0 && hitMs_>0) {
+        sprintf(text,"%d",hit_); dartText_[2]->show(game_,(int)(dartX_+27-hitMs_*0.05f),(int)(dartY_+46+hitMs_*0.1f),10100,hit_==50,text,60);
+    }
+}
+void MiniGame::updateDarts(float dt) // darts branch, 0x435830
+{
+    GameScene* s=game_->scene();
+    if(!s || s->name()!="c3l2s5") { for(int i=0;i<5;++i) dartText_[i]->clear(); return; }
+    if(throws_ && hit_ && hitMs_>0) { hitMs_+=dt; if(hitMs_>800) { hitMs_=0; } dartsText(); }
+    if(bullSound_ && !game_->channelBusy(7)) { bullSound_=false; sound("yipee"); }
+    SceneObject* o=s->find("Darts");
+    if(!dartPending_ || !o || o->playing) return;
+    hitMs_=1; hit_=(short)dartsScore(dartX_+47,dartY_+66); score_+=hit_;
+    if(score_>highScore_) highScore_=score_;
+    bullSound_=hit_==50; dartPending_=false; s->hide("Darts");
+    const char* names[]={"Darts01","Darts03","Darts05"};
+    if(throws_<3) {
+        SceneObject* stuck=s->find(names[throws_]);
+        if(stuck) { stuck->px=dartX_; stuck->py=dartY_; stuck->pz=dartY_-640;
+            if(stuck->elem) stuck->elem->place(stuck->px,stuck->py,stuck->pz); s->show(names[throws_]); }
+        ++throws_;
+    }
+    game_->log("mini darts landed: hit %d score %d throws %d high %d\n",hit_,score_,throws_,highScore_);
+    dartsText();
 }
 }
