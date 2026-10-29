@@ -74,3 +74,10 @@ bound to the 3DMa named like the n-th bitmap (fallback: the database's first mat
   c1l0s1 are all zero.
 - Picking (`test_click`), the shape converters, fog, sprites/tiles/particles (OMedia3DSprite, Tile, ParticleEmitter,
   HeightGrid) and the generation functions are not rebuilt.
+
+## Installed-model regression catalogue
+
+`omt1_models_test <game dir> <shot dir>` audits every `.grn` and renders each mesh-bearing
+file through the actual engine path; `python3 tools/test/model-sheet.py <shot dir>` adds a labelled PNG sheet.
+The Marlin multi-mesh UV and per-mesh material corrections, verification and decoder limitations
+are documented in [marlin-model.md](marlin-model.md).

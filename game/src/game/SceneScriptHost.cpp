@@ -1,4 +1,5 @@
 #include "SceneScriptHost.h"
+#include "MiniGame.h" // chapter 2 mini-games
 #include "DialogueUI.h"
 #include "World3D.h"
 #include "Hud.h"                   // port: hud
@@ -319,11 +320,11 @@ void SceneScriptHost::playObjectSound(SceneObject* o)           // 0x415710
 }
 
 // ---------------------------------------------------------------------------------- mini games
-bool SceneScriptHost::miniGameExists() { return false; }
-void SceneScriptHost::miniGameCreate() { stub("mini game object (0x5c bytes, ctor 0x4354d0)"); }
-void SceneScriptHost::miniSlotsInit() { stub("slots init 0x436030"); }
-void SceneScriptHost::miniSlotsSpin() { stub("slots spin 0x436090"); arm3d(sim3dMs); }
-void SceneScriptHost::miniMaze(int n) { stub("maze %d 0x436510", n); }
+bool SceneScriptHost::miniGameExists() { return g_->miniGame() != 0; }
+void SceneScriptHost::miniGameCreate() { g_->createMiniGame(); }
+void SceneScriptHost::miniSlotsInit() { g_->miniGame()->slotsInit(); }
+void SceneScriptHost::miniSlotsSpin() { g_->miniGame()->slotsSpin(); }
+void SceneScriptHost::miniMaze(int n) { g_->miniGame()->maze(n); }
 void SceneScriptHost::miniPhoneKey(int n) { stub("phone key %d 0x436640", n); }
 void SceneScriptHost::miniPhoneReset() { stub("phone reset 0x436610"); }
 void SceneScriptHost::miniDarts(int op) { stub("darts %d (0x436990 / 0x4369c0)", op); }

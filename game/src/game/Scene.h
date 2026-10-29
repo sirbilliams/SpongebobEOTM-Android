@@ -121,6 +121,7 @@ public:
 
 private:
     friend class Game;
+    friend class MiniGame; // 0x436250 switches the maze background
     void buildObjects();
     void place(SceneObject* o);
     void setHidden(SceneObject* o, bool hidden);

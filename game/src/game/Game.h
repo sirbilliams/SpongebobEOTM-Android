@@ -24,6 +24,7 @@ namespace sbscript { class ScriptHost; }
 
 namespace sbgame {
 
+class MiniGame;
 class SceneScriptHost;
 class World3D;
 class Hud;      // port: hud
@@ -60,6 +61,8 @@ public:
     void update(float dtMs);
 
     // ---- accessors ----
+    MiniGame* miniGame() { return mini_; } // chapter 2 mini-games
+    void createMiniGame();
     GameState& state() { return state_; }
     // game vt+0xb8 (0x40a6b0): is the condition expression true ("", "0" and " " are true)
     bool cond(const char* expr, bool touching = false) { return sbscript::evalCondition(expr, touching, state_); }
@@ -152,6 +155,7 @@ private:
     bool commentVoice_;
     std::string hoverText_;
     Hud* hud_;                    // port: hud
+    MiniGame* mini_; // persistent across scenes (game+0x12c)
     Cursor* cursor_;              // port: cursor
 };
 

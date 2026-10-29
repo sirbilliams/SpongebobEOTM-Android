@@ -1,5 +1,7 @@
 # Chapter 2 readiness audit (lane f, base integ 2cf1640)
 
+Lane d follow-up: slots and maze are now implemented in `MiniGame.{h,cpp}`; the stub findings below describe the audit baseline. Reconstruction and replay details: [chapter2-minigames.md](chapter2-minigames.md).
+
 Method: the real `spongebob` binary, headless (Xvfb in the omtbuild box), 1920x1080 window, fill mode, 400 frames,
 `SB_SKIP_MOVIES=1 SB_TEST_NEWGAME=1 SB_TEST_SCENE=<scene> SB_GAME_LOG=1`, screenshot of the last frame. Then every one of
 the 50 `scripts/c2/*.sb2` scripts started 60 game frames into its home scene with the new test hook
@@ -131,7 +133,8 @@ timer object): that is where the per-frame behaviour lives and why a stub object
 * Test hook: `SB_TEST_SCRIPT` takes `frame:name[@actor][,frame:name...]` (the actor is made the active character first).
 
 ## Prioritised fix list (lane-sized)
-1. **Marlin model garbled (c2l5s5, c2l5s6)** - small. `models/people/marlin_model.grn/.omt` renders as jagged triangles with
+1. **DONE (lane c): Marlin model garbled (c2l5s5, c2l5s6)** - fixed multi-mesh UV parsing and material references;
+   see [marlin-model.md](marlin-model.md) for root cause, all-model catalogue and verification. Original finding: `models/people/marlin_model.grn/.omt` renders as jagged triangles with
    wrong colours; every other c2 character is fine. Suspect: a mesh/vertex variant the Granny replacement does not handle (docs/granny-replacement.md
    mesh/weight section), a bone-count or index-width case, or the texture binding. Compare against `patnap`/`garyg`; needed to finish
    the chapter (Marlin is the boss of l5). Owner: Granny/3D lane.

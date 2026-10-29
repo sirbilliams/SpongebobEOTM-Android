@@ -1,4 +1,5 @@
 #include "Game.h"
+#include "MiniGame.h" // chapter 2 mini-games
 #include "DialogueUI.h"
 #include "SceneScriptHost.h"
 #include "World3D.h"
@@ -56,7 +57,7 @@ bool OmtFile::open(const std::string& file)
 Game::Game()
     : blending(true), optText(1), optShadows(1), movieHook(0), movieHookData(0), suspended(false), inputConsumed(false), letterboxIn(false), logFile(stdout), world_(0), vp_(0), retail_(0), font_(0), w3_(0), scene_(0), pending_(0),
       pendingId_(0), pendingStart_(0), runner_(0), host_(0), hoverCap_(0), commentCap_(0), commentMs_(0), mx_(320), my_(240),
-      inputAttached_(false), commentBlock_(0), commentVoice_(false), hud_(0), cursor_(0)
+      inputAttached_(false), commentBlock_(0), commentVoice_(false), hud_(0), mini_(0), cursor_(0)
 {
 }
 
@@ -66,6 +67,7 @@ Game::~Game()
         OMediaEventManager::get_event_manager()->get_mouse_broadcaster()->removelistener(this);
         OMediaEventManager::get_event_manager()->get_key_broadcaster()->removelistener(this);
     }
+    delete mini_;
     delete runner_;
     runner_ = 0;
     delete commentBlock_;
@@ -83,6 +85,8 @@ Game::~Game()
     delete font_;
     delete retail_;
 }
+
+void Game::createMiniGame() { if (!mini_) mini_ = new MiniGame(this); }
 
 void Game::log(const char* fmt, ...)
 {
@@ -261,6 +265,9 @@ void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without 
     help_.load(*host_, chapter, &err);
     host_->sceneLoaded();
     scene_->enter(start);
+    // 0x437cf0: maze scene setup uses the persistent slot clue.
+    if (scene_->name() == "c2l5s4") createMiniGame();
+    if (mini_) mini_->sceneEntered();
 }
 
 // ------------------------------------------------------------------------ the event classifier
@@ -431,6 +438,7 @@ void Game::update(float dt)
     scene_->update(dt);
     if (scene_->dialogue()) scene_->dialogue()->update(dt);
     host_->update(dt);
+    if (mini_) mini_->update(dt); // 0x435830
     if (w3_) w3_->update(dt);
     if (runner_) {
         if (runner_->idleElapsed(dt)) wake();                 // idle without an actor (0x43d650)

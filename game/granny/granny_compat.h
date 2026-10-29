@@ -169,9 +169,11 @@ void GrannyCompatSetDataDirectory(const char *dir);
 /* not in granny.dll: the player's granny.dll, whose Bink tables the texture decoder reads (default: next to the
    directory of the first .grn file opened, then in it, then in the current directory).  Call before opening. */
 void GrannyCompatSetDllPath(const char *path);
+/* not in granny.dll: bitmap object name for material binding, valid until texture release. */
+const char *GrannyCompatTextureMaterialName(const granny_new_texture *texture);
 /* not in granny.dll (port: HD texture pack): "<model>_<n>" for a texture between GrannyLockNextNewTexture and
    GrannyUnlockNewTexture: <model> = the .grn file name without directory and extension, n = the texture's
-   number in that file.  Empty when unknown.  The string lives until the next call. */
+   number in that file. Empty when unknown. The string lives until the next call. */
 const char *GrannyCompatTextureName(const granny_new_texture *texture);
 
 #ifdef __cplusplus

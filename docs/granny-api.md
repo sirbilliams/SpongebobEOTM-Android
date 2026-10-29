@@ -98,3 +98,7 @@ not 1.
 - `grnfile.py` — Python .grn reader (exploration).
 - `grnextract.c`, `grncheck.cpp`, `grntest.c`, `grntest.py`, `verify.sh`, `tests/` — comparison of the
   replacement with the DLL ([granny-replacement.md](granny-replacement.md)).
+
+SpongeBob installed-model coverage and the multi-mesh UV/material corrections are in
+[marlin-model.md](marlin-model.md); `omt1_models_test` reports all installed `.grn` files
+and renders a thumbnail catalogue through the OMT wrapper.

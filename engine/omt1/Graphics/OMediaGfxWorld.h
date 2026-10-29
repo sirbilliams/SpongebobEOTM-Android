@@ -61,6 +61,8 @@ struct OMediaGfxPixels
 	int				width, height;
 	unsigned int	version;	// bumped on every change, so a GL texture copy knows it is stale
 	unsigned int	gl_tex, gl_version, gl_w, gl_h;
+	// port: 3D repeats UVs; own its separate GL copy so destruction invalidates it.
+	unsigned int	gl_3d_tex, gl_3d_version, gl_3d_w, gl_3d_h;
 };
 
 class OMediaGfxWorld : public OMediaListener, public virtual OMediaClassStreamer
