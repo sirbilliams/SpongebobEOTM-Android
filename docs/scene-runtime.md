@@ -273,8 +273,19 @@ the timer stops counting. 0x42f498 resumes (0x4350d0) when the player exists, no
 this character: idle1, and if the last line was not an `anim` the runner steps back one line (`ScriptRunner::backUp`), then it runs. Port hooks: a
 click on the character (`GameScene::click`) and `World3D::approach` call `suspendIdle`; the bump check (0x431610) is not reconstructed.
 **No script: random idle2 / idle3.** Timer `+0x38c` accumulates seconds while the animation is idle1 and the model has `idle1..idleN` (N >= 2); at
-`+0x390` (first and next values `7 + rand() % 8` s) it plays `idle2`, or `idle3` with chance 1/3 when N >= 3. The `idlet1..3` talk variants and the
-per-animation sound (vt+0xf8 = 0x405040) are not reconstructed (the port's talk path differs).
+`+0x390` (first and next values `7 + rand() % 8` s) it plays `idle2`, or `idle3` with chance 1/3 when N >= 3.
+**Per-animation sound (lane i, char vt+0xf8 = 0x405040, vt+0xfc = 0x404fe0).** Starting `idle2` / `idle3` (and the `idlet2/3` variants) plays the wave
+`<char name><anim>` (`"%s%s"`, e.g. `dameidle3`, `krabsnudeidle2`, `rayidle2`) of the **chapter** bank `sounds\c<N>.omt` (game+0x5c; `items.omt` is +0x68) on the
+char's channel +0x334 (= 0, never set); any other animation start stops it (0x404fe0); returning to `idle1` plays `<char>idle1` only if the channel is free. Skipped
+while a dialogue runs and the char has an idle runner. `World3D::animSound` / `stopAnimSound`, called from `World3D::setAnim`. Verified in c1l5s5 (log
+`anim sound dameidle3`, channel 0 plays 2.09 s).
+**Not done, and why.** (a) `idlet1..3`: in the exe the speaker plays `idlet1` as its base animation while a line runs (0x413bf0) and the lip `talk`
+animation is a **second controlled animation** layered on top (vt+0xc0 `("talk", name)`; char +0x2b0); the timer in 0x42f1a0 then plays `idlet2` or, 1/5 of
+the time with M >= 3, `idlet3` as that overlay (chance and branches in the decomp). `OMedia3DGrannyModel` has a single control, so a layered talk cannot be
+made without extending granny_compat; the port keeps its `talk` animation (the `idlet` files are unused). (b) The bump check 0x431610 (char vt+0x120) is the
+contact callback of OMT's 3D collision: another CHAR touches this one: it adds it to the contact list (+0x368); if a jelly (`jelly`, `jelly2`, `jelly3`, none in
+the installed chapters) is touched it runs `sshock`; if the player touches a char that has an idle runner it calls suspend (0x435080). The port has no 3D
+contact events; faking them with a radius test would not be faithful, so it stays unreconstructed.
 
 **Shadows.** The `shadow on/off` flag is char `+0x30c`'s visibility (0x434430 / 0x434410: vt+0x30 hide). `+0x30c` is a second 0x354-byte model object that
 0x422070 (the CHAR record's setup) makes from the record's "Shadow Name" (`o0204`, e.g. `shadow`, `shadow2`) as `models\items\%s_model`, only when the

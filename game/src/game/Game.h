@@ -102,6 +102,7 @@ public:
     // Sound helpers (OMT sound manager, 15 channels like the exe)
     OMediaSound* findSound(const char* name, bool* shared);
     OMediaSound* soundCI(OMediaDataBase* db, const std::string& name);
+    OMediaSound* chapterSound(const char* name) { return soundCI(sharedBank_.db, name); }   // sounds\c<chapter>.omt only (game+0x5c)
     // 0x419210: the hint voice, "%ssounds\help.omt" (the CD) else "sounds\help.omt"; opened on first use (a 34 MB bank)
     OMediaSound* helpVoice(const std::string& id);
     // sound manager channels: 4 = dialogue voice, 5 = script 'sound', 9 = idle scripts (as the exe)

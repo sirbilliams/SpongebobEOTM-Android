@@ -46,6 +46,7 @@ struct Actor3D {
     SceneScriptHost* idleHost;        // port: one script host per idle runner (the exe's runner holds its own wait state)
     sbscript::ScriptRunner* idleRunner;   // char +0x32c
     bool wakeIdle;                    // an animation / walk the idle script waits on has finished
+    bool animSnd;                     // char +0xfc: the per-animation sound is playing (0x405040 / 0x404fe0)
     float fidgetAcc, fidgetNext;      // char +0x38c / +0x390: random idle2 / idle3 timer (seconds)
     std::string shadowName;           // CHAR record "Shadow Name" (+0x204)
     OMedia3DGrannyModel* shadowModel; // char +0x22c of the 0x354 byte object: models/items/<name>_model
@@ -100,6 +101,8 @@ private:
     void place(Actor3D* a);
     void updateIdle(Actor3D* a, float dtMs);                                    // lane f: the idle part of 0x42f1a0
     void resumeIdle(Actor3D* a);                                                // 0x4350d0
+    void animSound(Actor3D* a, const char* anim);                               // 0x405040 (char vt+0xf8): sound "<char><anim>" of the chapter bank on channel 0
+    void stopAnimSound(Actor3D* a);                                             // 0x404fe0 (char vt+0xfc)
     void updateShadow(Actor3D* a);                                              // lane f: char +0x30c
     void finished(Actor3D* a);
     void finishInteraction(Actor3D* a);

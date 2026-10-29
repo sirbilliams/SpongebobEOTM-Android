@@ -23,7 +23,7 @@ static const float kRunSpeed = 300.0f;
 Actor3D::Actor3D()
     : obj(0), model(0), elem(0), mode(Idle), x(0), y(0), z(0), heading(0), walking(false), tx(0), tz(0), speed(0), rotating(false),
       rotTarget(0), rotTolerance(0), idling(false), idleLeft(0), waited(false), scheduled(false), shadowOn(true), climbing(false), climbTarget(0), climbPrev(0),
-      idleWanted(true), idleSuspended(false), idleHost(0), idleRunner(0), wakeIdle(false), fidgetAcc(0), fidgetNext((float)(7 + rand() % 8)),   // lane f: ctor 0x42e150
+      idleWanted(true), idleSuspended(false), idleHost(0), idleRunner(0), wakeIdle(false), animSnd(false), fidgetAcc(0), fidgetNext((float)(7 + rand() % 8)),   // lane f: ctor 0x42e150
       shadowModel(0), shadowElem(0)
 {
     waypoint = 0; interaction = 0; radius = 50; control = true; useGrid = false;
@@ -200,10 +200,36 @@ static bool fileCI(const std::string& path)        // Windows file names: any le
 
 bool World3D::exists(Actor3D* a, const char* name) { return fileCI(animPath(a, name)); }
 
+// 0x405040: "%s%s" (char name, animation) looked up in the chapter sound bank c<N>.omt (game+0x5c) and played on the char's channel +0x334 (0).  "idle1" never
+// interrupts a sound that still plays.  Not while the char has an idle script and a dialogue runs (scene+0xd24 vt+0x18).
+void World3D::animSound(Actor3D* a, const char* anim)
+{
+    if (a->obj->kind != SceneObject::Char) return;
+    DialogueUI* d = scene_->dialogue();
+    if (d && d->busy() && a->idleRunner) return;
+    OMediaSound* s = game_->chapterSound((a->name + anim).c_str());
+    if (!s) return;
+    if (strcmp(anim, "idle1") == 0 && game_->channelBusy(0)) return;
+    if (game_->playOnChannel(0, s, 0)) { a->animSnd = true; game_->log("anim sound %s%s\n", a->name.c_str(), anim); }
+}
+
+// 0x404fe0: stops the char's sound (channel 0) if it has one
+void World3D::stopAnimSound(Actor3D* a)
+{
+    if (!a->animSnd) return;
+    game_->stopChannel(0);
+    a->animSnd = false;
+}
+
 void World3D::setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m)
 {
     a->mode = m;
     a->anim = name;
+    // 0x4047xx (play animation by name): idle2 / idle3 start their sound, any other animation ends it; 0x406050 plays the idle1 sound back at idle
+    if (a->obj->kind == SceneObject::Char) {
+        if (strcasecmp(name, "idle2") == 0 || strcasecmp(name, "idle3") == 0 || strcasecmp(name, "idlet2") == 0 || strcasecmp(name, "idlet3") == 0) animSound(a, lower(name).c_str());
+        else { stopAnimSound(a); if (strcasecmp(name, "idle1") == 0) animSound(a, "idle1"); }
+    }
     a->model->play(animPath(a, name), speed, loops, game_->blending ? 0.4f : 0.0f);   // 0x4046d0: blend params 6 / 8 = 0.4 only while game+0x251 is set (port: blend in only)
 }
 
