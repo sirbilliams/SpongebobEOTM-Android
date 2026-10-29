@@ -107,7 +107,7 @@ add_library(omt1_sound STATIC OMTClasses/Sound/OMediaSound.cpp OMTClasses/Sound/
 target_include_directories(omt1_sound PUBLIC omt1 OMTClasses/Sound OMTClasses/Engines PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../game/bink)
 target_compile_definitions(omt1_sound PRIVATE OMT1_NO_SOUND_ENGINE)
 target_link_libraries(omt1_sound PUBLIC omt1)
-target_compile_options(omt1_sound PRIVATE -fpermissive -w -fno-strict-aliasing)
+target_compile_options(omt1_sound PRIVATE -fpermissive -w -fno-strict-aliasing -fno-sanitize=vptr)   # OMediaEngine (typeinfo) is not linked
 
 # --------------------------------------------------------------------------- game importer
 # Installs the game files from the game's CD image (.iso): ISO 9660 + InstallShield cabinet

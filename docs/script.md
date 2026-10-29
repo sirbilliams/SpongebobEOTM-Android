@@ -184,14 +184,17 @@ the dispatcher ignores (`idle3`); 52 dialogue files, 1876 records, 0 errors (114
 entries, 149 help entries). Every script is also run to its end (or 3000 steps) against the logging host; ASan/UBSan clean.
 
 ## Open questions
-* Host semantics that are only known from call shape: vtable slots of the character class (0x144 walk, 0x178, 0x188, ...)
-  and of the scene (0xdc, 0xd24+0x18 "voice" pair); `checkgrid` compares against `char+0x314`; naming is by command.
-* `sound`: what the `voiceBusy`/`voiceDone` gate is exactly (scene+0xd24 vt+0x18, scene vt+0xdc); the exe skips the sound
-  while the first is true and the second false.
-* Conditions: layout of the progress object's lists (0x457330 +8 seen, +0x14 flags, +0x20 items, +0x38 dialogue) is only
-  read through `ConditionAtoms`/`DialogueProgress`; the save-game writer (0x416ed0) will define it.
+Resolved by the scene runtime (docs/scene-runtime.md): the `voiceBusy` / `voiceDone` gate (`voiceBusy` = the dialogue manager's active byte, scene+0xd24 +0x19;
+`voiceDone` = scene vt+0xdc 0x4371c0: true for level-0 scenes and a few scene ids, else true while a letterbox / transition bar state runs), the
+scene dialogue UI (0x4128d0, 0x4129e0, 0x412d00 and the start / advance / confirm functions) and the lookup of a `talk` key (scene vt+0xb4 0x4397c0:
+an 8-character name loses its first 3 characters, the dialogue manager's vt+0x1c starts the branch, no dialogue: comment `H000F`), the wake-up
+(scene vt+0xe0 = `runUntilWait`, the runner is deleted when it finished), the scene vtable numbering used in this file (base 0x44e5a0).
+Still open:
+* Host semantics that are only known from call shape: vtable slots of the character class (0x144 walk, 0x178, 0x188, ...); `checkgrid` compares
+  against `char+0x314`; naming is by command (lane A's characters).
+* Conditions: layout of the progress object's lists (0x457330 +8 seen, +0x14 flags, +0x20 items, +0x38 dialogue) is only read through
+  `ConditionAtoms` / `DialogueProgress`; the dialogue entry is known (0x416d30: 0x28 bytes, group key +0, current key +0x10, shorts +0x20/+0x22, scene id
+  +0x24); the save-game writer (0x416ed0) will define the rest. `GameState` holds plain containers.
 * `wait` at line 0 reads the memory before the line table in the exe; here it is treated as "previous line is empty".
 * `goal`, `kickit` run on actor vt slots whose meaning (dart/ball game) belongs to the character reconstruction.
-* The scene dialogue UI (0x4128d0, 0x4129e0, 0x412d00: choice list, voice, flags n1..n3, `action` dispatch) and the exact
-  lookup of a `talk` key (scene vt+0xb4) are not reconstructed here: `DialogueTable::find` is an exact strcmp over all lines.
-* `anim2d` with no 2D object of that name: the exe calls through a null pointer (crash); the host decides.
+* `anim2d` with no 2D object of that name: the exe calls through a null pointer (crash); the scene runtime logs and does not wait.
