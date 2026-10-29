@@ -97,7 +97,7 @@ public class CompanionView extends View {
                     line = d.optString("text", "");
                     strings(d.optJSONArray("choices"), choices);
                 }
-            } catch (RuntimeException e) {
+            } catch (org.json.JSONException | RuntimeException e) {   // Android's org.json throws the checked JSONException
                 haveGame = false;
             }
         }

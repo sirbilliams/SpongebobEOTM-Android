@@ -4,7 +4,7 @@ import java.util.HashMap;
 public class JSONObject {
     final HashMap<String, Object> m = new HashMap<>();
     JSONObject() {}
-    public JSONObject(String s) { JSONObject o = (JSONObject) new Parser(s).value(); m.putAll(o.m); }
+    public JSONObject(String s) throws JSONException { JSONObject o = (JSONObject) new Parser(s).value(); m.putAll(o.m); }
     public Object opt(String k) { return m.get(k); }
     public String optString(String k, String d) { Object o = m.get(k); return o instanceof String ? (String) o : d; }
     public int optInt(String k, int d) { Object o = m.get(k); return o instanceof Number ? ((Number) o).intValue() : d; }
