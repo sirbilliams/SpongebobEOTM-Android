@@ -15,7 +15,10 @@ at [`android/app/src/main/assets/licenses/`](android/app/src/main/assets/license
 | [unshield](#unshield) | 1.5.1 (`871c2bf`) | MIT | installing the game from the CD's InstallShield cabinet |
 
 zlib is not bundled: the app uses Android's own `libz` (the desktop build, the system's). The app's
-text uses Android's system fonts; no font files are included.
+text uses Android's system fonts; no font files are included. The one exception: the in-game port menu and
+diagnostics overlay draw their text from a small bitmap atlas rasterised from Liberation Sans Bold
+(`game/src/port/PortFontData.inc`; Liberation Fonts 2.x, SIL Open Font License 1.1, copyright Red Hat, Inc.;
+the OFL allows embedding in software, and the atlas is not sold on its own).
 
 ## Open Media Toolkit (OMT) 2.5
 

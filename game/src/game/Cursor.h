@@ -23,8 +23,11 @@ public:
     // once a frame: chooses the shape from the game state and puts the sprite at the pointer
     void update(int x, int y);
     void set(Shape s);
+    void setTheme(int t);                  // lane c: the port menu changes the cursor theme live (0 Spatula, 1 Net, 2 Bubble, 3 Classic)
+    int theme() const { return theme_; }
 private:
     void build(int i, const char* const* rows, int h, unsigned fill, unsigned fill2);
+    void buildAll();
     void buildTheme(int state, int frame); // port: original procedural cursor themes
     enum { Frames = 12 };
     int theme_, frame_;

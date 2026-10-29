@@ -22,6 +22,10 @@ static SDL_Window		*omg_win = NULL;
 static SDL_GLContext	omg_ctx = NULL;
 static int				omg_lw = 640, omg_lh = 480;		// logical screen size
 static OMediaGLSurface	*omg_bound = NULL;
+static void (*omg_overlay)(int, int) = NULL;		// lane c: the port overlay
+static int omg_fb_bits[4] = {0, 0, 0, 0};
+static unsigned int omg_epoch = 1;
+static bool omg_reset_pending = false;
 
 #ifdef OMT_USE_GL4ES
 #include <dlfcn.h>
@@ -131,6 +135,7 @@ bool omgl_open_window(const char *title, int width, int height)
 		int r = 0, g = 0, b = 0, a = 0;
 		SDL_GL_GetAttribute(SDL_GL_RED_SIZE, &r); SDL_GL_GetAttribute(SDL_GL_GREEN_SIZE, &g);
 		SDL_GL_GetAttribute(SDL_GL_BLUE_SIZE, &b); SDL_GL_GetAttribute(SDL_GL_ALPHA_SIZE, &a);
+		omg_fb_bits[0] = r; omg_fb_bits[1] = g; omg_fb_bits[2] = b; omg_fb_bits[3] = a;
 		SDL_Log("OMT: framebuffer %d/%d/%d/%d", r, g, b, a);
 	}
 	SDL_GL_SetSwapInterval(1);
@@ -149,12 +154,18 @@ void omgl_close_window(void)
 }
 
 void omgl_pump_events(void) { SDL_PumpEvents(); }
+void omgl_set_overlay(void (*fn)(int, int)) { omg_overlay = fn; }
+void omgl_framebuffer_bits(int *rgba) { for (int i = 0; i < 4; i++) rgba[i] = omg_fb_bits[i]; }
+void omgl_context_reset(void) { omg_epoch++; omg_bound = NULL; omg_reset_pending = true; SDL_Log("port: GL context re-created, epoch %u", omg_epoch); }
+bool omgl_context_reset_taken(void) { bool r = omg_reset_pending; omg_reset_pending = false; return r; }
+unsigned int omgl_context_epoch(void) { return omg_epoch; }
 
 // --------------------------------------------------------------------------- surfaces
 
 void omgl_surface_create(OMediaGLSurface *s, int width, int height, bool primary)
 {
 	memset(s, 0, sizeof(*s));
+	s->epoch = omg_epoch;
 	s->width = width;
 	s->height = height;
 	s->primary = primary;
@@ -192,7 +203,7 @@ void omgl_surface_create(OMediaGLSurface *s, int width, int height, bool primary
 
 void omgl_surface_destroy(OMediaGLSurface *s)
 {
-	if (omg_win)
+	if (omg_win && s->epoch == omg_epoch)
 	{
 		if (s->fbo) glDeleteFramebuffers(1, &s->fbo);
 		if (s->depth) glDeleteRenderbuffers(1, &s->depth);
@@ -203,8 +214,17 @@ void omgl_surface_destroy(OMediaGLSurface *s)
 }
 
 // 2D state: y down, one unit per surface pixel. The framebuffer's texture is stored bottom-up.
+static void omf_surface_check(OMediaGLSurface *s)
+{
+	if (!s->fbo || s->epoch == omg_epoch) return;
+	int w = s->width, h = s->height;		// lane c: made in a lost GL context: new objects of the same size (black; the caller redraws)
+	bool prim = s->primary;
+	omgl_surface_create(s, w, h, prim);
+}
+
 void omgl_surface_bind(OMediaGLSurface *s)
 {
+	omf_surface_check(s);
 	if (!s->fbo) return;
 	glBindFramebuffer(GL_FRAMEBUFFER, s->fbo);
 	glViewport(0, 0, s->width * s->scale, s->height * s->scale);		// the projection below stays in logical pixels
@@ -227,6 +247,7 @@ void omgl_surface_bind(OMediaGLSurface *s)
 
 void omgl_surface_read(OMediaGLSurface *s, unsigned int *argb)
 {
+	omf_surface_check(s);
 	if (!s->fbo) return;
 	const int k = s->scale, pw = s->width * k, ph = s->height * k;
 	std::vector<unsigned char> tmp(pw * ph * 4);
@@ -247,6 +268,7 @@ void omgl_surface_read(OMediaGLSurface *s, unsigned int *argb)
 
 void omgl_surface_write(OMediaGLSurface *s, const unsigned int *argb)
 {
+	omf_surface_check(s);
 	if (!s->tex) return;
 	const int k = s->scale, pw = s->width * k, ph = s->height * k;
 	std::vector<unsigned char> tmp(pw * ph * 4);
@@ -337,10 +359,12 @@ static unsigned int omf_hd_texture(OMediaGfxPixels *p)
 
 static void omf_upload(OMediaGfxPixels *p)
 {
+	if (p->gl_tex && p->gl_epoch != omg_epoch) p->gl_tex = 0;		// lane c: its texture died with the old GL context
 	if (p->gl_tex && p->gl_version == p->version && p->gl_w == (unsigned int)p->width && p->gl_h == (unsigned int)p->height) return;
 	if (!p->gl_tex)
 	{
 		glGenTextures(1, &p->gl_tex);
+		p->gl_epoch = omg_epoch;
 		glBindTexture(GL_TEXTURE_2D, p->gl_tex);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
@@ -364,8 +388,8 @@ static void omf_upload(OMediaGfxPixels *p)
 void omgl_forget(OMediaGfxPixels *p)
 {
 	if (!omf_hd.empty()) { std::map<OMediaGfxPixels *, OmfHd>::iterator it = omf_hd.find(p); if (it != omf_hd.end()) omf_hd_drop(it); }
-	if (p->gl_tex && omg_win) glDeleteTextures(1, &p->gl_tex);
-	if (p->gl_3d_tex && omg_win) glDeleteTextures(1, &p->gl_3d_tex);
+	if (p->gl_tex && p->gl_epoch == omg_epoch && omg_win) glDeleteTextures(1, &p->gl_tex);
+	if (p->gl_3d_tex && p->gl_3d_epoch == omg_epoch && omg_win) glDeleteTextures(1, &p->gl_3d_tex);
 	p->gl_tex = p->gl_3d_tex = 0;
 }
 
@@ -397,6 +421,7 @@ void omgl_blit(OMediaGfxWorld *src, OMediaGfxWorld *dest, const OMediaRect &sr, 
 	}
 	else if (ss && ss->tex)
 	{
+		omf_surface_check(ss);
 		if (ss == d) return;		// port: a surface onto itself (DirectDraw Blt) is not used by the game
 		glBindTexture(GL_TEXTURE_2D, ss->tex);
 		tw = (float)ss->width; th = (float)ss->height;
@@ -528,6 +553,7 @@ static void ws_panels(int dw, int dh) {
 void omgl_present(OMediaGLSurface *s)
 {
 	if (!omg_win || !s || !s->tex) return;
+	omf_surface_check(s);
 	int dw, dh;
 	SDL_GL_GetDrawableSize(omg_win, &dw, &dh);
 	if(dw<=0 || dh<=0) return;
@@ -595,6 +621,7 @@ void omgl_present(OMediaGLSurface *s)
 		glColor3f(0.94f, 0.78f, 0.25f); omf_quad(px - 5.5f*u, py - 1.5f*u, px + 5.5f*u, py + 1.5f*u, 0, 0, 0, 0); omf_quad(px - 1.5f*u, py - 5.5f*u, px + 1.5f*u, py + 5.5f*u, 0, 0, 0, 0);
 		glColor3f(1, 1, 1);
 	}
+	if (omg_overlay) omg_overlay(dw, dh);		// lane c: port menu / diagnostics, drawn over the picture (not part of the game surface)
 	omf_SDLFrameHook(omg_win);
 	SDL_GL_SwapWindow(omg_win);
 }

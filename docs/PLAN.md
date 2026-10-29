@@ -14,7 +14,7 @@ Layers (the 7 above):
 | 4 | Startup | done | Movies, main menu, View Movies, Help, Options |
 | 5 | Script, scene loader, dialogue | done | Script VM 57 commands; scene loader 123/123; dialogue; inventory HUD; cursor |
 | 6 | Chapters | in progress | Ch1 and ch2 playthroughs, ch3/ch4 audits, darts/kick/phone mini-games, bug sweep |
-| 7 | Thor port features | in progress | Done: widescreen, companion panel, touch + right-stick cursor, nautical launcher, saves, sky, idle scripts, shadows, climb/sparkle/blending/shake, slots + maze. Not started: saves export/import, lid suspend, casting |
+| 7 | Thor port features | in progress | Done: widescreen, companion panel, touch + right-stick cursor, nautical launcher, saves, sky, idle scripts, shadows, climb/sparkle/blending/shake, slots + maze. Port menu on hold-Back, diagnostics overlay and lid suspend / resume done (docs/port-menu.md). Not started: saves export/import, casting |
 
 Milestones (from "Percentage to goal" below):
 

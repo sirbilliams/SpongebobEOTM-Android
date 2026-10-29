@@ -23,7 +23,7 @@ public class SpongeActivity extends SDLActivity {
     /** Intent extra (String): start the Asset Viewer instead of the game (SB_ASSET_VIEW): "models" or "scene:<name>". docs/asset-viewer.md. */
     static final String EXTRA_ASSET_VIEW = "asset_view";
 
-    private CompanionPanel mPanel;
+    CompanionPanel mPanel;                                  // lane c: package-private, PortPrefs applies the port menu's bottom-screen choice to it
 
     @Override
     protected String[] getLibraries() {

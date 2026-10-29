@@ -26,9 +26,10 @@ unsigned int OMedia3DGLRasterizer::texture_of(OMedia3DMaterial *m)
 	if (!px || !px->pix) return 0;
 	// port: the bitmap owns this copy. A rasterizer-wide pointer cache survives
 	// deleted models and mistakes reused addresses for the previous texture.
+	if (px->gl_3d_tex && px->gl_3d_epoch != omgl_context_epoch()) px->gl_3d_tex = 0;		// lane c: the GL context was re-created
 	if (!px->gl_3d_tex || px->gl_3d_version != px->version || px->gl_3d_w != (unsigned int)px->width || px->gl_3d_h != (unsigned int)px->height)
 	{
-		if (!px->gl_3d_tex) glGenTextures(1, &px->gl_3d_tex);
+		if (!px->gl_3d_tex) { glGenTextures(1, &px->gl_3d_tex); px->gl_3d_epoch = omgl_context_epoch(); }
 		std::vector<unsigned char> rgba(px->width * px->height * 4);
 		for (int i = 0; i < px->width * px->height; i++)
 		{

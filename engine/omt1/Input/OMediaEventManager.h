@@ -81,6 +81,14 @@ class OMediaEventManager : public OMediaPeriodical
 	static void pad_cursor_delta(float dx, float dy);			// port: the bottom-screen touchpad: a relative pointer move in logical (640x480) units, any thread
 	static void pad_cursor_button(bool down);					// port: the touchpad's left button, any thread
 
+	// lane c: port menu / suspend (docs/port-menu.md)
+	static void set_pad_cursor(bool on);						// the right-stick cursor on / off, at once
+	static unsigned touchpad_events(void);						// touchpad moves + button edges received so far (diagnostics)
+	typedef void (*LifecycleHook)(bool suspended);
+	static void set_lifecycle_hook(LifecycleHook h);			// called when the app goes to the background (true) / comes back (false)
+	static bool suspended(void);								// in the background: poll() blocks until the app is back
+	static unsigned resume_count(void);							// bumped on every resume: loops reset their frame clock when it changes
+
 	static void window_to_logical(int &px, int &py);			// port: SDL window pixels -> the 640x480 screen (one place for the viewport mapping)
 
 	omtshared static OMediaEventManager		*event_manager;		// 0x10420d84

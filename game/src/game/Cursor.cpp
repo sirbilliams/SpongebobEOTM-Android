@@ -115,9 +115,15 @@ Cursor::Cursor(Game* g) : g_(g), sprite_(0), shape_(Normal), sysHidden_(false), 
     // port: themed sprite art replaces the platform cursor; unrecognised values use Spatula.
     const char* theme = getenv("SB_CURSOR");
     theme_ = theme && !strcmp(theme, "classic") ? 3 : theme && !strcmp(theme, "bubble") ? 2 : theme && !strcmp(theme, "net") ? 1 : 0;
-    frame_ = -1;
     for (int a = 0; a < ShapeCount; ++a) for (int f = 0; f < Frames; ++f) themed_[a][f] = 0;
     for (int i = 0; i < ShapeCount; ++i) { canv_[i] = 0; hotX_[i] = hotY_[i] = 0; }
+    buildAll();
+}
+
+// lane c: the sprite sets of the current theme_ (also used by setTheme, the port menu)
+void Cursor::buildAll()
+{
+    frame_ = -1;
     build(Normal, kArrow, 18, 0xFFFFFFFF, 0);
     build(Hotspot, kHand, 16, 0xFFFFE070, 0);
     hotX_[Hotspot] = 4; hotY_[Hotspot] = 0;
@@ -131,6 +137,23 @@ Cursor::Cursor(Game* g) : g_(g), sprite_(0), shape_(Normal), sysHidden_(false), 
             canv_[i] = themed_[i][0];
             hotX_[i] = hotY_[i] = i == Hand ? 38 : i == Wait ? 20 : 4;
         }
+    }
+}
+
+// lane c: port menu, live: 0 Spatula, 1 Net, 2 Bubble, 3 Classic. The old sprites are freed after the sprite element points at the new ones.
+void Cursor::setTheme(int t)
+{
+    t = t < 0 ? 0 : t > 3 ? 3 : t;
+    if (t == theme_) return;
+    OMediaCanvas* oldC[ShapeCount]; OMediaCanvas* oldT[ShapeCount][Frames]; int oldTheme = theme_;
+    for (int i = 0; i < ShapeCount; ++i) { oldC[i] = canv_[i]; for (int f = 0; f < Frames; ++f) { oldT[i][f] = themed_[i][f]; themed_[i][f] = 0; } canv_[i] = 0; hotX_[i] = hotY_[i] = 0; }
+    theme_ = t;
+    buildAll();
+    shape_ = Normal;
+    if (sprite_ && canv_[Normal]) sprite_->setcanvas(theme_ == 3 ? canv_[Normal] : themed_[Normal][0]);
+    for (int i = 0; i < ShapeCount; ++i) {
+        if (oldTheme == 3) delete oldC[i];
+        for (int f = 0; f < Frames; ++f) delete oldT[i][f];
     }
 }
 
