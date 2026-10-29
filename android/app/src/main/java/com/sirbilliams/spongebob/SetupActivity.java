@@ -171,7 +171,6 @@ public class SetupActivity extends Activity {
             "Panel window: " + (panelFocusable() ? "Takes focus" : "Safe (default)"),
             "Right-stick cursor: " + (padCursor() ? "On" : "Off"),
             "Cursor: " + LauncherView.CURSORS[cursor()],
-            "HD backgrounds: " + (hdOn() ? "On" : "Off"),
             "Box art: " + (art != null ? "Your picture" : "Pick an image"), "Back");
     }
     private boolean hdOn() { return getSharedPreferences("settings", MODE_PRIVATE).getBoolean("hd_bg", true); }
@@ -194,10 +193,14 @@ public class SetupActivity extends Activity {
     }
     private void showTest() {
         mPage = "test";
+        launcher.page(3, "Engine room", "Tools & diagnostics", "Logs include the current\nand previous run.",
+            "Share log", "Touch test", "App version: " + versionText(), "Reset settings", "Crash test", "Reinstall from CD image", "Tools", "Back");
+    }
+    private void showTools() {
+        mPage = "tools";
         String hd = hdInfo();
-        launcher.page(3, "Engine room", "Tools & diagnostics", "Logs include the current\nand previous run.\nVersion " + versionText() + ".\n" + (hd != null ? "HD pack installed: " + hd + "." : "No HD pack installed."),
-            "Share log", "Touch test", "Reset settings", "Crash test", "Reinstall from CD image",
-            "Model viewer", "Scene explorer", "HD pack: Install (.zip)", "HD pack: Remove", "Back");
+        launcher.page(4, "Tools", "Assets & HD pack", "Browse the game's models and scenes.\n" + (hd != null ? "HD pack installed: " + hd + "." : "No HD pack installed.") + "\nHD changes apply on next launch.",
+            "Model viewer", "Scene explorer", "HD backgrounds: " + (hdOn() ? "On" : "Off"), "HD pack: Install (.zip)", "HD pack: Remove", "Back");
     }
     private void showAbout() {
         mPage = "about";
@@ -235,12 +238,14 @@ public class SetupActivity extends Activity {
         case "saves":
             switch(row) { case 0: exportAll(); break; case 1: chooseExport(); break; case 2: pickZip(); break; default: showMain(); } break;
         case "settings":
-            if(row==8) {showMain();break;}
-            if(row==7) {chooseArt();break;}
+            if(row==7) {showMain();break;}
+            if(row==6) {chooseArt();break;}
             applySetting(row);
             showSettings(); launcher.focusRow(row); bottom.refresh(); break;
         case "test":
-            switch(row) {case 0:shareLog();break;case 1:startActivity(new Intent(this, TouchTestActivity.class), onTopScreen());break;case 2:resetSettings();break;case 3:if(installed())play(true);else showImport();break;case 4:showImport();break;case 5:viewAssets("models");break;case 6:viewAssets("scene");break;case 7:pickHd();break;case 8:removeHd();break;default:showMain();} break;
+            switch(row) {case 0:shareLog();break;case 1:startActivity(new Intent(this, TouchTestActivity.class), onTopScreen());break;case 2:break;case 3:resetSettings();break;case 4:if(installed())play(true);else showImport();break;case 5:showImport();break;case 6:showTools();break;default:showMain();} break;
+        case "tools":
+            switch(row) {case 0:viewAssets("models");break;case 1:viewAssets("scene");break;case 2:applySetting(6);showTools();launcher.focusRow(2);break;case 3:pickHd();break;case 4:removeHd();break;default:showTest();} break;
         case "about": if(row==1)showLicences(); else if(row==2)showMain(); break;
         }
     }
@@ -285,7 +290,7 @@ public class SetupActivity extends Activity {
         new android.app.AlertDialog.Builder(this).setTitle("Box art")
             .setItems(new String[] {"Pick another image", "Remove the picture"}, (d, which) -> {
                 if (which == 0) pickArt();
-                else { new File(getFilesDir(), ART_FILE).delete(); loadArt(); showSettings(); launcher.focusRow(7); }
+                else { new File(getFilesDir(), ART_FILE).delete(); loadArt(); showSettings(); launcher.focusRow(6); }
             }).setNegativeButton("Back", null).show();
     }
     private void pickArt() {
@@ -314,7 +319,7 @@ public class SetupActivity extends Activity {
         } catch (IOException | SecurityException | OutOfMemoryError e) {
             Toast.makeText(this, "Couldn't use that picture: " + e.getMessage(), Toast.LENGTH_LONG).show();
         }
-        showSettings(); launcher.focusRow(7);
+        showSettings(); launcher.focusRow(6);
     }
 
     // ------------------------------------------------------------------ saves export / import
@@ -502,13 +507,13 @@ public class SetupActivity extends Activity {
         if (importing) return;
         boolean had = HdPack.count(gameDir()) > 0;
         boolean ok = HdPack.remove(gameDir());
-        showTest(); launcher.focusRow(8);
+        showTools(); launcher.focusRow(4);
         launcher.status(!ok ? "Couldn't remove the HD pack." : had ? "HD pack removed." : "No HD pack installed.", false);
     }
 
     private void installHd(final Uri uri) {
         importing = true;
-        showTest();
+        showTools();
         launcher.status("Installing the HD pack…", true);
         final File data = gameDir();
         new Thread(() -> {
@@ -525,7 +530,7 @@ public class SetupActivity extends Activity {
             });
             ui.post(() -> {
                 importing = false;
-                showTest(); launcher.focusRow(7);
+                showTools(); launcher.focusRow(3);
                 launcher.status(r.error == null ? r.message() : "HD pack failed. The old pack is kept.", false);
                 if (r.error != null) new android.app.AlertDialog.Builder(this).setTitle("HD pack failed").setMessage(r.error).setPositiveButton("OK", null).show();
             });

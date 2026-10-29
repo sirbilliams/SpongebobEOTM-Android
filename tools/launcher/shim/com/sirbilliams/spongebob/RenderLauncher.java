@@ -42,8 +42,9 @@ public final class RenderLauncher {
    case "play": v.page(1, "Set sail", "Welcome back, captain", "Choose Resume in the game's menu to carry on.", "Start game", "Back"); v.withCard(); break;
    case "import": v.page(1, "Import game", "Bring your own CD image", "Choose a game CD image (.iso).\nAbout 1 GB of space is needed.\nReinstall replaces game files.", "Choose CD image (.iso)", "Back"); break;
    case "saves": v.page(2, "Ship's locker", "4 saves on board", "Export makes one .zip where you choose.\nImport shows every save before anything is replaced.", "Export all saves (.zip)", "Export one save", "Import saves (.zip)", "Back"); break;
-   case "settings": v.page(2, "Captain's settings", "Make yourself at home", "Choices apply on next launch.\nTouchpad: bottom screen moves the cursor.\nPanel window: only if bottom touch fails.", "Widescreen: Side panels", "Bottom-screen panel: On", "Bottom screen: Touchpad", "Panel window: Safe (default)", "Right-stick cursor: On", "Cursor: Spatula", "HD backgrounds: On", "Box art: Your picture", "Back"); break;
-   case "test": v.page(3, "Engine room", "Tools & diagnostics", "Logs include the current\nand previous run.\nVersion 1.0 (abcdef0).\nHD pack installed: 38 scenes, 41.3 MB.", "Share log", "Touch test", "Reset settings", "Crash test", "Reinstall from CD image", "Model viewer", "Scene explorer", "HD pack: Install (.zip)", "HD pack: Remove", "Back"); break;
+   case "settings": v.page(2, "Captain's settings", "Make yourself at home", "Choices apply on next launch.\nTouchpad: bottom screen moves the cursor.\nPanel window: only if bottom touch fails.", "Widescreen: Side panels", "Bottom-screen panel: On", "Bottom screen: Touchpad", "Panel window: Safe (default)", "Right-stick cursor: On", "Cursor: Spatula", "Box art: Your picture", "Back"); break;
+   case "test": v.page(3, "Engine room", "Tools & diagnostics", "Logs include the current\nand previous run.", "Share log", "Touch test", "App version: 1.0 (abcdef0)", "Reset settings", "Crash test", "Reinstall from CD image", "Tools", "Back"); break;
+  case "tools": v.page(4, "Tools", "Assets & HD pack", "Browse the game's models and scenes.\nHD pack installed: 38 scenes, 41.3 MB.\nHD changes apply on next launch.", "Model viewer", "Scene explorer", "HD backgrounds: On", "HD pack: Install (.zip)", "HD pack: Remove", "Back"); break;
    case "about": v.page(1, "About this voyage", "An independent engine port", "Original launcher shapes.\nBring your own game files.", "Version: 1.0 (abcdef0)", "Open-source licences", "Back"); break;
    default: throw new IllegalArgumentException(page);
   }
@@ -53,7 +54,7 @@ public final class RenderLauncher {
   LauncherView.Actions none = new LauncherView.Actions() { public void select(int row) {} public void back() {} };
   Bitmap scratch = Bitmap.createBitmap(1920, 1080, Bitmap.Config.ARGB_8888); Canvas sc = new Canvas(scratch);
   Bitmap thumb = fakeThumb(), art = fakeArt();
-  for (String pg : new String[] {"main", "play", "import", "saves", "settings", "test", "about"}) {
+  for (String pg : new String[] {"main", "play", "import", "saves", "settings", "test", "tools", "about"}) {
    clock = 40000; SystemClock.testNow = clock;
    LauncherView v = new LauncherView(new Context(), none); v.setTestSize(1920, 1080);
    v.setCard(thumb, "Chapter 2", "WSEA TV - News Room", "Saved 27 Oct 2026, 21:14", 2); v.setArt(art);

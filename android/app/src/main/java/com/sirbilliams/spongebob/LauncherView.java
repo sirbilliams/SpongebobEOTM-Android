@@ -33,7 +33,7 @@ public final class LauncherView extends View {
     static final float ROPE_IN = 128;      // rope eye screws, in from each sign end
     private static final float[] JIT_X = {0, 26, -6, 18, -12, 22, 6, -4, 14, -10, 18, 0};
     private static final float[] JIT_W = {0, -40, 12, -22, 20, -10, -28, 14, -12, 6, -20, 0};
-    static float rowStep(int n) { return n > 9 ? 76 : n > 8 ? 85 : n > 7 ? 92 : n > 6 ? 98 : 106; }
+    static float rowStep(int n) { return n > 7 ? 92 : n > 6 ? 98 : 106; }
     static float rowTop(int n, int i) { return SIGN_TOP + i * rowStep(n); }
     static float rowLeft(int i) { return SIGN_X + JIT_X[i % JIT_X.length]; }
     static float rowWidth(int i) { return SIGN_W + JIT_W[i % JIT_W.length]; }
