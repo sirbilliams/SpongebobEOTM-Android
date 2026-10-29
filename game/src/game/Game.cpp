@@ -14,6 +14,9 @@
 #include "OMediaCanvas.h"
 #include "OMediaError.h"
 #include <exception>
+// port: pauses / resumes one channel's voice (engine/sdl/OMediaSDLSound.cpp)
+class OMediaSoundChannel;
+void omf_SDLPauseChannel(OMediaSoundChannel* c, bool pause);
 #include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -60,10 +63,12 @@ Game::Game()
       inputAttached_(false), commentBlock_(0), commentVoice_(false), hud_(0), mini_(0), cursor_(0)
 {
     gameCompleted = false;
+    music_ = 0; musicChapter_ = -1;
 }
 
 Game::~Game()
 {
+    stopMusic();        // 0x409d52: 0x40c620 stops every channel, music included
     if (inputAttached_ && OMediaEventManager::get_event_manager()) {
         OMediaEventManager::get_event_manager()->get_mouse_broadcaster()->removelistener(this);
         OMediaEventManager::get_event_manager()->get_key_broadcaster()->removelistener(this);
@@ -230,9 +235,105 @@ OMediaCanvas* Game::skyCanvas(int index)
     return skyCache_[index];
 }
 
+// 0x40b1c4 (the chapter-change block of 0x40af40): the old music bank goes, music\c%d.omt of the new chapter opens (the exe
+// first tries the relative path, then the CD's; the port has the one folder)
+void Game::loadMusicBank(int chapter)
+{
+    if (chapter == musicChapter_) return;
+    stopMusic();                                    // port: the song object belongs to the bank that is closed now
+    musicBank_.reset();
+    char b[96];
+    sprintf(b, "%s/music/c%d.omt", root_.c_str(), chapter);
+    bool ok = musicBank_.open(b);
+    musicChapter_ = chapter;
+    log("music: bank %s %s\n", b, ok ? "open" : "NOT FOUND");
+}
+
+// ------------------------------------------------------------------------------------------ music
+// 0x40ca60 game vt+0xc4: the song `name` of the music bank loops on channel 3.  Returns true when it plays (or played already).
+bool Game::playMusic(const char* name)
+{
+    if (!name) return false;
+    if (musicName_ == name) { log("music: '%s' already plays\n", name); return true; }     // strcmp with game+0x1c6
+    if (!musicBank_.db) { log("music: no bank for '%s'\n", name); return false; }          // game+0x60
+    if (!musicBank_.db->object_exists(OMediaSound::db_type, name)) { log("music: bank c%d has no song '%s'\n", musicChapter_, name); return false; }
+    OMediaSoundManager* m = OMediaSoundManager::getdefaultmanager();
+    if (m->get_nchannels() <= 3) return false;
+    OMediaSoundChannel* ch = m->get_channel(3);
+    ch->stop();                                     // channel vt+0xc, vt+0x10(0)
+    ch->flush(NULL);
+    omf_SDLPauseChannel(ch, false);
+    music_ = (OMediaSound*)musicBank_.db->get_object(OMediaSound::db_type, name);       // game+0x6c (the exe frees the old one first)
+    musicName_ = name;
+    bool ok = music_ && m->play(3, music_, true, true) && channelBusy(3);     // play(channel 3, song, queue, loop)
+    log("music: bank c%d song '%s' channel 3 volume %d loop %.1fs %s\n", musicChapter_, name, (int)ch->get_volume(), music_ ? music_->get_sound_secs() : 0.0f, ok ? "playing" : "FAILED");
+    return true;
+}
+
+// 0x4385c0 scene vt+0x108: the scene's song.  The leave-points of the radio / jukebox scenes first (game+0x206 / +0x1e6, kept by `skip`),
+// then the camera's Music Track (scene+0x480), "c<chapter>l<level>s<scene>", "c<chapter>l<level>", "c<chapter>".
+void Game::sceneMusic()
+{
+    if (!scene_) return;
+    unsigned id = scene_->sceneId();
+    int c = (int)(id & 0xf), l = (int)((id >> 8) & 0xf), s = (int)((id >> 16) & 0xf);
+    char b[32];
+    if ((id == 0x70501 || id == 0x60501 || id == 0x50501) && !levelRet206.empty()) { if (playMusic(levelRet206.c_str())) return; }
+    if ((id == 0x30203 || id == 0x40203 || id == 0x50203) && !levelRet1e6.empty()) { if (playMusic(levelRet1e6.c_str())) return; }
+    if (!scene_->musicTrack().empty() && playMusic(scene_->musicTrack().c_str())) return;
+    sprintf(b, "c%dl%ds%d", c, l, s);
+    if (playMusic(b)) return;
+    sprintf(b, "c%dl%d", c, l);
+    if (playMusic(b)) return;
+    sprintf(b, "c%d", c);
+    playMusic(b);
+}
+
+// 0x40c860 game vt+0xfc (the script command `skip`): the song after the current "c<chapter>l<n>" (n 1..6, then round to 1)
+void Game::skipMusic()
+{
+    if (!scene_) return;
+    unsigned id = scene_->sceneId();
+    char b[32];
+    int n = 1;
+    do {
+        sprintf(b, "c%dl%d", state_.chapter, n);
+        if (musicName_ == b) break;
+        ++n;
+    } while (n <= 6);
+    ++n;
+    if (n >= 7) n = 1;
+    sprintf(b, "c%dl%d", state_.chapter, n);
+    if (id == 0x70501) levelRet206 = b;
+    else if (id == 0x30203) levelRet1e6 = b;
+    playMusic(b);
+}
+
+void Game::stopMusic()          // 0x40c620: every channel is stopped, the song object and its name go
+{
+    OMediaSoundManager* m = OMediaSoundManager::getdefaultmanager();
+    if (m && m->get_nchannels() > 3) {
+        omf_SDLPauseChannel(m->get_channel(3), false);
+        m->get_channel(3)->stop();
+        m->get_channel(3)->flush(NULL);
+    }
+    if (!musicName_.empty()) log("music: stop '%s'\n", musicName_.c_str());
+    music_ = 0;
+    musicName_.clear();
+}
+
+void Game::pauseMusic(bool pause)   // 0x40c730 / 0x40c780: the buffer of channel 3 stops / plays on
+{
+    OMediaSoundManager* m = OMediaSoundManager::getdefaultmanager();
+    if (!m || m->get_nchannels() <= 3 || !music_) return;
+    omf_SDLPauseChannel(m->get_channel(3), pause);
+    log("music: %s '%s'\n", pause ? "pause" : "resume", musicName_.c_str());
+}
+
 void Game::loadSceneBanks(unsigned id)
 {
     char b[96];
+    loadMusicBank((int)(id & 0xf));
     sceneBank_.reset();
     sprintf(b, "%s/sounds/c%dl%ds%d.omt", root_.c_str(), (int)(id & 0xf), (int)((id >> 8) & 0xf), (int)((id >> 16) & 0xf));
     sceneBank_.open(b);                                     // game vt+0x64 -> game+0x5c
