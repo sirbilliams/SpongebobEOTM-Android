@@ -92,6 +92,12 @@ final class CompanionPanel implements DisplayManager.DisplayListener {
         update(null);
     }
 
+    /** lane c (port menu, PortPrefs): the prefs were just changed in the game; show / hide the panel and switch its mode now. UI thread. */
+    void portApply() {
+        update("port menu");
+        if (mPresentation != null && mPresentation.view != null) mPresentation.view.setMode(mPrefs.getInt(KEY_MODE, CompanionView.MODE_PANEL));
+    }
+
     void resume() {
         mResumed = true;
         if (mDisplays != null) mDisplays.registerDisplayListener(this, mHandler);

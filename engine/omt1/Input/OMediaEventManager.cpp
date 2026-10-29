@@ -177,6 +177,14 @@ static bool pad_cursor_enabled(void)
 }
 
 bool OMediaEventManager::pad_button_down(void) { return r3_down; }
+static void pad_open_all(void);
+void OMediaEventManager::set_pad_cursor(bool on)
+{
+	pad_enabled = on ? 1 : 0;
+	if (on && pad_inited) pad_open_all();
+	if (!on && r3_down) { r3_down = false; held_a = held_r3 = false; }
+}
+
 
 static void pad_open_all(void)
 {
@@ -267,6 +275,21 @@ static void stick(float &sx, float &sy)
 // port: desktop tests only. SB_TEST_PAD="frame:rx=<-1..1>,ry=<>,r3=<0|1>;..." sets the fake right stick / R3 from that
 // frame on; SB_TEST_TOUCH="frame:d|m|u:x:y,..." is a finger down / move / up at logical x,y. Frames count the
 // event polls of the process (one per game frame).
+static Uint32 SDLCALL test_resume_timer(Uint32, void *win)
+{
+	SDL_Event e; SDL_zero(e);
+	if (win) { e.type = SDL_WINDOWEVENT; e.window.event = SDL_WINDOWEVENT_RESTORED; SDL_PushEvent(&e); return 0; }
+	e.type = SDL_APP_WILLENTERFOREGROUND; SDL_PushEvent(&e);
+	e.type = SDL_APP_DIDENTERFOREGROUND; SDL_PushEvent(&e);
+	return 0;
+}
+static void test_suspend(int ms, bool window)		// window: minimise / restore events instead of the Android app events
+{
+	SDL_Event e; SDL_zero(e);
+	if (window) { e.type = SDL_WINDOWEVENT; e.window.event = SDL_WINDOWEVENT_MINIMIZED; SDL_PushEvent(&e); }
+	else { e.type = SDL_APP_WILLENTERBACKGROUND; SDL_PushEvent(&e); e.type = SDL_APP_DIDENTERBACKGROUND; SDL_PushEvent(&e); }
+	SDL_AddTimer((Uint32)(ms > 0 ? ms : 1), test_resume_timer, window ? (void *)1 : NULL);
+}
 static float t_rx = 0, t_ry = 0;
 static bool t_r3 = false, t_pad = false, t_a = false, t_r3k = false;
 static void test_hooks(unsigned frame)
@@ -304,6 +327,23 @@ static void test_hooks(unsigned frame)
 				}
 			}
 			p = strchr(p, ';'); if (p) ++p;
+		}
+	}
+	if (const char *gv = getenv("SB_TEST_GLRESET"))		// lane c: "frame,..." as if the GL context had been lost and re-created (SDL_RENDER_DEVICE_RESET)
+	{
+		for (const char *p = gv; p && *p;)
+		{
+			if ((unsigned)atoi(p) == frame) { SDL_Event e; SDL_zero(e); e.type = SDL_RENDER_DEVICE_RESET; SDL_PushEvent(&e); }
+			p = strchr(p, ','); if (p) ++p;
+		}
+	}
+	if (const char *sv = getenv("SB_TEST_SUSPEND"))		// lane c: "frame:ms[m],..." (m: window minimise / restore events) the app goes to the background at that frame (as Android's onPause) and is back after ms
+	{
+		for (const char *p = sv; p && *p;)
+		{
+			unsigned at = 0; int ms = 0, n = 0;
+			if (sscanf(p, "%u:%d%n", &at, &ms, &n) >= 2 && at == frame) test_suspend(ms, p[n] == 'm');
+			p = strchr(p, ','); if (p) ++p;
 		}
 	}
 	if (const char *tv = getenv("SB_TEST_TOUCHPAD"))		// "frame:dx,dy,btn;..." the bottom touchpad: a relative move (logical units) and the button (0 up, 1 down, -1 unchanged)
@@ -347,16 +387,18 @@ static void test_hooks(unsigned frame)
 struct TpOp { int kind; float dx, dy; };		// kind 0 move (logical units), 1 button down, 2 button up
 static std::deque<TpOp> tp_ops;
 static pthread_mutex_t tp_lock = PTHREAD_MUTEX_INITIALIZER;
+static unsigned tp_count = 0;			// lane c: ops received (diagnostics)
+unsigned OMediaEventManager::touchpad_events(void) { return tp_count; }
 void OMediaEventManager::pad_cursor_delta(float dx, float dy)
 {
 	pthread_mutex_lock(&tp_lock);
-	if (tp_ops.size() < 256) { TpOp o = {0, dx, dy}; tp_ops.push_back(o); }
+	if (tp_ops.size() < 256) { TpOp o = {0, dx, dy}; tp_ops.push_back(o); tp_count++; }
 	pthread_mutex_unlock(&tp_lock);
 }
 void OMediaEventManager::pad_cursor_button(bool down)
 {
 	pthread_mutex_lock(&tp_lock);
-	if (tp_ops.size() < 256) { TpOp o = {down ? 1 : 2, 0, 0}; tp_ops.push_back(o); }
+	if (tp_ops.size() < 256) { TpOp o = {down ? 1 : 2, 0, 0}; tp_ops.push_back(o); tp_count++; }
 	pthread_mutex_unlock(&tp_lock);
 }
 
@@ -512,14 +554,94 @@ static bool translate(SDL_Event *e)
 	}
 }
 
+// ---------------------------------------------------------------------------
+// lane c: suspend / resume (Android onPause / onResume, lid close, home, screen off; the desktop: minimise / restore).
+// SDL queues SDL_APP_WILLENTERBACKGROUND ... SDL_APP_DIDENTERFOREGROUND; on Android its event pump then blocks the app until it is back (and, when the
+// EGL surface was lost, re-creates the context and sends SDL_RENDER_DEVICE_RESET). Here: the hook (the game pauses the mixer and the clock), held input
+// is released (a finger / button down when the lid closed would otherwise stay down), poll() does not return while suspended (the game loop does not run: the
+// scene, scripts and music keep their place), and the frame clocks restart on resume (no time jump). docs/port-menu.md.
+static OMediaEventManager::LifecycleHook life_hook = NULL;
+static bool life_suspended = false;
+static unsigned life_resumes = 0;
+static int SDLCALL life_watch(void *, SDL_Event *e);
+void OMediaEventManager::set_lifecycle_hook(LifecycleHook h)
+{
+	life_hook = h;
+	static bool watching = false;
+	if (!watching) { watching = true; SDL_AddEventWatch(life_watch, NULL); }
+}
+bool OMediaEventManager::suspended(void) { return life_suspended; }
+unsigned OMediaEventManager::resume_count(void) { return life_resumes; }
+
+static void life_release_input(void)
+{
+	int wx = 0, wy = 0;
+	if (r3_down || finger_down)
+	{
+		if (pad_pos_valid) logical_to_window_clamped(pad_x, pad_y, wx, wy); else SDL_GetMouseState(&wx, &wy);
+		push_mouse(SDL_MOUSEBUTTONUP, wx, wy, false);
+	}
+	r3_down = held_r3 = held_a = finger_down = false;
+	rest_x = rest_y = 0;
+	pad_pos_valid = false;
+}
+
+static void life_set(bool off)
+{
+	if (off == life_suspended) return;
+	life_suspended = off;
+	if (off) life_release_input(); else { life_resumes++; last_ticks = 0; }
+	{
+		static Uint32 since = 0;
+		if (off) since = SDL_GetTicks();
+		if (off) SDL_Log("port: suspended (in the background)");
+		else SDL_Log("port: resumed after %u ms", (unsigned)(SDL_GetTicks() - since));
+	}
+	if (life_hook) life_hook(off);
+}
+
+// The lifecycle events are acted on the moment SDL posts them (an event watch): on Android the pump blocks the game thread right after queueing
+// SDL_APP_WILLENTERBACKGROUND until the app is back, so the queue is too late to pause the mixer. (SDL_QUIT ends a suspend in poll.)
+static void life_event(const SDL_Event &e)
+{
+	switch (e.type)
+	{
+		case SDL_APP_WILLENTERBACKGROUND: life_set(true); break;
+		case SDL_APP_DIDENTERFOREGROUND: life_set(false); break;
+		case SDL_RENDER_DEVICE_RESET:
+		case SDL_RENDER_TARGETS_RESET: omgl_context_reset(); break;
+		case SDL_WINDOWEVENT:
+			if (e.window.event == SDL_WINDOWEVENT_MINIMIZED) life_set(true);
+			else if (e.window.event == SDL_WINDOWEVENT_RESTORED) life_set(false);
+			break;
+		default: break;
+	}
+}
+static int SDLCALL life_watch(void *, SDL_Event *e) { life_event(*e); return 1; }
+
+// Sleeps in the event queue until the app is back (or SDL_QUIT: that event is kept for the caller).
+static void life_wait(void)
+{
+	while (life_suspended)
+	{
+		SDL_Event e;
+		if (!SDL_WaitEventTimeout(&e, 200)) continue;
+		if (e.type == SDL_QUIT) { life_set(false); pend.push_back(e); return; }
+	}
+}
+
 bool OMediaEventManager::poll(SDL_Event *out)
 {
+	if (life_suspended) life_wait();
+
 	if (!in_frame) begin_frame();
 	for (;;)
 	{
 		if (!pend.empty()) { *out = pend.front(); pend.pop_front(); return true; }
 		SDL_Event e;
 		if (!SDL_PollEvent(&e)) { in_frame = false; return false; }
+		if (e.type == SDL_QUIT) life_set(false);
+		if (life_suspended) { *out = e; life_wait(); return true; }
 		if (translate(&e)) { *out = e; return true; }
 	}
 }

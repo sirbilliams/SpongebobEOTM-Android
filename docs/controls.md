@@ -26,7 +26,7 @@ Touch is the main control on the AYN Thor; the gamepad is a pointer. Code: `engi
   (so dragging an item from the HUD bar works). Either held keeps it down. The repo has no A/B swap; SDL's A is used as reported
   (Thor: the button labelled A). The polled state is reported through `OMediaEventManager::pad_button_down()` to `mouse_down()`.
 - Controllers are opened at the first poll and on `SDL_CONTROLLERDEVICEADDED` (hot-plug), closed on removal.
-- Nothing else on the pad is mapped (B, X, Y, triggers, d-pad, L3 do nothing; movies still skip on any controller button). Esc / Android Back and F10 as before.
+- Nothing else on the pad is mapped (B, X, Y, triggers, d-pad, L3 do nothing; movies still skip on any controller button). Esc / F10 as before. Android Back: a single short tap still leaves to the game menu (0.35 s after the release); hold it 0.6 s or tap it twice (desktop: hold F9) for the port menu, docs/port-menu.md.
 
 ## Tests (desktop only)
 - `SB_TEST_TOUCHPAD="frame:dx,dy,btn;..."` the bottom-screen touchpad (relative move in logical px, button 0/1/-1; `OMediaEventManager::pad_cursor_delta/_button`, docs/bottom-touch.md).

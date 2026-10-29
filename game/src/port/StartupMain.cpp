@@ -19,6 +19,8 @@
 #include "../game/Hud.h"
 #include "Playthrough.h"
 #include "Companion.h"
+#include "PortMenu.h"                      // lane c: port menu, diagnostics, suspend (docs/port-menu.md)
+#include "../game/Cursor.h"
 #include <stdexcept>
 #include "CrashLog.h"
 #include <stdio.h>
@@ -481,6 +483,32 @@ class StartupApp : public MenuHost
         SDL_Log("playthrough: saved slot %d scene %08x %s",slot,f.sceneId,ok?"written":"FAILED");
     }
 
+    // lane c: port menu tests (desktop; docs/port-menu.md). SB_TEST_BACK="n:d|u,..." Android Back down / up at game-loop iteration n (real time passes between);
+    // SB_TEST_F9 the same for F9; SB_TEST_PM="n:open|close|up|down|left|right|enter,..." drives the open menu directly.
+    static void port_menu_tests(sbport::PortMenu &pm, unsigned n) {
+#ifndef __ANDROID__
+        for(int k=0;k<2;++k) {
+            const char *v=getenv(k?"SB_TEST_F9":"SB_TEST_BACK");
+            for(const char *p=v;p && *p;) {
+                unsigned at=0; char c=0; int used=0;
+                if(sscanf(p,"%u:%c%n",&at,&c,&used)==2 && at==n) {
+                    SDL_Event e; SDL_zero(e); e.type=c=='d'?SDL_KEYDOWN:SDL_KEYUP; e.key.state=c=='d'?SDL_PRESSED:SDL_RELEASED;
+                    e.key.keysym.sym=k?SDLK_F9:SDLK_AC_BACK; e.key.keysym.scancode=k?SDL_SCANCODE_F9:SDL_SCANCODE_AC_BACK;
+                    SDL_PushEvent(&e);
+                }
+                p=strchr(p,','); if(p) ++p;
+            }
+        }
+        for(const char *p=getenv("SB_TEST_PM");p && *p;) {
+            unsigned at=0; char name[16]; int used=0;
+            if(sscanf(p,"%u:%15[a-z]%n",&at,name,&used)==2 && at==n) pm.command(name);
+            p=strchr(p,','); if(p) ++p;
+        }
+#else
+        (void)pm; (void)n;
+#endif
+    }
+
     // false: quit the application; true: back to the menu
     bool run_game(SDL_Window *win) {
         (void)win;
@@ -530,9 +558,13 @@ class StartupApp : public MenuHost
 #ifndef __ANDROID__
             if(getenv("SB_TEST_PLAYTHROUGH")) { pt=new sbport::Playthrough(getenv("SB_TEST_PLAYTHROUGH")); pt_app=this; }
 #endif
+            sbport::PortMenu &pm=sbport::PortMenu::get();           // lane c
+            unsigned pmFrame=0, seenResumes=OMediaEventManager::resume_count();
             for(;;) {
                 if(event_manager->quit_requested()) { result=false; break; }
                 SDL_Event ev; bool leave=false;
+                pm.tick();                                                  // lane c: the Back hold / double-tap timers
+                port_menu_tests(pm,++pmFrame);
                 if(pt) {
                     bool failed=false;
                     if(!pt->tick(game,pt_click,pt_move,pt_save,&failed)) { SDL_Log("playthrough %s", failed?"FAILED":"done"); delete pt; pt=NULL; result=false; break; }
@@ -556,10 +588,16 @@ class StartupApp : public MenuHost
                     }
                 }
                 while(OMediaEventManager::poll(&ev)) {
+                    if(pm.filter(ev)) continue;                             // lane c: Back / F9 gestures and the open port menu take their events
                     event_manager->handle_sdl_event(&ev);
                     if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); game->mouseMove(x,y); }
-                    if(ev.type==SDL_KEYDOWN && (ev.key.keysym.sym==SDLK_F10 || ev.key.keysym.sym==SDLK_AC_BACK)) leave=true;   // port: back to the menu
+                    if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_F10) leave=true;   // port: back to the menu (Android Back: a single short tap, via the port menu's timer)
                 }
+                if(pm.takeGameMenu()) leave=true;
+                if(OMediaEventManager::resume_count()!=seenResumes) { seenResumes=OMediaEventManager::resume_count(); last=0; SDL_Log("port: resume: game frame %u, scene %s, frame clock restarted",frame,game->scene()?game->scene()->name().c_str():"-"); }   // lane c: no time jump after a suspend
+                if(omgl_context_reset_taken()) game->forceRedraw();         // lane c: GL objects were re-created: the picture is drawn again
+                if(game->cursor() && game->cursor()->theme()!=pm.settings().cursor) game->cursor()->setTheme(pm.settings().cursor);   // lane c: port menu, live
+                pm.setScene(game->scene() ? game->scene()->name().c_str() : "");
                 const char *tf=getenv("SB_TEST_F10"), *tq=getenv("SB_TEST_GAMEQUIT");      // port: tests only
                 static bool f10Done=false;
                 if(tf && (unsigned)atoi(tf)==frame && !f10Done) { f10Done=true; leave=true; }
@@ -582,7 +620,7 @@ class StartupApp : public MenuHost
                 unsigned now=SDL_GetTicks();
                 float dt=last?(float)(now-last):16.0f; last=now;
                 if(dt>66.0f) dt=66.0f;       // a slow frame must not skip a script
-                game->update(dt);
+                if(!pm.isOpen()) game->update(dt);                          // lane c: the game stands still behind the port menu
                 // port: no OMediaPeriodical::devote_time(): it updates the worlds a second time per frame (a black frame every few frames)
                 float top=-1,bottom=-1;
                 if(game->scene() && game->world3d()) {
@@ -612,6 +650,7 @@ class StartupApp : public MenuHost
 	{
 		SDL_Window *win = SDL_GL_GetCurrentWindow();
 		if (!win) return;
+		sbport::PortMenu::get().install();      // lane c: overlay, suspend hook, settings
 
 		const char *chain[] = {"mlegal", "mthq", "mawe", "mnick", "mspongebob"};
 		for (unsigned i = 0; i < sizeof chain / sizeof chain[0] && !skip_movies; ++i)

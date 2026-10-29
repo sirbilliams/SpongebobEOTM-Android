@@ -19,6 +19,7 @@ struct OMediaGLSurface
 	unsigned int	fbo, tex, depth;
 	int				width, height;
 	bool			primary;
+	unsigned int	epoch;		// lane c: the GL context generation it was made in (omgl_context_reset)
 };
 
 // Window and context
@@ -26,7 +27,16 @@ bool omgl_open_window(const char *title, int width, int height);		// logical siz
 void omgl_close_window(void);
 bool omgl_window_open(void);
 void omgl_present(OMediaGLSurface *s);			// draw the surface into the window, frame hook, swap
-void omgl_pump_events(void);					// keep the window alive between presents
+void omgl_pump_events(void);
+// lane c: port overlay (port menu, diagnostics). fn(dw, dh) is called with the window's drawable size after the picture is drawn, before the swap.
+void omgl_set_overlay(void (*fn)(int dw, int dh));
+void omgl_framebuffer_bits(int *rgba);			// the window's R/G/B/A bits (the 'OMT: framebuffer' log line)
+// lane c: the GL context was lost and re-created (SDL_RENDER_DEVICE_RESET): every GL object of the old context is dead. Surfaces and textures are
+// made again the next time they are used (their pixel content is gone: the caller redraws). omgl_context_reset_taken() is true once after a reset.
+void omgl_context_reset(void);
+bool omgl_context_reset_taken(void);
+unsigned int omgl_context_epoch(void);
+					// keep the window alive between presents
 
 // port: one presentation transform shared by rendering, input and click replay.
 void omgl_widescreen_scene(bool active, float playerTop = -1, float playerBottom = -1);

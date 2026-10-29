@@ -390,6 +390,7 @@ OMediaSoundEngine *omf_SDLCreateSoundEngine(OMediaWindow *master) { return new O
 void omf_SDLAudioPause(bool pause)
 {
 	if (omg_audio_dev) SDL_PauseAudioDevice(omg_audio_dev, pause ? 1 : 0);
+	SDL_Log("port: mixer %s (device %s)", pause ? "paused" : "resumed", !omg_audio_dev ? "none" : SDL_GetAudioDeviceStatus(omg_audio_dev) == SDL_AUDIO_PAUSED ? "paused" : "playing");
 }
 
 // ---------------------------------------------------------------------------

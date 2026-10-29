@@ -63,6 +63,7 @@ struct OMediaGfxPixels
 	unsigned int	gl_tex, gl_version, gl_w, gl_h;
 	// port: 3D repeats UVs; own its separate GL copy so destruction invalidates it.
 	unsigned int	gl_3d_tex, gl_3d_version, gl_3d_w, gl_3d_h;
+	unsigned int	gl_epoch, gl_3d_epoch;		// lane c: GL context generation of gl_tex / gl_3d_tex (omgl_context_reset)
 };
 
 class OMediaGfxWorld : public OMediaListener, public virtual OMediaClassStreamer

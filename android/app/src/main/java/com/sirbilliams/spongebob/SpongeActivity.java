@@ -21,7 +21,7 @@ public class SpongeActivity extends SDLActivity {
     /** Intent extra: run the crash-backtrace test (OMT_CRASHTEST: the game raises SIGSEGV at startup). */
     static final String EXTRA_CRASH_TEST = "crash_test";
 
-    private CompanionPanel mPanel;
+    CompanionPanel mPanel;                                  // lane c: package-private, PortPrefs applies the port menu's bottom-screen choice to it
 
     @Override
     protected String[] getLibraries() {
