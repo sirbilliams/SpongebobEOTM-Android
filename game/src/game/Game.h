@@ -137,7 +137,7 @@ private:
     OMediaViewPort* vp_;
     OmtFile skies_;                         // game+0x64: sceneart/c%dskies.omt
     OMediaCanvas* skyCache_[10];            // game+0x70 + index*4
-    OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_;
+    OmtFile sb2_, fontDb_, sceneBank_, sharedBank_, commentBank_, itemsBank_, globalCommentBank_;
     RetailData* retail_;
     GameFont* font_;
     World3D* w3_;

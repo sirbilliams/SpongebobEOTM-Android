@@ -184,4 +184,52 @@ scene c1l4s1
 idle
 expect swash
 shot 26-c1l4s1-cleancar
+click "Walk to The Barg-N-Mart"
+scene c1l4s2
+idle
+click "Enter Barg-N-Mart"
+scene c1l4s3
+idle
+talk eugene ACA
+idle
+expect 143ACA
+click "Walk to Other Side"
+scene c1l4s4
+idle
+shot 27-c1l4s4-aisles
+click "Walk to Food Aisle#2"
+scene c1l4s6
+idle
+shot 28-c1l4s6-chips
+click iuc1
+idle
+have iuc1
+click "Exit Food Aisle"
+scene c1l4s4
+idle
+click ico1
+idle
+have ico1
+click "Walk to Cash Registers"
+scene c1l4s3
+idle
+map
+scene c1l1s1
+idle
+click chap104
+scene c1l3s1
+idle
+click "Enter Grandma's House"
+scene c1l3s4
+idle
+click "Walk to Kitchen"
+scene c1l3s5
+idle
+use iuc1 "Chipless Pie#2"
+idle
+expect schips
+click ict2
+idle
+have ict2
+shot 29-c1l3s5-pie
 end

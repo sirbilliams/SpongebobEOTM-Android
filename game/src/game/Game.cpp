@@ -264,6 +264,10 @@ void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without 
     loadSceneBanks(id);
     std::string err;
     comments_.load(*host_, chapter, (int)((id >> 8) & 0xf), &err);
+    if (comments_.globals().empty()) {                      // 0x410450, once: the H000.. comments and sounds/comments.omt
+        comments_.loadGlobal(*host_, &err);
+        globalCommentBank_.open(root_ + "/sounds/comments.omt");
+    }
     help_.load(*host_, chapter, &err);
     host_->sceneLoaded();
     pendingObj = 0; pendingItem.clear();
@@ -357,8 +361,10 @@ void Game::wake()       // scene vt+0xe0 (0x43aa80)
 void Game::showComment(const char* id)      // game+0xc4 vt+0x14
 {
     const sbscript::CommentEntry* e = 0;     // 0x410a60 compares case-insensitively ('h126b' finds H126B)
-    for (size_t i = 0; i < comments_.entries().size() && !e; ++i)
-        if (strcasecmp(comments_.entries()[i].id.c_str(), id) == 0) e = &comments_.entries()[i];
+    bool global = id[0] && id[1] == '0';                    // 0x410a60: id[1] == '0' -> the global list (+0x14), bank +8
+    const std::vector<sbscript::CommentEntry>& list = global ? comments_.globals() : comments_.entries();
+    for (size_t i = 0; i < list.size() && !e; ++i)
+        if (strcasecmp(list[i].id.c_str(), id) == 0) e = &list[i];
     delete commentBlock_;
     commentBlock_ = 0;
     commentMs_ = 0;
@@ -367,7 +373,7 @@ void Game::showComment(const char* id)      // game+0xc4 vt+0x14
     commentBlock_ = new TextBlock;
     commentBlock_->show(this, 5, 440, 10100, false, e->text, 630);
     OMediaSound* s = 0;
-    s = soundCI(commentBank_.db, sbscript::CommentTable::voiceName(id));
+    s = soundCI(global ? globalCommentBank_.db : commentBank_.db, sbscript::CommentTable::voiceName(id));
     if (s && playOnChannel(8, s, 0)) { commentVoice_ = true; commentMs_ = 100; }
     else { commentVoice_ = false; commentMs_ = 1500.0f + 50.0f * (float)e->text.size(); }
 }
@@ -424,7 +430,7 @@ bool Game::playOnChannel(int ch, OMediaSound* s, int pan)
 void Game::previewSound(bool voice)
 {
     bool shared = false;
-    OMediaSound* s = voice ? soundCI(commentBank_.db, "H000L") : findSound("ibt1", &shared);
+    OMediaSound* s = voice ? soundCI(globalCommentBank_.db, "H000L") : findSound("ibt1", &shared);
     if (s) playOnChannel(voice ? 4 : 1, s, 0);
 }
 
