@@ -1,0 +1,44 @@
+scene c4l2s1
+idle
+click "Walk to Bottoms Up"
+scene c4l1s1
+idle
+shot 22-c4l1s1-map3
+click "Go to Sublime Seafoods"
+scene c4l4s4
+idle
+shot 23-c4l4s4-gate
+click bob
+idle
+shot 24-c4l4s4-bouncer
+click "Walk to Other Side"
+scene c4l4s3
+idle
+shot 25-c4l4s3-timmy
+talk timmy AAA ABA AXA
+idle
+expect 443AAA
+click "Walk to Other Side"
+scene c4l4s2
+idle
+shot 26-c4l4s2-binoc
+click "Look Through Binoculars"
+scene c4l4s9
+idle
+shot 27-c4l4s9-view
+hover 100 240 35
+wait 30
+hover 320 100
+idle
+scene c4l4s2
+idle
+expect sbinoc
+click "Walk to The Mezzanine"
+scene c4l4s3
+idle
+click timmy
+idle
+have iin1
+shot 28-c4l4s3-invite
+save 5
+end

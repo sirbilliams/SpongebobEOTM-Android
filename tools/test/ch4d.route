@@ -1,0 +1,31 @@
+scene c4l2s2
+idle
+use iqu1 "Coin Slot"
+idle
+click 4225
+wait 90
+idle
+click 4225
+wait 90
+idle
+click 4225
+wait 90
+idle
+click 4224
+wait 90
+idle
+click 4224
+wait 90
+idle
+click 4224
+wait 90
+idle
+click 4224
+wait 90
+idle
+shot 21-c4l2s2-dialled
+say AAA
+idle
+expect 422AAA
+save 4
+end

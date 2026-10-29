@@ -1,0 +1,36 @@
+scene c4l5s2
+idle
+click "Walk to Geyser"
+scene c4l5s4
+idle
+shot 38-c4l5s4-patrick
+talk pat AAA
+idle
+click "Walk to Geysers"
+scene c4l5s2
+idle
+click "Walk to Building"
+scene c4l5s3
+idle
+shot 39-c4l5s3-building
+click "Enter Locker Room"
+scene c4l5s5
+idle
+shot 40-c4l5s5-lockers
+click leonmop
+idle
+shot 41-c4l5s5-leonard
+click ipp2
+idle
+have ipp1
+click "Exit Locker Room"
+scene c4l5s3
+idle
+click "Walk to Geysers"
+scene c4l5s2
+idle
+click "Walk to Geyser"
+scene c4l5s4
+idle
+save 8
+end

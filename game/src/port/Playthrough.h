@@ -9,6 +9,7 @@
       talk <target> [KEY..]  click the target, then answer each choice list with the next KEY (none left: Escape); lines are
                              skipped with Space
       grab <target>          click the target as soon as it can be picked, not waiting for idle (a script with `control on` still runs)
+      hover <x> <y> [n]      hold the pointer at x,y for n frames (none: until a script starts / the scene changes); the pan scenes scroll
       snap <name>            a shot without waiting for idle
       spin                   pull the slot machine's handle (c2l5s3) until a spin wins and the scene is left
       maze                   click the next maze door, by the clue the winning spin left on the reels
@@ -43,7 +44,7 @@ private:
     struct Step { int line; std::string cmd; std::vector<std::string> args; };
     std::vector<Step> steps_;
     size_t cur_;
-    int phase_, frames_, waitLeft_, idleFrames_;
+    int phase_, frames_, waitLeft_, idleFrames_, hoverFrames_;
     std::vector<std::string> answers_;
     std::string file_;
     bool idle(sbgame::Game* g);

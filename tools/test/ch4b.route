@@ -1,0 +1,38 @@
+scene c4l3s2
+idle
+click "Enter Waverly Hills"
+scene c4l3s3
+idle
+shot 12-c4l3s3-waverly
+click "Walk to Golden Mansion"
+scene c4l3s4
+idle
+shot 13-c4l3s4-carlton
+talk carlton AAA AAA ACA AXA
+idle
+expect 434AAA
+click "Walk to Rodeo Drive"
+scene c4l3s3
+idle
+click "Walk to Shack"
+scene c4l3s5
+idle
+click "Enter Shack"
+scene c4l3s7
+idle
+shot 14-c4l3s7-cowfish
+talk cowfish AAA ABA ACA AXA
+idle
+click "Walk to Back Room"
+scene c4l3s8
+idle
+shot 15-c4l3s8-room
+scene c4l3s9
+idle
+shot 16-c4l3s9-pedestal
+use inc1 "Golden Coconut"
+idle
+have igc1
+shot 17-c4l3s9-swapped
+save 2
+end

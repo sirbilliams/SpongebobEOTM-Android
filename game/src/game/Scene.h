@@ -121,6 +121,9 @@ public:
     void transitionOpen();                          // 0x43c100  bars cover the screen, then open (state 4)
     void transitionClose();
     bool letterboxed() const { return topY_ < 0.0f && topY_ > -239.0f && barState_ != 3 && barState_ != 4; }   // port: companion: the cinematic bars are in (a cutscene runs)
+    // lane e (ch4): the pan scenes (c4l4s9 binoculars, c2l4s0): vt+0xd8 0x4371a0 / pan update vt+0x11c 0x43b200
+    bool panScene() const { return sceneId_ == 0x90404 || sceneId_ == 0x402; }
+    int  pan(float dtMs);
     int  barState() const { return barState_; }     // +0x1c98 (0 = idle)
     float shakeMs() const { return shake_; }        // time to the next shake step (ms)
     bool shaking() const { return shakeCount_ != 0; }
@@ -157,6 +160,7 @@ private:
     OMediaCanvasElement* background_;
     OMediaCanvasElement* sky_[2];                      // scene+0x1c8c / +0x1c90: the scrolling sky tiles behind the background
     float skyScroll_, skyX_[2];                                  // scene+0x1c94
+    short panX_, panY_;                                         // scene+0x1ca2 / +0x1ca4 (lane e)
     void buildSky();
     void updateSky(float dtMs);
     std::vector<SceneObject*> objects_;

@@ -1,0 +1,33 @@
+scene c4l4s3
+idle
+click "Walk to Security Gate"
+scene c4l4s4
+idle
+use iin1 bob
+idle
+expect sbouncer
+shot 29-c4l4s4-bouncer-gone
+click "Walk Up Path"
+scene c4l4s5
+idle
+shot 30-c4l4s5-path
+click "Enter Sublime Seafoods"
+scene c4l4s6
+idle
+shot 31-c4l4s6-lobby
+talk shapiro AAA ABA AXA
+idle
+expect 446ABA
+click Lisa
+idle
+expect scoatcheck
+shot 32-c4l4s6-jacket
+click shapiro
+idle
+expect sjacket
+click "Walk to Dining Room"
+scene c4l4s7
+idle
+shot 33-c4l4s7-dining
+save 6
+end

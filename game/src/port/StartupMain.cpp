@@ -457,6 +457,13 @@ class StartupApp : public MenuHost
         e.type=SDL_MOUSEBUTTONDOWN; e.button.button=SDL_BUTTON_LEFT; e.button.x=px; e.button.y=py; SDL_PushEvent(&e);
         e.type=SDL_MOUSEBUTTONUP; SDL_PushEvent(&e);
     }
+    // lane e: a pan scene puts the pointer in the middle of the screen (0x437cf0)
+    static void game_warp(int x, int y) {
+        SDL_Window *win=SDL_GL_GetCurrentWindow();
+        if(!win) return;
+        int px=x, py=y; omgl_logical_to_window(px,py);
+        SDL_WarpMouseInWindow(win,px,py);
+    }
     static void pt_move(int x, int y) {
         SDL_Window *win=SDL_GL_GetCurrentWindow();
         if(!win) return;
@@ -492,6 +499,7 @@ class StartupApp : public MenuHost
                 game->attachInput();
                 movie_ok=true; movie_done=false;
                 game->movieHook=game_movie; game->movieHookData=this;
+                game->warpHook=game_warp;
                 game->logFile=getenv("SB_GAME_LOG")?stdout:NULL;
                 if(game->logFile) setvbuf(stdout,NULL,_IOLBF,0);      // port: tests read the log of a run that is cut off
                 SDL_ShowCursor(SDL_ENABLE);
