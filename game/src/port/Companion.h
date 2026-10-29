@@ -7,11 +7,11 @@
     (Companion.nativeSnapshot) and sends taps back with CompanionPush (Companion.nativeCommand).
 
     JSON fields (missing = not known):
-      game 1 once a scene is running (0: nothing yet)      chapter_title "Chapter 1"     scene_title "Level 2, Scene 6"
-      cut  1 in a cutscene (a movie plays)                  hint  the current help line   caption  the comment being shown
+      game 1 once a scene is running (0: nothing yet)      chapter_title "Chapter 1"     scene_title "The Krusty Krab - Kitchen" (CompanionFeed.h)
+      cut  1 in a cutscene (a movie plays or the cinematic bars are in): SKIP is only live then or on a dialogue line                  hint  the current help line   caption  the comment being shown
       items ["isp1", ...] the inventory                     sel   the item held as the cursor ("" none)
       names ["Shovel and Pail", ...] display names, parallel to items     icons  folder holding <id>.png pictures of the items
-      visited ["c1l2s5", ...] scenes entered, oldest first
+      visited ["Krusty Krab - Dish Pit", ...] scene names entered, oldest first (not tappable: the game's map has no travel list)
       dlg  {"choice":0/1, "speaker", "text", "choices":["...", ...]} while a dialogue is open
     Commands (CompanionPop): "item:<id>", "noitem", "choice:<n>", "advance", "menu", "skip".  */
 #pragma once
@@ -33,7 +33,9 @@ bool CompanionEnabled();                            // game thread: build snapsh
 void CompanionPublish(const CompanionState& s);     // game thread, once a frame (rate-limited inside)
 std::string CompanionJson();                        // any thread: the latest snapshot ("" if none)
 void CompanionPush(const std::string& cmd);         // any thread: a panel tap
-bool CompanionPop(std::string* cmd);                // game thread: the next tap, false if none
+bool CompanionPop(std::string* cmd);                // game thread: the next tap, false if none (taps older than 1.5 s are dropped)
+void CompanionMovie(bool playing);                  // game thread: a Bink movie plays (it blocks the game loop: "skip" is then a key press the movie loop sees)
+void CompanionKey(int sdlKeycode);                  // any thread: a key press as if typed (SDL_PushEvent): "menu" sends F10, the same key as the keyboard
 std::string CompanionJsonOf(const CompanionState& s);   // pure; tests and the desktop sample writer
 
 }  // namespace sbport

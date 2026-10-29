@@ -374,7 +374,7 @@ public class CompanionView extends View {
         for (String s : lines) { text(c, s, 56, ty, 46, 0xFFFFFFFF, true, Paint.Align.LEFT); ty += 46; }
         // porthole buttons: menu and skip
         porthole(c, 1216 - 250, 98, 62, "MENU", "menu", true, 0);
-        porthole(c, 1216 - 90, 98, 62, "SKIP", "skip", haveGame, 1);
+        porthole(c, 1216 - 90, 98, 62, "SKIP", "skip", haveGame && (cutscene || (dialogue && !choiceMode)), 1);   // live in a cutscene or on a dialogue line
     }
 
     private void porthole(Canvas c, float cx, float cy, float rad, String label, String cmd, boolean enabled, int glyph) {
@@ -601,7 +601,9 @@ public class CompanionView extends View {
             c.drawRoundRect(r, 16, 16, p);
             p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
             c.drawRoundRect(r, 16, 16, p);
-            text(c, visited.get(i), x + cw / 2, y + 74, 26, INK, cur, Paint.Align.CENTER);
+            List<String> nm = wrap(visited.get(i), 20, cw - 16, 2, false);   // the friendly scene names are long: two lines
+            float ny = nm.size() > 1 ? y + 60 : y + 72;
+            for (String s : nm) { text(c, s, x + cw / 2, ny, 20, INK, false, Paint.Align.CENTER); ny += 22; }
             x += cw + gap;
         }
     }

@@ -106,6 +106,7 @@ public:
     void transitionOut();                           // 0x43bf50  bars off screen, then closes (state 3)
     void transitionOpen();                          // 0x43c100  bars cover the screen, then open (state 4)
     void transitionClose();
+    bool letterboxed() const { return topY_ < 0.0f && topY_ > -239.0f && barState_ != 3 && barState_ != 4; }   // port: companion: the cinematic bars are in (a cutscene runs)
     int  barState() const { return barState_; }     // +0x1c98 (0 = idle)
     float shakeMs() const { return shake_; }        // camera shake timer
     float lockMs() const { return lock_; }          // +0x1d4 (0x735): clicks are ignored for 500 ms after entering

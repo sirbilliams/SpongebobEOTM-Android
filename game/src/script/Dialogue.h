@@ -91,9 +91,10 @@ public:
     bool load(FileSource& fs, int chapter, std::string* err);
     static const char* soundBankName() { return "sounds/help.omt"; }
     const std::vector<HelpEntry>& entries() const { return entries_; }
-    const HelpEntry* find(const std::string& id) const;
+    const HelpEntry* find(const std::string& id) const;   // port: also finds the chapter-0 lines (F000x), the targets of other lines' texts
 private:
     std::vector<HelpEntry> entries_;
+    std::vector<HelpEntry> common_;      // port: id[1] == '0' lines, kept apart so entries() stays the exe's list
 };
 
 }  // namespace sbscript
