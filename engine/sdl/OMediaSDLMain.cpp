@@ -29,6 +29,9 @@ int omt_argc = 0;			// the command line, for tools (OMT.dll: OMediaWinStoreStart
 char **omt_argv = NULL;
 
 static int omg_frame = 0;
+static bool omg_test_ready = false;
+// port: opt-in scene tests count capture frames only after a displayed, open scene.
+void omf_SDLTestReady(void) { omg_test_ready = true; }
 static FILE *omg_logfile = NULL;
 
 static void omf_save_shot(SDL_Window *win, const char *path)
@@ -106,6 +109,7 @@ int omf_SDLFrameCount(void) { return omg_frame; }
 // Called by OMediaGLRenderTarget::flip_buffers before swapping.
 void omf_SDLFrameHook(SDL_Window *win)
 {
+	if (getenv("SB_TEST_READY_FRAMES") && !omg_test_ready) return;
 	omg_frame++;
 #ifndef __ANDROID__
 	omf_test_hooks(win);
