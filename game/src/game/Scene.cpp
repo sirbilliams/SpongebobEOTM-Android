@@ -691,9 +691,10 @@ void GameScene::click(int x, int y)    // 0x4398f0
     // nothing took the click: the player walks to the floor point (with the object as the target when it is a SPOT without a
     // grid cell); 0x4184f0 / 0x418170 (the cell under the click is open), else the click on the other height's grid (port: not
     // reconstructed, vt+0x178)
-    SceneObject* target = 0;
-    if (o && o->kind == SceneObject::Spot && o->gridX == 0 && o->gridY == 0) target = o;
-    w->clickFloor(x, y, target);
+    // (any other object that was hit does not walk the player here: its own vt+0x40 did, or it does not walk)
+    if (!o) w->clickFloor(x, y, 0);
+    else if (o->kind == SceneObject::Spot && o->gridX == 0 && o->gridY == 0) w->clickFloor(x, y, o);
+    else if (o->kind == SceneObject::Trigger && o->event.empty() && o->altEvent.empty()) w->clickFloor(x, y, 0);
 }
 
 void GameScene::clickAnim(SceneObject* o, bool touching)      // 0x4093a0 (simplified: click-to-play / frame-per-click / toggle)

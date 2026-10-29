@@ -99,7 +99,7 @@ private:
     friend class SceneScriptHost;
     const sb::scene::Grid* grid(float y) const;
     bool cell(const sb::scene::Grid& g, int x, int z) const;
-    bool gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run);
+    bool gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, bool neighbour = false);
     void setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m);
     void place(Actor3D* a);
     void finished(Actor3D* a);

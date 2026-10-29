@@ -275,7 +275,7 @@ bool World3D::cell(const sb::scene::Grid& g, int x, int z) const
         !g.cells[x][z] && !game_->state().isBlocked(scene_->sceneId(), x, z);
 }
 
-bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run)
+bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, bool neighbour)
 {
     const sb::scene::Grid* g = grid(a->y);
     std::vector< std::pair<float,float> > route;
@@ -286,7 +286,22 @@ bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run)
         }
         int sx = gridIndex(a->x, g->o000c, g->o0008, g->halfSize);
         int sz = gridIndex(a->z, g->o0010, g->o0008, g->halfSize);
-        if (!cell(*g, gx, gz) || sx < 0 || sz < 0 || sx >= 30 || sz >= 30) return false;
+        if (neighbour && !cell(*g, gx, gz)) {
+            // 0x417f10: the target's cell is blocked: the open neighbour (of eight) nearest to the walker's cell
+            static const int nx[8] = {-1,-1,-1,0,1,1,1,0}, nz[8] = {1,0,-1,-1,-1,0,1,1};
+            int bx = -1, bz = -1; double bd = 1e30;
+            for (int k = 0; k < 8; ++k) {
+                int cx = gx + nx[k], cz = gz + nz[k];
+                if (cx < 0 || cz < 0 || cx >= (int)(g->halfSize * 2) || cz >= (int)(g->halfSize * 2) || !cell(*g, cx, cz)) continue;
+                double d = sqrt((double)((cx - sx) * (cx - sx) + (cz - sz) * (cz - sz)));
+                if (d < bd) { bd = d; bx = cx; bz = cz; }
+            }
+            if (bx >= 0) { gx = bx; gz = bz; }
+        }
+        if (!cell(*g, gx, gz) || sx < 0 || sz < 0 || sx >= 30 || sz >= 30) {
+            game_->log("walk %s: no route from cell %d,%d to %d,%d (target cell closed or outside)\n", a->name.c_str(), sx, sz, gx, gz);
+            return false;
+        }
         // 0x42af50: eight neighbours, cardinal cost 64, diagonal 90.
         // port: bounded A* storage replaces the exe's pointer-linked open list.
         const int dx[8] = {0,1,0,-1,1,1,-1,-1};
@@ -327,7 +342,7 @@ bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run)
                 if (c < cost[next]) { cost[next] = c; parent[next] = best; if (order[next] == INT_MAX) order[next] = serial++; }
             }
         }
-        if (cost[target] == INT_MAX) return false;
+        if (cost[target] == INT_MAX) { game_->log("walk %s: no route from cell %d,%d to %d,%d\n", a->name.c_str(), sx, sz, gx, gz); return false; }
         for (int i = target; i != source; i = parent[i]) {
             float px, pz; gridPoint(*g, i / 30 + 0.5f, i % 30 + 0.5f, px, pz);
             route.push_back(std::make_pair(px, pz));
@@ -433,17 +448,24 @@ bool World3D::walkTo(SceneObject* target, float x, float z)
     if (!a || !a->control) return false;
     bool started;
     if (target && target->gridX == -1 && target->gridY == -1) return false;
-    if (target && target->gridX > 0 && target->gridY > 0) started = gridWalk(a, 0, 0, target->gridX - 1, target->gridY - 1, false);
-    else started = gridWalk(a, x, z, -1, -1, false);
-    if (!started) return false;
-    a->waited = false;
-    a->interaction = target;
     float r = a->radius * 0.5f;
     if (target && !(target->is3D() && target->gridX > 0 && target->gridY > 0)) {
         if (target->kind == SceneObject::Char || target->kind == SceneObject::Item) r = a->radius + target->radius;
         else if (target->kind == SceneObject::Trigger) r = target->radius;
     }
-    a->arrive = r < 25 ? 25 : r;
+    if (r < 25) r = 25;
+    {   // port: already within the arrival distance (+0x3f0) of the destination: a walk would end where it starts
+        const sb::scene::Grid* g = grid(a->y);
+        float dx = x, dz = z;
+        if (target && target->gridX > 0 && target->gridY > 0 && g) gridPoint(*g, target->gridX - 1 + 0.5f, target->gridY - 1 + 0.5f, dx, dz);
+        if ((dx - a->x) * (dx - a->x) + (dz - a->z) * (dz - a->z) <= r * r) return false;
+    }
+    if (target && target->gridX > 0 && target->gridY > 0) started = gridWalk(a, 0, 0, target->gridX - 1, target->gridY - 1, false, true);
+    else started = gridWalk(a, x, z, -1, -1, false, target != 0);
+    if (!started) return false;
+    a->waited = false;
+    a->interaction = target;
+    a->arrive = r;
     return true;
 }
 
@@ -779,9 +801,11 @@ void World3D::update(float dtMs)
             moved = true;
         }
         if (a->doorWalk && !a->walking && !a->rotating) {      // +0x356: straight ahead at the walking speed
-            float step = kWalkSpeed * dt;
-            a->x += a->dirX * step; a->z += a->dirZ * step;
-            moved = true;
+            float step = kWalkSpeed * dt, nx = a->x + a->dirX * step, nz = a->z + a->dirZ * step;
+            const sb::scene::Grid* g = grid(a->y);
+            // vt+0x114: the next position must be on an open cell of the height's grid
+            bool open = !g || cell(*g, gridIndex(nx, g->o000c, g->o0008, g->halfSize), gridIndex(nz, g->o0010, g->o0008, g->halfSize));
+            if (open) { a->x = nx; a->z = nz; moved = true; }
         }
         if (moved) place(a);
         if (a->mode == Actor3D::OneShot && a->model->animation_expired()) animEnded(a);
