@@ -11,47 +11,26 @@ Not affiliated with or endorsed by THQ, AWE Games, Nickelodeon or the rights hol
 
 ## Status
 
-About 82% of the way to the goal (see `docs/PLAN.md` for the milestones). Last updated 2026-10-29.
-
-- **The whole game plays through**: chapters 1 to 4, the end movie, the credits and the post-game Krusty Krab. Checked by scripted playthroughs (`tools/test/chapter1..4.route`) that drive the
-  real game through every scene.
-- All five mini-games work (darts, kick, slots, maze, phone), and the ending plays the end movie and credits.
-- SpongeBob-themed cursors (Spatula, Net, Bubble) or the classic arrows, chosen in the launcher.
-- Saves use the game's own format; Save, Load, Resume, Options, Help and View Movies all work.
-- Still to do: a full play-through on the AYN Thor and its bug pass, saves
-  export/import, lid suspend and casting.
+**Status: about 88%.**
+- Chapters 1-4 play through on desktop.
+- Music rebuilt from source.
+- New launcher with save export/import functionality.
+- Bottom-screen companion handles Map, Talk, and Goals.
 
 ## Screenshots
 
-Captured from the port at 1920x1080 (the AYN Thor's top-screen size) and 1240x1080 (its bottom screen), using
-the game files from the original CD.
+Captured from the current build at 1920x1080 (gameplay and launcher) and 1240x1080
+(bottom-screen companion), using game files from the original CD.
 
 | | |
 |---|---|
-| ![Launcher](docs/screenshots/launcher.jpg) | ![Main menu](docs/screenshots/menu.jpg) |
-| The launcher (drawn in code) | The game's main menu |
-| ![Krusty Krab kitchen](docs/screenshots/ch1-kitchen.jpg) | ![Serving a customer](docs/screenshots/ch1-served.jpg) |
-| Chapter 1: the Krusty Krab kitchen | Serving a hungry customer |
-| ![Goo Lagoon](docs/screenshots/ch1-goolagoon.jpg) | ![Grandma's house](docs/screenshots/ch1-grandmas.jpg) |
-| Goo Lagoon: Larry | Grandma's house |
-| ![The store](docs/screenshots/ch1-store.jpg) | ![Bus stop](docs/screenshots/ch1-busstop.jpg) |
-| The store | The bus stop with Patrick |
-| ![Bus station](docs/screenshots/ch2-station.jpg) | ![Rusty's bar](docs/screenshots/ch2-rustys.jpg) |
-| Chapter 2: the bus station | Rusty's bar |
-| ![Marlin's lair](docs/screenshots/ch2-marlin.jpg) | ![Slots](docs/screenshots/ch2-slots.jpg) |
-| Marlin's lair | The slots mini-game |
-| ![Widescreen Fill](docs/screenshots/widescreen-fill.jpg) | ![Widescreen side panels](docs/screenshots/widescreen-panels.jpg) |
-| Widescreen: Fill | Widescreen: Side panels |
-| ![Bottom-screen panel](docs/screenshots/panel.jpg) | ![Bottom-screen touchpad](docs/screenshots/touchpad.jpg) |
-| Thor bottom screen: panel (hint, inventory) | Thor bottom screen: touchpad mode |
-| ![Lunch at the diner](docs/screenshots/ch3-lunch.jpg) | ![The dream](docs/screenshots/ch3-dream.jpg) |
-| Chapter 3: lunch with Patrick and Stella | Chapter 3: the dream |
-| ![Oxygen Springs gate](docs/screenshots/ch4-gate.jpg) | ![Tony the Bouncer](docs/screenshots/ch4-bouncer.jpg) |
-| Chapter 4: the gate | Chapter 4: Tony the Bouncer |
-
-![Cursor themes](docs/screenshots/cursors.jpg)
-
-Cursor themes: Spatula, Net, Bubble and Classic, each with pointer, hover, item-in-hand and wait shapes.
+| ![Bus stop](docs/screenshots/busstop.jpg) | ![Outside](docs/screenshots/outside.jpg) |
+| ![Marlin](docs/screenshots/marlin.jpg) | ![Dream](docs/screenshots/dream.jpg) |
+| ![Grandma’s house](docs/screenshots/grandmas.jpg) | ![Rusty’s](docs/screenshots/rusty.jpg) |
+| ![Newsroom](docs/screenshots/newsroom.jpg) | ![Diner](docs/screenshots/diner.jpg) |
+| ![Gate](docs/screenshots/gate.jpg) | ![Cowfish](docs/screenshots/cowfish.jpg) |
+| ![Launcher](docs/screenshots/launcher.jpg) | ![Map](docs/screenshots/map.jpg) |
+| ![Talk](docs/screenshots/talk.jpg) | ![Goals](docs/screenshots/goals.jpg) |
 
 ## Features
 
