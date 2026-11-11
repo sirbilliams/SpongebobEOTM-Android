@@ -23,6 +23,8 @@ public class SpongeActivity extends SDLActivity {
     /** Intent extra (String): start the Asset Viewer instead of the game (SB_ASSET_VIEW): "models" or "scene:<name>". docs/asset-viewer.md. */
     static final String EXTRA_ASSET_VIEW = "asset_view";
 
+    private TvOutput mTv;
+
     CompanionPanel mPanel;                                  // lane c: package-private, PortPrefs applies the port menu's bottom-screen choice to it
 
     @Override
@@ -57,6 +59,8 @@ public class SpongeActivity extends SDLActivity {
         }
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        if (!getIntent().getBooleanExtra(EXTRA_CRASH_TEST, false)
+                && getIntent().getStringExtra(EXTRA_ASSET_VIEW) == null) mTv = new TvOutput(this);
     }
 
     // ------------------------------------------------------------------ port: companion panel (docs/companion.md)
@@ -65,18 +69,27 @@ public class SpongeActivity extends SDLActivity {
     protected void onResume() {
         super.onResume();
         if (mPanel == null) mPanel = new CompanionPanel(this);
-        mPanel.resume();                                    // the bottom-screen panel, when a second screen is there
+        mPanel.resume();                                    // companion stays on the built-in bottom screen
+        if (mTv != null) mTv.resume();
     }
 
     /** port: bottom-screen touches that reach the game window are forwarded to the panel (docs/bottom-touch.md); the rest is SDL's. */
     @Override
     public boolean dispatchTouchEvent(MotionEvent e) {
         if (mPanel != null && mPanel.routeTouch(e)) return true;
+        if (mTv != null && mTv.routeTouch(e)) return true;
         return super.dispatchTouchEvent(e);
     }
 
     @Override
+    protected void onDestroy() {
+        if (mTv != null) mTv.destroy();
+        super.onDestroy();
+    }
+
+    @Override
     protected void onPause() {
+        if (mTv != null) mTv.pause();
         if (mPanel != null) mPanel.pause();
         super.onPause();
     }
