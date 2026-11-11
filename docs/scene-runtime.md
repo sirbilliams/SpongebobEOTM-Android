@@ -237,7 +237,7 @@ Recovered meanings and routines:
 
 Important remaining reconstruction work (this lane is **not yet a fully faithful movement replacement**):
 
-* The bounded A* implementation uses the recovered eight neighbours and edge costs, but does not reproduce every open-list tie or the retail curve/clearance postprocessor (`0x42c450` and `0x42cc50` onward). It retains cell-centre waypoints. Exact paths and corner turns can differ from retail.
+* The bounded A* implementation uses the recovered eight neighbours and edge costs, but does not reproduce every open-list tie or the optional heading-state search. The retail curve/clearance postprocessor (`0x42c450` and helpers) is now ported; see [path-rounding.md](path-rounding.md). Exact search paths can still differ from retail.
 * `checkgrid` is **not reconstructed**: its existing host still repositions at the same X/Z. The exe instead calls `0x434450`, chooses an up/down connector with `0x43a7a0`, and queues travel through it. Cross-height connectors, door animations, radius-based object approaches without an explicit grid cell, blocked interaction-cell neighbour fallback (`0x417f10`), and explicit object facing overrides are still required. Do not treat those as verified.
 * Player floor input is verified on the current plane. This does not establish cross-height routing, scene-edge exits, or every interaction case.
 
@@ -251,7 +251,7 @@ The custom script test in ignored `.shots/testdata` symlinks the installed asset
 * **The game's 2D world sorts by z** (world class ctor 0x442010: `[world+0x88] = 3`, dirty). The port had left the default (None), so draw order was link order; `Game` now calls `set_sort_mode(omc2dsort_Z)`. Needed for anything behind the background.
 * Checked c1l2s6, c1l4s1, c1l5s2 (sky visible), c1l2s1/c1l3s3 (no sky, unchanged).
 * Save/load position: see docs/saves.md. Verified walk sequence `.shots/walk-seq.png` (click-to-walk at 1920x1080, fill mode), `.shots/load.png` (Resume lands at the saved spot), ASan/UBSan clean on a walk run.
-* Still not reconstructed: `checkgrid` (0x434450/0x434520: scene vt+0x144 finds the object at the cell, walks to its +0x310/+0x318, runs its `0x128` check then queues the connector walk), cross-height connectors, 0x42c450 path post-processing.
+* Still not reconstructed: `checkgrid` (0x434450/0x434520: scene vt+0x144 finds the object at the cell, walks to its +0x310/+0x318, runs its `0x128` check then queues the connector walk), cross-height connectors. Path post-processing 0x42c450 was subsequently ported; see [path-rounding.md](path-rounding.md).
 
 ## Lane f: character idle scripts and shadows (2026-10-28)
 
@@ -306,11 +306,11 @@ SpongeBob and NPCs in all three; c2l2s3 `sflush` (`shadow off` -> no shadow, `sh
   (`obj vt+0x40(1,1)`) and returns 1; else it walks (0x434650 via vt+0x144) to the connector's x/z (+0x310 / +0x318) with the connector as target. The contact
   list is filled by the 3D collision callback 0x431610 (see the lane f section), which the port does not have; the up/down triggers exist only in c4l2s1, c4l2s3,
   c4l3s1, c4l4s2, c4l4s4, c4l5s1. So both belong to one missing piece (3D contact events) and nothing in chapters 1 and 2 reaches them.
-* **Path post-processing 0x42c450** (from the A* wrapper 0x42acd0 when pathfinder `+0x39c` is set; the ctor 0x42a680 sets `+0x398` and `+0x39c` to 1, so retail always
-  runs it): builds a 24-byte node list (x, z, ... doubles) from the cell path, then per segment picks a curve with 0x42cc50 / 0x42cd70 / 0x42cbb0 (turn arcs with
-  radius `+0x398`), optionally 0x42d090 (`+0x39a`), validates each with 0x42c920 (clearance against the grid) and drops nodes that fail, finally reverses the list.
-  That is a steering-arc generator of five more functions; the port still walks cell-centre waypoints. Not reconstructed (needs an arc geometry reading of
-  0x42cbb0..0x42d090 and a visual comparison with retail paths, which cannot be made here).
+* **Path post-processing 0x42c450** (ported 2026-11-11): three-double route nodes (x, z, arrival heading),
+  fixed-radius turns (+0x390), tangent candidates via 0x42cc50 / 0x42cd70, straight paths via 0x42cbb0,
+  clearance sampling via 0x42c920. Clear candidates allow intermediate nodes to be removed; failed candidates retain
+  the corner. Movement follows analytic arcs/tangents. Optional 0x42d090 splitting (+0x39a, default disabled) remains
+  TODO. Struct layouts, x87 stack traces and unit checks: [path-rounding.md](path-rounding.md).
 
 ## Port cursor themes (lane c)
 `SB_CURSOR=spatula|net|bubble|classic` selects original procedural art (default Spatula;

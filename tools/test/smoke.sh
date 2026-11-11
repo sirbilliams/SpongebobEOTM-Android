@@ -24,6 +24,14 @@ if [ $ASAN = 1 ]; then
   export ASAN_OPTIONS=detect_leaks=0:abort_on_error=0 UBSAN_OPTIONS=print_stacktrace=1
 fi
 mkdir -p "$OUT"; OUT=$(cd "$OUT" && pwd); rm -f "$OUT"/*.log "$OUT"/*.png "$OUT"/*.bmp "$OUT"/todo.txt
+# Keep saves/settings/logs private to this run. In worktrees GAME can be a
+# read-only symlink to another checkout; tests must not modify that install.
+RUNTIME=$(mktemp -d "$OUT/runtime.XXXXXX") || exit 1
+for asset in "$GAME"/*.omt "$GAME"/*.exe "$GAME"/*.dll \
+             "$GAME"/cd "$GAME"/dialogue "$GAME"/models "$GAME"/movies \
+             "$GAME"/music "$GAME"/sceneart "$GAME"/scenes "$GAME"/scripts "$GAME"/sounds; do
+  [ ! -e "$asset" ] || ln -s "$asset" "$RUNTIME/" || exit 1
+done
 DISP=${SB_SMOKE_DISPLAY:-:85}; TMO=${SB_SMOKE_TIMEOUT:-240}
 FFLIB=${FFMPEG_LIB:-$HOME/Projects/sbeotm-private/ffmpeg/lib}
 BASE=$REPO/tools/test/todo-baseline.txt
@@ -57,14 +65,14 @@ for b in "$OUT"/scenetest/*.bmp; do [ -e "$b" ] && convert "$b" "${b%.bmp}.png" 
 
 # ---- the real game
 export LD_LIBRARY_PATH="$FFLIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-t=$(cd "$GAME" && SB_TEST_SAVEFMT=1 OMT_DATA="$GAME" DISPLAY=$DISP SDL_AUDIODRIVER=dummy timeout 60 "$BUILD/spongebob" 2>&1); rc=$?
+t=$(cd "$RUNTIME" && SB_TEST_SAVEFMT=1 OMT_DATA="$RUNTIME" DISPLAY=$DISP SDL_AUDIODRIVER=dummy timeout 60 "$BUILD/spongebob" 2>&1); rc=$?
 echo "$t" > "$OUT/savefmt.log"
 if [ $rc = 0 ] && echo "$t" | grep -q 'selftest: round trip OK'; then result savefmt 0 "round trip OK"; else result savefmt 1 "rc=$rc"; fi
 
 # game <name> <frames> <expect regex|-> [ENV=value ...]: 1920x1080 run, screenshot at the last frame
 game() {
   local n=$1 fr=$2 exp=$3; shift 3
-  ( cd "$GAME" && env DISPLAY=$DISP SDL_AUDIODRIVER=dummy OMT_DATA="$GAME" OMT_WINDOW_SIZE=1920x1080 OMT_FRAMES=$fr OMT_SCREENSHOT="$OUT/$n.bmp" \
+  ( cd "$RUNTIME" && env DISPLAY=$DISP SDL_AUDIODRIVER=dummy OMT_DATA="$RUNTIME" OMT_WINDOW_SIZE=1920x1080 OMT_FRAMES=$fr OMT_SCREENSHOT="$OUT/$n.bmp" \
       SB_SKIP_MOVIES=1 SB_GAME_LOG=1 "$@" timeout "$TMO" "$BUILD/spongebob" ) > "$OUT/$n.log" 2>&1
   local rc=$? why=""
   [ $rc = 0 ] || why="exit $rc;"
