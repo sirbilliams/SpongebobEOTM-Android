@@ -439,6 +439,7 @@ bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, b
             nodes.push_back(sbwalk::Node(i / 30 + 0.5, i % 30 + 0.5));
         }
         std::reverse(nodes.begin(), nodes.end());
+        const std::vector<sbwalk::Node> centres = nodes;   // port fallback: straight cell-centre legs (pre-0x42c450 behaviour)
         // 0x42c450: prune with fixed-radius turn/line candidates in fractional cells.
         sbwalk::Grid mask;
         for (int cx = 0; cx < 30; ++cx) for (int cz = 0; cz < 30; ++cz)
@@ -449,7 +450,16 @@ bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, b
         sbwalk::round(nodes,anchor,mask);
         for (size_t i = 0; i < nodes.size(); ++i) {
             sbwalk::Path p;
-            if (!sbwalk::connect(anchor,nodes[i],0.1,p)) return false;
+            if (!sbwalk::connect(anchor,nodes[i],0.1,p)) {
+                // port: if no arc fits, walk the straight legs instead of refusing the walk
+                game_->log("walk %s: no rounded path, straight legs\n", a->name.c_str());
+                curves.clear(); route.clear();
+                for (size_t j = 0; j < centres.size(); ++j) {
+                    float px, pz; gridPoint(*g, (float)centres[j].x, (float)centres[j].z, px, pz);
+                    route.push_back(std::make_pair(px, pz));
+                }
+                break;
+            }
             anchor = nodes[i];
             // port: store analytic pieces in world units for the existing actor clock.
             for (int k = 0; k < 4; ++k) {
