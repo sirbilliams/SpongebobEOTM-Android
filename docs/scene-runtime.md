@@ -103,7 +103,7 @@ script go on. `voiceBusy` = dialogue active (+0x19), `voiceDone` = 0x4371c0 (tru
 * one scene at a time; text wrapping by `TextBlock` (one caption per row), highlight is a box; hover text placement is approximate (cursor + 14, 16).
 * not done: the HUD / inventory bar (0x4201c0, 0x420b20, 0x420d50: item drag, "Show Inventory", map, hint), the cursor object (game+0x88), the 3D
   triggers/doors, save games (0x416ed0), mini games, `shock` / `sparkle` effects, movies (hook only), scene switch
-* not done: the pause / main menu (HUD menu button logs only), the hint's voice, the 3D
+* HUD menu button (0x420d50): closes the bar and opens the game menu as F10 (0x41c1c0, game+0x88 vt+0x24); not done: the hint's voice, the 3D
   world, characters, grid walking, triggers/doors, save games (0x416ed0), mini games, `shock` / `sparkle` effects, movies (hook only), scene switch
   "loading" cover, dialogue specials per scene id (0x411ba0 tail), the speaker camera/actor swapping in 0x412d00.
 

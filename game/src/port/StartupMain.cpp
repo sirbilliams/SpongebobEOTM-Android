@@ -606,7 +606,7 @@ class StartupApp : public MenuHost
                     if(ev.type==SDL_MOUSEMOTION) { int x=ev.motion.x,y=ev.motion.y; OMediaEventManager::window_to_logical(x,y); game->mouseMove(x,y); }
                     if(ev.type==SDL_KEYDOWN && ev.key.keysym.sym==SDLK_F10) leave=true;   // port: back to the menu (Android Back: a single short tap, via the port menu's timer)
                 }
-                if(pm.takeGameMenu()) leave=true;
+                if(pm.takeGameMenu() || game->takeMenuRequest()) leave=true;   // port: the HUD Main Menu button (0x420d50) too
                 if(OMediaEventManager::resume_count()!=seenResumes) { seenResumes=OMediaEventManager::resume_count(); last=0; SDL_Log("port: resume: game frame %u, scene %s, frame clock restarted",frame,game->scene()?game->scene()->name().c_str():"-"); }   // lane c: no time jump after a suspend
                 if(omgl_context_reset_taken()) game->forceRedraw();         // lane c: GL objects were re-created: the picture is drawn again
                 if(game->cursor() && game->cursor()->theme()!=pm.settings().cursor) game->cursor()->setTheme(pm.settings().cursor);   // lane c: port menu, live

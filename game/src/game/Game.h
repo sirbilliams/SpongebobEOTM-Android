@@ -98,6 +98,8 @@ public:
     bool blending;                                  // game+0x251 (set by the `blending on/off` script command, 1 at start): animations ease in / out over 0.4 s (0x4046d0)
     int optText, optShadows;                        // port: the Options Text / Shadows values (exe +0x270 / +0x274 of the app object); set by the app
     void previewSound(bool voice);                  // 0x4256b0: the Options sample of the Sound / Voice volume
+    void requestMenu() { menuRequested_ = true; }   // port: the HUD "Main Menu" button (0x420d50 -> 0x41c1c0): the startup loop opens the game menu as for F10
+    bool takeMenuRequest() { bool r = menuRequested_; menuRequested_ = false; return r; }
     bool suspended;                                 // port (saves): the game sits behind the menu; mouse and key messages are ignored
     bool inputConsumed;                             // game+0x24e
     bool letterboxIn;                               // game+0x25c
@@ -145,6 +147,7 @@ public:
     FILE* logFile;
 
 private:
+    bool menuRequested_;
     friend class GameScene;
     friend class SceneScriptHost;
     void doSwitch();
