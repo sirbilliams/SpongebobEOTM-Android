@@ -1,4 +1,5 @@
 #include "Game.h"
+#include "BankPolicy.h"
 #include "MiniGame.h" // chapter 2 mini-games
 #include "DialogueUI.h"
 #include "SceneScriptHost.h"
@@ -340,20 +341,21 @@ void Game::pauseMusic(bool pause)   // 0x40c730 / 0x40c780: the buffer of channe
     log("music: %s '%s'\n", pause ? "pause" : "resume", musicName_.c_str());
 }
 
-void Game::loadSceneBanks(unsigned id)
+void Game::loadSceneBanks(unsigned id, int prevChapter)
 {
     char b[96];
     loadMusicBank((int)(id & 0xf));
     sceneBank_.reset();
     sprintf(b, "%s/sounds/c%dl%ds%d.omt", root_.c_str(), (int)(id & 0xf), (int)((id >> 8) & 0xf), (int)((id >> 16) & 0xf));
     sceneBank_.open(b);                                     // game vt+0x64 -> game+0x5c
-    if ((int)(id & 0xf) != state_.chapter || !sharedBank_.db) {
+    if (sharedBankNeedsReload(prevChapter, (int)(id & 0xf), sharedBank_.db != 0)) {
         sharedBank_.reset();
         sprintf(b, "%s/sounds/c%d.omt", root_.c_str(), (int)(id & 0xf));
         sharedBank_.open(b);                                // game+0x68
         commentBank_.reset();
         sprintf(b, "%s/sounds/comments%d.omt", root_.c_str(), (int)(id & 0xf));
         commentBank_.open(b);
+        log("sharedBank c%d.omt opened\n", (int)(id & 0xf));
     }
 }
 
@@ -381,8 +383,9 @@ void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without 
     scene_ = s;
     w3_ = new World3D(this, s);                 // 0x4033f0: the scene's 3D world and characters
     if (!w3_->ok() || getenv("SB_NO3D")) { delete w3_; w3_ = 0; }
+    int prevChapter = state_.chapter;           // the chapter test compares with the chapter we come from
     state_.chapter = chapter;
-    loadSceneBanks(id);
+    loadSceneBanks(id, prevChapter);
     std::string err;
     comments_.load(*host_, chapter, (int)((id >> 8) & 0xf), &err);
     if (comments_.globals().empty()) {                      // 0x410450, once: the H000.. comments and sounds/comments.omt

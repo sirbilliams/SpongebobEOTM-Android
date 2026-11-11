@@ -148,7 +148,7 @@ private:
     friend class GameScene;
     friend class SceneScriptHost;
     void doSwitch();
-    void loadSceneBanks(unsigned sceneId);
+    void loadSceneBanks(unsigned sceneId, int prevChapter);
     void loadMusicBank(int chapter);                // 0x40b1c4: music\c%d.omt on a chapter change
     void loadSkies(int chapter);
     void runScript(const char* name);
