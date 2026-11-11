@@ -46,7 +46,8 @@ final class TouchRouter {
     /** Remembers the device as the bottom touchscreen (it delivered a touch to the panel itself). */
     void learn(MotionEvent e) {
         InputDevice d = InputDevice.getDevice(e.getDeviceId());
-        if (d == null || d.getDescriptor() == null) return;
+        // never learn a virtual device (adb input, scrcpy, Moonlight, accessibility): it also injects top-screen touches
+        if (d == null || d.isVirtual() || d.getDescriptor() == null) return;
         if (!d.getDescriptor().equals(mLearned)) {
             mLearned = d.getDescriptor();
             mPrefs.edit().putString(KEY_DESC, mLearned).apply();
@@ -62,6 +63,8 @@ final class TouchRouter {
             learn(e);
             return true;
         }
+        InputDevice dev = InputDevice.getDevice(e.getDeviceId());
+        if (dev == null || dev.isVirtual()) return false;        // injected touches are routed by their display only
         Boolean v = mVerdict.get(e.getDeviceId());
         if (v == null) {
             v = decide(e.getDeviceId(), panelDisplayId, panelW, panelH);
@@ -75,7 +78,7 @@ final class TouchRouter {
         if (d == null || (d.getSources() & InputDevice.SOURCE_TOUCHSCREEN) != InputDevice.SOURCE_TOUCHSCREEN) return Boolean.FALSE;
         String why = null;
         if (TouchDiag.associatedDisplay(d) == panelDisplayId && panelDisplayId != Display.DEFAULT_DISPLAY) why = "bound to the panel display";
-        else if (mLearned != null && mLearned.equals(d.getDescriptor())) why = "remembered as bottom";
+        else if (mLearned != null && !d.isVirtual() && mLearned.equals(d.getDescriptor())) why = "remembered as bottom";
         else if (byRange(d, panelW, panelH)) why = "range matches the bottom screen's aspect";
         TouchDiag.log("device " + TouchDiag.deviceLabel(id) + " -> " + (why != null ? "BOTTOM (" + why + ")" : "top/other"));
         return why != null;

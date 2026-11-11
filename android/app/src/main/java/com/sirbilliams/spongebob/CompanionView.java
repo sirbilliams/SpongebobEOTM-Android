@@ -292,7 +292,8 @@ public class CompanionView extends View {
                 Hit d = down;
                 down = null;
                 invalidate();
-                if (h != null && h == d) fire(h.cmd);
+                // onDraw rebuilds the Hit list every frame (the panel animates), so compare the target, not the object
+                if (h != null && d != null && h.cmd.equals(d.cmd)) fire(h.cmd);
                 return true;
             }
             case MotionEvent.ACTION_CANCEL:
@@ -364,6 +365,9 @@ public class CompanionView extends View {
         if (padHeld && pad != null) pad.move(0, 0, 0);
         padOn = padHeld = padSlopLeft = false;
     }
+
+    /** Whether the finger went down on this target (Hit objects are rebuilt every frame, so compare commands). */
+    private boolean pressed(Hit h) { return h != null && down != null && h.cmd.equals(down.cmd); }
 
     private Hit hitAt(float x, float y) {
         for (int i = hits.size() - 1; i >= 0; i--) {
@@ -618,7 +622,7 @@ public class CompanionView extends View {
     private void porthole(Canvas c, float cx, float cy, float rad, String label, String cmd, boolean enabled, int glyph) {
         Hit h = enabled ? new Hit(cx - rad, cy - rad, cx + rad, cy + rad, cmd) : null;
         if (h != null) hits.add(h);
-        boolean pr = h != null && h == down;
+        boolean pr = h != null && pressed(h);
         p.setStyle(Paint.Style.FILL); p.setColor(0x44000000);
         c.drawCircle(cx + 3, cy + 6, rad, p);
         p.setColor(enabled ? (pr ? GOLD_DK : 0xFFCFA25A) : 0xFF7A6A52);
@@ -649,7 +653,7 @@ public class CompanionView extends View {
             float x = l + i * (w + 4);
             Hit hh = new Hit(x, t0, x + w, t0 + h + 6, "mode:" + i);
             hits.add(hh);
-            boolean on = mode == i, pr = hh == down;
+            boolean on = mode == i, pr = pressed(hh);
             r.set(x, t0, x + w, t0 + h);
             p.setStyle(Paint.Style.FILL);
             p.setColor(on ? GOLD : (pr ? WOOD_DK : 0x66000000));
@@ -765,7 +769,7 @@ public class CompanionView extends View {
     private void chip(Canvas c, float l, float t0, float rr, float b, String label, String cmd, boolean enabled) {
         Hit h = new Hit(l - 6, t0 - 6, rr + 6, b + 6, cmd);       // a finger target bigger than the drawing
         if (enabled) hits.add(h);
-        boolean pr = h == down;
+        boolean pr = pressed(h);
         r.set(l, t0, rr, b);
         p.setStyle(Paint.Style.FILL); p.setColor(pr ? GOLD_DK : (enabled ? PAPER : 0x55FFFFFF));
         c.drawRoundRect(r, 20, 20, p);
@@ -844,7 +848,7 @@ public class CompanionView extends View {
     private void bigButton(Canvas c, float l, float t, float rr, float b, String label, String cmd, int fill, int ink, int number) {
         Hit h = new Hit(l, t, rr, b, cmd);
         hits.add(h);
-        boolean pr = h == down;
+        boolean pr = pressed(h);
         plank(c, l, t, rr, b, pr);
         float tx = l + 34;
         if (number > 0) {
@@ -916,7 +920,7 @@ public class CompanionView extends View {
         Hit h = new Hit(l, t, rr, b, sel ? "noitem" : "item:" + id);
         h.item = id;
         hits.add(h);
-        boolean pr = h == down;
+        boolean pr = pressed(h);
         plank(c, l, t, rr, b, pr);
         if (sel) {
             r.set(l - 6, t - 6, rr + 6, b + 6);
@@ -1021,7 +1025,7 @@ public class CompanionView extends View {
             float x = 40 + i * (w + gap);
             Hit hh = new Hit(x, TAB_Y, x + w, TAB_Y + TAB_H + 6, "tab:" + i);
             hits.add(hh);
-            boolean on = shown == i, pr = hh == down;
+            boolean on = shown == i, pr = pressed(hh);
             r.set(x, TAB_Y, x + w, TAB_Y + TAB_H);
             p.setStyle(Paint.Style.FILL);
             p.setColor(on ? GOLD : (pr ? WOOD_DK : WOOD));
@@ -1072,7 +1076,7 @@ public class CompanionView extends View {
                     : "note:" + (a.here ? "You are here." : (!a.ok ? "Not open yet - keep exploring." : "Finish what you are doing first."));
             Hit h = new Hit(cx - rad - 12, cy - rad - 12, cx + rad + 12, cy + rad + 74, cmd);
             hits.add(h);
-            boolean pr = h == down;
+            boolean pr = pressed(h);
             p.setStyle(Paint.Style.FILL); p.setColor(0x55000000);
             c.drawCircle(cx + 4, cy + 7, rad, p);
             p.setColor(pr ? GOLD_DK : fill);
