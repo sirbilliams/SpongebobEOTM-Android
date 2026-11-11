@@ -34,6 +34,10 @@ class OMedia3DGrannyModel
 	// 0x4048xx / 0x4033e0..: open an animation file (same transform) and start it as the playing control.
 	// speed: param 2, loops: param 3 (9999 = endless), blend_in: param 6; the previous control blends out.
 	bool play(const std::string &anim_path, float speed = 1.0f, int loops = 9999, float blend_in = 0.0f);
+	// 0x404d50: secondary control at char+0x2a8; +0x2b0 is its third (control id) word.
+	bool play_overlay(const std::string &anim_path, double loops);
+	void clear_overlay(void);
+	bool has_overlay(void) const {return overlay[2] != 0;}
 	// 0x405620 (per frame, after OMedia3DElement::update): the skinned pose into the shape (x = granny y, y = z,
 	// z = x), scaled, polygon normals.
 	void update_pose(void);
@@ -59,7 +63,7 @@ class OMedia3DGrannyModel
 	void clear_control(void);
 
 	unsigned int	model[2], sequence[2];
-	unsigned int	control[3];
+	unsigned int	control[3], overlay[3], overlay_anim[2];
 	bool			have_control, loaded;
 	std::vector<unsigned int>	anims;			// opened animation handles (2 words each), closed at the end
 	OMedia3DShape	*shape;

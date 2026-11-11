@@ -62,6 +62,7 @@ OMedia3DGrannyModel::OMedia3DGrannyModel()
 {
 	model[0] = model[1] = sequence[0] = sequence[1] = 0;
 	control[0] = control[1] = control[2] = 0;
+	overlay[0] = overlay[1] = overlay[2] = 0;
 	have_control = loaded = false;
 	shape = new OMedia3DShape;
 	scale = 1.0f;
@@ -71,6 +72,7 @@ OMedia3DGrannyModel::OMedia3DGrannyModel()
 
 OMedia3DGrannyModel::~OMedia3DGrannyModel()
 {
+	clear_overlay();
 	if (have_control) clear_control();
 	if (sequence[0]) GrannyCloseSequence(sequence[0], sequence[1]);
 	for (size_t i = 0; i + 1 < anims.size(); i += 2) GrannyCloseAnimation(anims[i], anims[i + 1]);
@@ -229,6 +231,37 @@ bool OMedia3DGrannyModel::play(const std::string &anim_path, float speed, int lo
 	GrannySetAnimationParameter(control[0], control[1], control[2], GrannyParamSpeed, speed);
 	GrannySetAnimationParameter(control[0], control[1], control[2], GrannyParamLoopCount, loops);
 	GrannySetAnimationParameter(control[0], control[1], control[2], GrannyParamBlendInTime, blend_in);
+	// 0x404b80: a base change restarts the talk control after the base control.
+	if (has_overlay()) {
+		clear_overlay();
+		if (!GrannyAddControlledAnimation(sequence[0], sequence[1], overlay_anim[0], overlay_anim[1], overlay))
+			GrannySetAnimationParameter(overlay[0], overlay[1], overlay[2], GrannyParamLoopCount, 3.4028234663852886e38);
+	}
+	return true;
+}
+
+// 0x404d50: remove the old secondary control before looking up the new animation.
+void OMedia3DGrannyModel::clear_overlay(void)
+{
+	if (overlay[2]) GrannyRemoveControlledAnimation(overlay[0], overlay[1], overlay[2]);
+	overlay[2] = 0;
+}
+
+bool OMedia3DGrannyModel::play_overlay(const std::string &anim_path, double loops)
+{
+	clear_overlay();
+	if (!loaded) return false;
+	std::string f = omf_find_case(anim_path);
+	if (f.empty()) return false;
+	granny_uint32 a[2];
+	if (GrannyOpenAnimation(omv_version, f.c_str(), a)) return false;
+	omf_xform(false, a[0], a[1]);
+	anims.push_back(a[0]); anims.push_back(a[1]);
+	granny_uint32 c[3] = {0, 0, 0};
+	if (GrannyAddControlledAnimation(sequence[0], sequence[1], a[0], a[1], c)) return false;
+	GrannySetAnimationParameter(c[0], c[1], c[2], GrannyParamLoopCount, loops);
+	overlay_anim[0] = a[0]; overlay_anim[1] = a[1];
+	for (int i = 0; i < 3; ++i) overlay[i] = c[i];
 	return true;
 }
 

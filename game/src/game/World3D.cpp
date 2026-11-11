@@ -252,12 +252,12 @@ void World3D::stopAnimSound(Actor3D* a)
     a->animSnd = false;
 }
 
-void World3D::setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m)
+void World3D::setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m, bool sound)
 {
     a->mode = m;
     a->anim = name;
     // 0x4047xx (play animation by name): idle2 / idle3 start their sound, any other animation ends it; 0x406050 plays the idle1 sound back at idle
-    if (a->obj->kind == SceneObject::Char) {
+    if (sound && a->obj->kind == SceneObject::Char) {
         if (strcasecmp(name, "idle2") == 0 || strcasecmp(name, "idle3") == 0 || strcasecmp(name, "idlet2") == 0 || strcasecmp(name, "idlet3") == 0) animSound(a, lower(name).c_str());
         else { stopAnimSound(a); if (strcasecmp(name, "idle1") == 0) animSound(a, "idle1"); }
     }
@@ -296,17 +296,42 @@ void World3D::oneShotAnim(SceneObject* o, const char* name)
     if (a && exists(a, name)) setAnim(a, name, 1, 1.0f, Actor3D::OneShot);
 }
 
+// 0x404d50, char vtable 0x44e358 slot 0x30: optional base animation, then a secondary looping control.
+bool World3D::overlayAnim(Actor3D* a, const char* name, const char* base)
+{
+    if (base) {
+        if (strcmp(base, "idle1") == 0) setAnim(a, base, 9999, 1.0f, Actor3D::Idle);
+        else if (strcmp(base, "idlet1") != 0 ||
+                 ((a->anim != "idlet1" && a->anim != "idlet2" && a->anim != "idlet3") || a->model->animation_expired())) {
+            // vt+0xbc: idlet1 keeps an unexpired idlet1/2/3 base; other bases play once.
+            if (exists(a, base)) {
+                bool idle = strcmp(base, "idlet1") == 0;
+                // 0x404c60: vt+0xbc stops the old sound for idletN; the caller plays the selected fidget sound.
+                stopAnimSound(a);
+                setAnim(a, base, idle ? 9999 : 1, 1.0f, idle ? Actor3D::Idle : Actor3D::OneShot, false);
+            }
+        }
+    }
+    // The exe's default loop count is FLT_MAX, passed as a double (0x47efffffe0000000).
+    return a->model->play_overlay(animPath(a, name), 3.4028234663852886e38);
+}
+
 void World3D::talk(SceneObject* o, bool on)
 {
     Actor3D* a = actorFor(o);
     if (!a) return;
-    if (on) { if (a->mode != Actor3D::Talk && exists(a, "talk")) setAnim(a, "talk", 9999, 1.0f, Actor3D::Talk); }
-    else if (a->mode == Actor3D::Talk) setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
+    if (on) {
+        // port: the existing boolean speaker API has no authored base-pose argument; use its available listening idle.
+        if (!a->model->has_overlay()) overlayAnim(a, "talk", exists(a, "idlet1") ? "idlet1" : "idle1");
+    } else if (a->model->has_overlay()) {
+        a->model->clear_overlay();
+        setAnim(a, "idle1", 9999, 1.0f, Actor3D::Idle);
+    }
 }
 
 void World3D::talkAll(bool on)
 {
-    for (size_t i = 0; i < actors_.size(); i++) if (actors_[i]->mode == Actor3D::Talk) talk(actors_[i]->obj, on);
+    for (size_t i = 0; i < actors_.size(); i++) if (actors_[i]->model->has_overlay()) talk(actors_[i]->obj, on);
 }
 
 // OMedia3DVector::angles, then sb2 0x434650: integer degrees, subtract 90.
@@ -1021,20 +1046,20 @@ void World3D::updateIdle(Actor3D* a, float dtMs)
         if (a->fidgetAcc > a->fidgetNext) {
             a->fidgetAcc = 0;
             a->fidgetNext = (float)(7 + rand() % 8);
-            if (onIdle) {
+            if (onIdle && !a->model->has_overlay()) {
                 const char* pick = (n < 3 || rand() % 3 != 1) ? "idle2" : "idle3";
                 setAnim(a, pick, 1, 1.0f, Actor3D::OneShot);
                 game_->log("fidget %s: %s\n", a->name.c_str(), pick);
-            } else {
+            } else if (onIdlet) {
                 // 0x42f1a0, the idlet branch: idlet2, or idlet3 one time in five when three exist
                 const char* pick = (rand() % 5 != 1 || nt < 3) ? "idlet2" : "idlet3";
                 DialogueUI* d = scene_->dialogue();
-                if (d && d->busy()) {
-                    // TODO(0x42f1a0): with a dialogue running the exe calls char vt+0xc0("talk", "idlet3") instead of the plain
-                    // animation; that slot is not reconstructed, so the fidget waits until the dialogue ends
-                    return;
-                }
-                setAnim(a, pick, 1, 1.0f, Actor3D::OneShot);
+                if (a->model->has_overlay() && d && d->busy()) {
+                    // 0x42f3c2 / 0x42f446: BOTH random choices use idlet3 as the base;
+                    // vt+0xf8 still plays the sound of the randomly selected idlet2/3.
+                    overlayAnim(a, "talk", "idlet3");
+                    animSound(a, pick);
+                } else setAnim(a, pick, 1, 1.0f, Actor3D::OneShot);
                 game_->log("fidget %s: %s\n", a->name.c_str(), pick);
             }
         }
