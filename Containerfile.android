@@ -2,7 +2,7 @@
 FROM docker.io/library/ubuntu:24.04
 
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends openjdk-17-jdk-headless git unzip wget ca-certificates && \
+    apt-get install -y --no-install-recommends openjdk-17-jdk-headless git unzip wget ca-certificates gcc libc6-dev make && \
     rm -rf /var/lib/apt/lists/*
 
 ENV ANDROID_HOME=/opt/android-sdk
