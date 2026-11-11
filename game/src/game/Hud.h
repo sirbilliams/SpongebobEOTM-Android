@@ -85,6 +85,10 @@ public:
     // port: companion pictures.  A 96x96 PNG of the item's model, written to iconDir() once.  false: cannot (yet).
     std::string iconDir() const;
     bool ensureIcon(const std::string& name);
+    // port: companion map page pictures (written to iconDir() once, false: cannot).  A scene's "background" canvas of sceneart/<scene>.omt
+    // scaled to w x h; a model of models/ (rel = "../people/sb" for models/people/sb_model) rendered like an item icon, size x size.
+    bool ensureScenePicture(const std::string& scene, int w, int h, const std::string& fileName);
+    bool ensureFigure(const std::string& modelRel, int size, const std::string& fileName);
 
 private:
     enum Spot { None = 0, Chest, Hint, Menu, Map, Slot };

@@ -864,4 +864,64 @@ bool Hud::ensureIcon(const std::string& name)
     return ok;
 }
 
+// port: companion map page.  The scene's background as the game draws it (the canvas of sceneart/<scene>.omt), box-filtered down to w x h.
+bool Hud::ensureScenePicture(const std::string& scene, int w, int h, const std::string& fileName)
+{
+    std::string dir = iconDir(), path = dir + "/" + fileName;
+    struct stat st;
+    if (stat(path.c_str(), &st) == 0) return true;
+    OmtFile art;
+    if (!art.open(g_->root() + "/sceneart/" + scene + ".omt") || !art.db) return false;
+    OMediaCanvas* c = (OMediaCanvas*)art.db->get_object(OMediaCanvas::db_type, std::string("background"));
+    OMediaGfxWorld* gw = c ? c->getgfxworld() : 0;
+    int sw = gw ? (int)gw->getwidth() : 0, sh = gw ? (int)gw->getheight() : 0;
+    if (!gw || sw < w || sh < h) { g_->log("HUD: companion picture %s: no background canvas\n", scene.c_str()); return false; }
+    static OMediaDXSurfaceWorld* off = 0;                  // the canvas is drawn into a framebuffer of its size, which is then read back
+    static int offW = 0, offH = 0;
+    if (!off || offW != sw || offH != sh) {
+        delete off;
+        off = new OMediaDXSurfaceWorld(false);
+        off->create((short)sw, (short)sh);
+        offW = sw; offH = sh;
+    }
+    OMediaGLSurface* s = off->port_surface();
+    if (!s || !s->fbo) { g_->log("HUD: companion picture %s: no offscreen surface\n", scene.c_str()); return false; }
+    OMediaRGBColor black(0, 0, 0);
+    off->fill(&black);
+    gw->draw_full(off, 0, 0, NULL);
+    std::vector<unsigned> src(sw * sh);
+    omgl_surface_read(s, &src[0]);
+    std::vector<unsigned> px(w * h);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) {
+            int x0 = x * sw / w, x1 = (x + 1) * sw / w, y0 = y * sh / h, y1 = (y + 1) * sh / h;
+            unsigned r = 0, gg = 0, b = 0, n = 0;
+            for (int yy = y0; yy < y1; ++yy)
+                for (int xx = x0; xx < x1; ++xx) { unsigned p = src[yy * sw + xx]; r += (p >> 16) & 255; gg += (p >> 8) & 255; b += p & 255; ++n; }
+            if (!n) n = 1;
+            px[y * w + x] = 0xff000000u | ((r / n) << 16) | ((gg / n) << 8) | (b / n);
+        }
+    mkdir(dir.c_str(), 0755);
+    bool ok = writePng(path, w, h, px);
+    g_->log("HUD: companion picture %s: %s\n", path.c_str(), ok ? "written" : "FAILED");
+    return ok;
+}
+
+bool Hud::ensureFigure(const std::string& modelRel, int size, const std::string& fileName)
+{
+    std::string dir = iconDir(), path = dir + "/" + fileName;
+    struct stat st;
+    if (stat(path.c_str(), &st) == 0) return true;
+    HudItem it;
+    it.name = modelRel;
+    bool ok = false;
+    if (ensure3D(&it)) {
+        std::vector<unsigned> px;
+        if (renderIcon(&it, size, &px)) { mkdir(dir.c_str(), 0755); ok = writePng(path, size, size, px); }
+    }
+    delete it.vpe; delete it.elem; delete it.light; delete it.vp; delete it.w3; delete it.model;     // ensure3D put it in the 2D world: out again before a frame draws it
+    g_->log("HUD: companion figure %s: %s\n", path.c_str(), ok ? "written" : "FAILED");
+    return ok;
+}
+
 }  // namespace sbgame

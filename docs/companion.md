@@ -73,6 +73,24 @@ game side, which shows the hidden hot spots, is lane e's; until it lands the com
   Tap an open place -> `travel:<target>`; the game re-checks the same rule (`companionTravel`) and refuses (log `companion: travel ... refused`) when the map would not offer it,
   when the target is not on the map, or while a dialogue / cutscene / script runs or a scene switch waits (the map button is dead then); else `Game::switchTo(target)`, which is what clicking the
   place on the map scene does. A not-open place only shows a note ("Not open yet").
+* **Map data v2** (all optional; a missing field = draw as before; `CompanionMap.h` pure parts, `companionMapDecorate` in CompanionFeed.h). Pictures are PNGs in the same folder as the item icons
+  (`icons`, absolute paths), written once (the first snapshot that needs one writes it, at most one per snapshot; an existing file is reused) from the player's own files:
+  * top level `mapbg` (`map_c<N>.png`, 640x480): the background canvas of the chapter map scene `c<N>l1s1` (`Hud::ensureScenePicture`: the canvas of `sceneart/<scene>.omt` drawn into an offscreen
+    surface and read back); `mapme` (`map_me.png`, 96x96, alpha): SpongeBob's own model `models/people/SB_Model` rendered like an item icon (`Hud::ensureFigure`; the T-pose of the model, there is
+    no sprite of him in the game files). **`mapsnd` is not written**: the game plays no sound for the map button or for travelling (the map button only switches scenes), and none of the sound banks
+    holds a map / bus / travel effect, so there is nothing true to hand over.
+  * `rooms` (current place only, levels >= 2, 2 or more rooms): `[{"n","s":"c1l2s6","here":1,"x","y","l":[indexes]}]` in scene-number order. The rooms are the scene files `c<N>l<L>s*.scn` of the level, the
+    names the room table of `companionPlace` ("Area 3" where it has none), the links the doors found in the scene files (camera exits, Event / Alt Event of 2DOB / SPOT / TRIG that name another scene
+    of the same level), made symmetric; x = number of doors from the first room, y = spread over the rooms of that depth (0..100, a look-only layout).
+  * per area, only for a place that is open or visited (nothing leaks about a "?" place): `who` (the Description of the Character objects in the place's scenes, max 4, no SpongeBob, no props
+    modelled as characters such as cars, the beach ball, jellyfish), `pic` (`place_<target>.png`, 160x120, the background of the target scene), `goal` 1 / `hint` from the help lines below.
+  * `goal` / `hint` come from `dialogue/help.sb2`, the table the HINT button and the Goals page's WHAT NEXT use (`Hud::hintText`). A line `F<chapter><level><scene><letter>` belongs to the place of its level
+    digit (the place where the game offers it) and is live while its condition holds (`Game::cond`, same as the button; lines with no condition are not offered by the button either). `goal` = such a line
+    is live; `hint` = the text of the first live line that is not one of the shared chapter-0 lines (`F000A..F`: "Talk to everyone!", "Combine items!"), alias lines (`F122A` -> `F123A`) resolved like the button.
+    Nothing is invented: no text -> no `hint`. Note some lines are offered at one place but speak of another ("deliver the umbrella to Marty at the Bus Stop Downtown" is a Goo Lagoon line).
+    **Coverage** (static, all four chapters, 18 map places): 18 of 18 places have at least one such non-generic line (Chapter 1: 5/5, Chapter 2: 4/4, Chapter 3: 5/5, Chapter 4: 4/4), 0 places have a lock text of
+    their own (the map scenes carry no Alt Event / Condition for any place, so the game has no "locked" message at the map). What shows live depends on the state: it is the lines whose conditions hold now.
+  * Cost: `who` is read once per chapter (about 25 scene files), `rooms` once per place, the help flags every 10th snapshot; pictures one per snapshot, never rewritten.
 * **Talk** (`talk[]`): every spoken dialogue line of the session (speaker + text, oldest first, 60 kept, newest at the bottom; it keeps to the bottom unless scrolled up, drag to scroll).
   `DialogueUI` has two small `// port: companion` getters (`currentKey`, `lineSerial`); `companionRecordTalk` records a line when it starts. The round button sends `voice:<serial>`:
   `companionReplayVoice` finds the line's voice in the scene's sound bank with the same seven case-combinations as `DialogueUI::startVoice` (0x412d00; the bank of the line's scene is opened
