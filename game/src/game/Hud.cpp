@@ -343,7 +343,12 @@ bool Hud::onMouseDown(int x, int y)     // 0x420d50
         g_->switchTo(b);
         return true;
     }
-    if (sp == Menu) { g_->log("HUD: main menu (STUB: the pause menu is not reconstructed yet)\n"); return true; }
+    if (sp == Menu) {                                      // 0x420d50: close the bar (0x421390(0)), refresh the caption (0x4201c0), then the input object (game+0x88) vt+0x24 = 0x41c1c0
+        setOpen(false);
+        g_->log("HUD: main menu -> pause menu (0x41c1c0)\n");
+        g_->requestMenu();                                 // port: 0x41c1c0 creates the menu object (0x4242b0) and pauses the game; here the startup loop does what F10 does
+        return true;
+    }
     if (sp == Hint) { setOpen(false); hint(); return true; }
     if (sp == Slot) {
         HudItem* it = itemInSlot(slot);

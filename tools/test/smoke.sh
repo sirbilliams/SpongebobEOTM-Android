@@ -113,6 +113,8 @@ game scene-c1l2s6   300 'scene c1l2s6 entered' $SH SB_TEST_SCENE=c1l2s6
 game click-dialogue 800 'test: scene c1l5s4 ready|event .AAA. \(Larry The Lobster\)|dialogue AAA|line AAA |line AAB ' $SH SB_TEST_READY_FRAMES=1 SB_TEST_SCENE=c1l5s4 SB_TEST_GAME_CLICKS=150:30:30,330:160:32,520:427:267
 game hud-item       800 "HUD: ict2 used on 'Larry The Lobster': accepted|dialogue BAA" $SH SB_TEST_READY_FRAMES=1 SB_TEST_SCENE=c1l5s4 \
      "SB_TEST_ITEMS=isp1:Shovel and Pail,ict2:Urchin Chip Pie" SB_TEST_GAME_CLICKS=150:30:30,330:160:32,520:427:267
+# 0x420d50: the chest opens (x < 64), then its Main Menu spot (x > 0x200) closes the bar and pauses the game behind the main menu (as F10)
+game hud-menu       700 "HUD: main menu -> pause menu|sb2\\.omt menu dialog" $SH SB_TEST_READY_FRAMES=1 SB_TEST_SCENE=c1l5s4 SB_TEST_GAME_CLICKS=150:30:30,330:560:30
 for m in fill stretch panels fit; do game "wide-$m" 300 'scene c1l2s6 entered' $SH SB_TEST_SCENE=c1l2s6 SB_WIDESCREEN=$m; done
 game pad            300 'scene c1l2s6 entered' $SH SB_TEST_SCENE=c1l2s6 "SB_TEST_PAD=40:rx=0.8,ry=0;120:rx=0,r3=1;200:r3=0"
 game touchpad       800 'event .AAA. \(Larry The Lobster\)|dialogue AAA' $SH SB_TEST_SCENE=c1l5s4 "SB_TEST_TOUCHPAD=150:-2000,-2000,-1;160:427,267,-1;200:0,0,1;230:0,0,0"
