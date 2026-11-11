@@ -1,4 +1,5 @@
 #include "World3D.h"
+#include "Depth.h"
 #include "Kick.h" // lane d
 #include "Game.h"
 #include "SceneScriptHost.h"
@@ -51,8 +52,62 @@ OMedia3DAbstractRasterizer* World3D::rasterizer()
     return ras;
 }
 
+// 0x4033f0 (see ActorLayer): the world with the scene camera and lights, its viewport and, for an object, the VPElement in the 2D world.
+ActorLayer* World3D::makeLayer(bool withVpe)
+{
+    const sb::scene::Scene& sc = scene_->data();
+    const sb::scene::Camera& cam = sc.camera.data.camera;
+    ActorLayer* l = new ActorLayer;
+    layers_.push_back(l);
+    OMedia3DWorld* w = l->world = new OMedia3DWorld;
+    w->set_framerate_mode(omfrc_Max);
+    w->setbackground(NULL);
+    w->focal = cam.o0188;
+    w->far_z = 4500.0f;
+    w->near_z = 10.0f;
+    w->ambient.setred8bits((unsigned char)cam.o018c);
+    w->ambient.setgreen8bits((unsigned char)cam.o018e);
+    w->ambient.setblue8bits((unsigned char)cam.o0190);
+    w->rasterizer = rasterizer();
+    l->vp = new OMediaViewPort(w);
+    OMediaRect b3(0, 0, 640, 480);
+    l->vp->setbounds(&b3);
+    l->vp->place(cam.o0174, cam.o0178, cam.o017c);
+    // 0x4033f0: the angles are signed degrees (movsx of scene+0x3e8..+0x3ec; c1l2s1 tilts -25)
+    l->vp->set_angle((short)(((short)cam.o0180 * 0x4000) / 360), (short)(((short)cam.o0182 * 0x4000) / 360), (short)(((short)cam.o0184 * 0x4000) / 360));
+    if (withVpe) {
+        l->vpe = new OMediaVPElement;
+        l->vpe->set_viewport(l->vp);
+        l->vpe->link(scene_->world());
+        l->vpe->place(0, 0, 0);          // 0x4033f0; the object's place (0x42e560) moves it to z = -z
+    }
+    // the LITE records (the type-0 ones are switched off)
+    for (size_t i = 0; i < sc.tiles.size(); i++) {
+        const sb::scene::Light& li = sc.tiles[i].data.light;
+        if (!li.o0180) continue;
+        OMedia3DLight* light = new OMedia3DLight;
+        light->link(w);
+        light->kind = 2;
+        light->range = li.o0184;
+        light->falloff = li.o0188;
+        light->diffuse[0] = li.o018c; light->diffuse[1] = li.o0190; light->diffuse[2] = li.o0194;
+        light->place(li.o0174, li.o0178, li.o017c);
+        l->lights.push_back(light);
+    }
+    return l;
+}
+
+void World3D::freeLayer(ActorLayer* l)
+{
+    for (size_t i = 0; i < l->lights.size(); i++) delete l->lights[i];
+    delete l->vpe;
+    delete l->vp;
+    delete l->world;
+    delete l;
+}
+
 World3D::World3D(Game* game, GameScene* scene)
-    : game_(game), scene_(scene), w3_(0), vp_(0), vpe_(0), wake_(false)
+    : game_(game), scene_(scene), w3_(0), vp_(0), wake_(false)
 {
     game->state().hasPlayer = false;
     // Match sb2 startup (also StartupApp): zero disables OMT database eviction.
@@ -66,40 +121,11 @@ World3D::World3D(Game* game, GameScene* scene)
     if (!OMedia3DGrannyModel::init(dir_)) { game_->log("3D: granny init failed\n"); return; }
     const sb::scene::Scene& sc = scene->data();
     const sb::scene::Camera& cam = sc.camera.data.camera;
-    // 0x4033f0: the scene's 3D world; no background, so the 2D art shows through
-    w3_ = new OMedia3DWorld;
-    w3_->set_framerate_mode(omfrc_Max);
-    w3_->setbackground(NULL);
-    w3_->focal = cam.o0188;
-    w3_->far_z = 4500.0f;
-    w3_->near_z = 10.0f;
-    w3_->ambient.setred8bits((unsigned char)cam.o018c);
-    w3_->ambient.setgreen8bits((unsigned char)cam.o018e);
-    w3_->ambient.setblue8bits((unsigned char)cam.o0190);
-    w3_->rasterizer = ras;
-    vp_ = new OMediaViewPort(w3_);
-    OMediaRect b3(0, 0, 640, 480);
-    vp_->setbounds(&b3);
-    vp_->place(cam.o0174, cam.o0178, cam.o017c);
-    // 0x4033f0: the angles are signed degrees (movsx of scene+0x3e8..+0x3ec; c1l2s1 tilts -25)
-    vp_->set_angle((short)(((short)cam.o0180 * 0x4000) / 360), (short)(((short)cam.o0182 * 0x4000) / 360), (short)(((short)cam.o0184 * 0x4000) / 360));
-    vpe_ = new OMediaVPElement;
-    vpe_->set_viewport(vp_);
-    vpe_->link(scene->world());
-    vpe_->place(0, 0, 100);        // port: between the 2D background (z 0) and the foreground objects
-    // the LITE records (the type-0 ones are switched off)
-    for (size_t i = 0; i < sc.tiles.size(); i++) {
-        const sb::scene::Light& l = sc.tiles[i].data.light;
-        if (!l.o0180) continue;
-        OMedia3DLight* light = new OMedia3DLight;
-        light->link(w3_);
-        light->kind = 2;
-        light->range = l.o0184;
-        light->falloff = l.o0188;
-        light->diffuse[0] = l.o018c; light->diffuse[1] = l.o0190; light->diffuse[2] = l.o0194;
-        light->place(l.o0174, l.o0178, l.o017c);
-        lights_.push_back(light);
-    }
+    // 0x4033f0: the scene's 3D world; no background, so the 2D art shows through.  port: this first one is only the reference world
+    // (projection, the rasterizer); each object draws in its own (makeLayer).
+    ActorLayer* base = makeLayer(false);
+    if (!base) return;
+    w3_ = base->world; vp_ = base->vp;
     // the characters and items
     for (size_t i = 0; i < scene->objects().size(); i++) {
         SceneObject* o = scene->objects()[i];
@@ -132,9 +158,10 @@ World3D::World3D(Game* game, GameScene* scene)
         }
         float sc = rec && rec->tag == sb::scene::CharacterTag ? rec->data.character.o0224 : rec && rec->tag == sb::scene::ItemTag ? rec->data.item.o0224 : 1.0f;
         if (sc > 0) a->model->set_scale(sc);                  // +0x224 Scale
+        a->layer = makeLayer(true);
         a->elem = new OMedia3DShapeElement;
         a->elem->setshape(a->model->get_shape());
-        a->elem->link(w3_);
+        a->elem->link(a->layer->world);
         // lane f, 0x422070: a CHAR with a "Shadow Name" gets that model (models/items/<name>_model) as a child, when the Shadows option is on (game+0x274)
         if (rec && rec->tag == sb::scene::CharacterTag && game->optShadows) {
             a->shadowName = rec->data.character.o0204.text();
@@ -143,7 +170,7 @@ World3D::World3D(Game* game, GameScene* scene)
                 if (a->shadowModel->load(dir_ + "/models/items/" + lower(a->shadowName) + "_model")) {
                     a->shadowElem = new OMedia3DShapeElement;
                     a->shadowElem->setshape(a->shadowModel->get_shape());
-                    a->shadowElem->link(w3_);
+                    a->shadowElem->link(a->layer->world);
                     game_->log("3D: shadow %s for %s\n", a->shadowName.c_str(), a->name.c_str());
                 } else {
                     game_->log("3D: shadow %s of %s: %s\n", a->shadowName.c_str(), a->name.c_str(), a->shadowModel->get_error().c_str());
@@ -167,10 +194,7 @@ World3D::~World3D()
     }
     for (size_t i = 0; i < actors_.size(); i++) { delete actors_[i]->elem; delete actors_[i]->shadowElem; }
     for (size_t i = 0; i < actors_.size(); i++) { delete actors_[i]->model; delete actors_[i]->shadowModel; delete actors_[i]; }
-    for (size_t i = 0; i < lights_.size(); i++) delete lights_[i];
-    delete vpe_;
-    delete vp_;
-    delete w3_;
+    for (size_t i = 0; i < layers_.size(); i++) freeLayer(layers_[i]);
 }
 
 // lane c: 0x404070, named material in this character's model database.
@@ -196,6 +220,7 @@ void World3D::place(Actor3D* a)
     }
     a->prevX = a->x; a->prevY = a->y; a->prevZ = a->z;
     a->obj->px = a->x; a->obj->py = a->y; a->obj->pz = a->z;
+    if (a->layer && a->layer->vpe) a->layer->vpe->place(0, 0, actorLayerDepth(a->z));   // 0x42e560: the object's layer sits at z = -z among the 2D objects (z = -pz)
     a->elem->place(a->x, a->y, a->z);
     a->elem->set_angle(0, (short)(a->heading & 0x3fff), 0);
     if (a->shadowElem) {          // lane f: the shadow is a child of the character: same place and heading (0x422070 places it at 0,0,0)
@@ -924,7 +949,7 @@ bool World3D::attach(SceneObject* o, const char* name, const char* bone, const c
     a->attachModel = m;
     a->attachElem = new OMedia3DShapeElement;
     a->attachElem->setshape(m->get_shape());
-    a->attachElem->link(w3_);
+    a->attachElem->link(a->layer->world);
     a->attachElem->place(a->x, a->y, a->z);
     a->attachElem->set_angle(0, (short)(a->heading & 0x3fff), 0);
     if (!m->attach_to(a->model, bone, parentBone)) {
@@ -1204,7 +1229,7 @@ void World3D::update(float dtMs)
         if (game_->world3d() != this) return;
     }
     runPending();
-    w3_->update();
+    for (size_t i = 0; i < layers_.size(); i++) layers_[i]->world->update();
     if (wake_) { wake_ = false; game_->host()->actorDone(); }
 }
 
@@ -1234,7 +1259,8 @@ bool World3D::swapControl(Actor3D* from, Actor3D* to)
 bool World3D::screenBounds(SceneObject* o, int& x1, int& y1, int& x2, int& y2)
 {
     Actor3D* a = actorFor(o);
-    OMedia3DVPModel* m = vp_ ? dynamic_cast<OMedia3DVPModel*>(vp_->get_vpmodel()) : 0;
+    OMediaViewPort* avp = vpOf(a);
+    OMedia3DVPModel* m = avp ? dynamic_cast<OMedia3DVPModel*>(avp->get_vpmodel()) : 0;
     float l, t, r, b, z;
     if (!a || !m || a->elem->get_hide_count() != 0 || !m->get_element_bounds(a->elem, l, t, r, b, z)) return false;
     x1 = (int)l; y1 = (int)t; x2 = (int)r; y2 = (int)b;

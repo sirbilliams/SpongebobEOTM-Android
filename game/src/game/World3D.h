@@ -18,8 +18,20 @@ namespace sbgame {
 class Game;
 class SceneScriptHost;
 
+// 0x4033f0: every CHAR / ITEM object builds its own 3D world, viewport and VPElement (the scene camera, the scene's lights) and, in its
+// place routine (0x42e560), puts the VPElement at z = -(the object's z) in the scene's 2D world.  The 2D objects sit at z = -pz, so a
+// cutout authored with a pz just below the character's z (c1l6s3: the register at -440, the clerk at -431) is drawn over it.
+struct ActorLayer {
+    ActorLayer() : world(0), vp(0), vpe(0) {}
+    OMedia3DWorld* world;
+    OMediaViewPort* vp;
+    OMediaVPElement* vpe;
+    std::vector<OMedia3DLight*> lights;
+};
+
 struct Actor3D {
     Actor3D();
+    ActorLayer* layer;                // port: the object's own world (0x4033f0)
     SceneObject* obj;
     std::string name;                 // lower case model name ("sb")
     OMedia3DGrannyModel* model;
@@ -72,6 +84,9 @@ public:
     World3D(Game* game, GameScene* scene);
     ~World3D();
     bool ok() const { return w3_ != 0; }
+    ActorLayer* makeLayer(bool withVpe);         // 0x4033f0 for one object (see ActorLayer)
+    void freeLayer(ActorLayer* l);
+    OMediaViewPort* vpOf(Actor3D* a) { return a && a->layer ? a->layer->vp : vp_; }
 
     void update(float dtMs);                     // Granny clock, walks / rotations, poses, the 3D world render
     void enter(int startPoint);                  // 0x437cf0: the player goes to the scene's start point
@@ -157,8 +172,7 @@ private:
     std::string dir_;
     OMedia3DWorld* w3_;
     OMediaViewPort* vp_;
-    OMediaVPElement* vpe_;
-    std::vector<OMedia3DLight*> lights_;
+    std::vector<ActorLayer*> layers_;
     std::vector<Actor3D*> actors_;
     sb::scene::Grid grids_[2];
     bool wake_;
