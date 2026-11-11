@@ -92,6 +92,7 @@ public class CompanionView extends View {
     private static final class Area { String name = "", cmd = "", pic = "", hint = ""; int x, y, w, h; boolean ok, visited, here, goal; String[] who = NO_WHO; }
     private static final class Room { String n = ""; boolean here; int x, y; int[] l = new int[0]; }
     private final List<Room> rooms = new ArrayList<Room>();
+    private final float[] rbx = new float[14], rby = new float[14];
     private String mapBg = "", mapMe = "", mapSnd = "";                 // optional files of the game (map snapshot v2)
     private static final float MAP_SC = 1.28f;                          // chart layout px per map px at zoom 1
     private static final long PREVIEW_MS = 400, FOCUS_MS = 4000;
@@ -1378,29 +1379,46 @@ public class CompanionView extends View {
         p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
         c.drawRoundRect(r, 16, 16, p);
         text(c, where.length() > 0 ? "INSIDE: " + where : "ROOMS", x + 12, y + 24, 18, GOLD, true, Paint.Align.LEFT);
-        float bw = 76, bh = 26, ix = x + 10, iy = y + 34, iw = w - 20 - bw, ih = h - 44 - bh;
+        int n = rooms.size();
+        float ix = x + 10, iy = y + 34, aw = w - 20, ah = h - 44, bw = 80, bh = 26;
+        boolean grid = false;
+        for (int i = 0; i < n; i++) {                       // the sent layout, spread over the inset; any two boxes touching = fall back to a grid
+            Room a = rooms.get(i);
+            rbx[i] = ix + a.x / 100f * (aw - bw); rby[i] = iy + a.y / 100f * (ah - bh);
+            for (int k = 0; k < i; k++) if (Math.abs(rbx[i] - rbx[k]) < bw + 4 && Math.abs(rby[i] - rby[k]) < bh + 4) grid = true;
+        }
+        if (grid && n > 0) {
+            int cols = n <= 4 ? 2 : 3, rows = (n + cols - 1) / cols;
+            bw = (aw - 8 * (cols - 1)) / cols; bh = Math.min(28, (ah - 6 * (rows - 1)) / rows);
+            for (int i = 0; i < n; i++) { rbx[i] = ix + (i % cols) * (bw + 8); rby[i] = iy + (i / cols) * (bh + 6); }
+        }
         p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(ROPE);
-        for (int i = 0; i < rooms.size(); i++) {
+        for (int i = 0; i < n; i++) {
             Room a = rooms.get(i);
             for (int k = 0; k < a.l.length; k++) {
                 int j = a.l[k];
-                if (j <= i || j >= rooms.size()) continue;          // each link once; bad indexes ignored
-                Room b2 = rooms.get(j);
-                c.drawLine(ix + bw / 2 + a.x / 100f * iw, iy + bh / 2 + a.y / 100f * ih, ix + bw / 2 + b2.x / 100f * iw, iy + bh / 2 + b2.y / 100f * ih, p);
+                if (j <= i || j >= n) continue;              // each link once; bad indexes ignored
+                c.drawLine(rbx[i] + bw / 2, rby[i] + bh / 2, rbx[j] + bw / 2, rby[j] + bh / 2, p);
             }
         }
-        for (int i = 0; i < rooms.size(); i++) {
+        for (int i = 0; i < n; i++) {
             Room a = rooms.get(i);
-            float bx = ix + a.x / 100f * iw, by = iy + a.y / 100f * ih;
+            float bx = rbx[i], by = rby[i];
             r.set(bx, by, bx + bw, by + bh);
             p.setStyle(Paint.Style.FILL); p.setColor(a.here ? GOLD : PAPER);
             c.drawRoundRect(r, 8, 8, p);
             p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(a.here ? 4 : 2); p.setColor(a.here ? RED : WOOD_EDGE);
             c.drawRoundRect(r, 8, 8, p);
             String s = a.n;
-            p.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)); p.setTextSize(13);
-            while (s.length() > 1 && p.measureText(s) > bw - 8) s = s.substring(0, s.length() - 1);
-            text(c, s, bx + bw / 2, by + 18, 13, INK, true, Paint.Align.CENTER);
+            float fs = Math.min(15, bh * 0.58f);
+            p.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
+            p.setTextSize(fs);
+            while (fs > 10 && p.measureText(s) > bw - 8) { fs -= 1; p.setTextSize(fs); }          // shrink first
+            if (p.measureText(s) > bw - 8) {                                                      // cut with an ellipsis only as the last resort
+                while (s.length() > 1 && p.measureText(s + "\u2026") > bw - 8) s = s.substring(0, s.length() - 1);
+                s = s + "\u2026";
+            }
+            text(c, s, bx + bw / 2, by + bh / 2 + fs * 0.35f, fs, INK, true, Paint.Align.CENTER);
         }
         p.setStyle(Paint.Style.FILL);
     }
@@ -1542,7 +1560,7 @@ public class CompanionView extends View {
             p.setStyle(Paint.Style.FILL);
             String glyph = a.here ? "HERE" : (!a.ok ? "?" : (a.visited ? "GO" : "NEW"));
             text(c, glyph, cx, cy + (glyph.length() == 1 ? 18 : 10), glyph.length() == 1 ? 52 : 30, 0xFFFFFFFF, true, Paint.Align.CENTER);
-            if (a.goal) star(c, cx + rad * 0.72f, cy - rad * 0.72f, 24);
+            if (a.goal) star(c, cx + rad * 0.92f, cy - rad * 0.62f, 22);
             if (ring && i == focusIdx && go) {          // "A" badge: this is what A does now
                 p.setStyle(Paint.Style.FILL); p.setColor(KELP);
                 c.drawCircle(cx - rad * 0.72f, cy - rad * 0.72f, 19, p);
