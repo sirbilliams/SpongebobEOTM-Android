@@ -25,7 +25,14 @@ step "Fetching SDL2 + gl4es (pinned)"
 bash "$ROOT/fetch-deps.sh"
 
 step "Building the APK"
-podman run --rm -v "$ROOT":/src:Z -v spongebob-gradle-cache:/root/.gradle "$IMAGE" \
+# Stable signing key (outside the repo) so updates install over the old app; without it the SDK debug key is used.
+SIGN=()
+KS="$HOME/.config/spongebob-signing"
+if [ -f "$KS/spongebob.keystore" ] && [ -f "$KS/password" ]; then
+    SIGN=(-v "$KS":/keys:Z,ro -e NEG_KEYSTORE=/keys/spongebob.keystore -e NEG_KEY_ALIAS=spongebob
+          -e NEG_KEYSTORE_PASSWORD="$(cat "$KS/password")")
+fi
+podman run --rm -v "$ROOT":/src:Z -v spongebob-gradle-cache:/root/.gradle "${SIGN[@]}" "$IMAGE" \
     bash -c "cd /src/android && chmod +x gradlew && ./gradlew --no-daemon assembleDebug" \
     > "$ROOT/android-build.log" 2>&1 || die "build failed - see $ROOT/android-build.log"
 
