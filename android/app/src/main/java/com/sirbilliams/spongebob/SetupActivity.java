@@ -115,12 +115,12 @@ public class SetupActivity extends Activity {
     }
 
     private void play(boolean crashTest) {
-        Intent i = new Intent(this, SpongeActivity.class);
+        Intent i = new Intent(this, SpongeActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         if (crashTest) i.putExtra(SpongeActivity.EXTRA_CRASH_TEST, true);
         startActivity(i, onTopScreen());
     }
 
-    /** port: the game always opens on the default (top) display, never a TV / cast display. */
+    /** Launcher tools start on top; TvOutput moves the game task after SDL is initialized. */
     static Bundle onTopScreen() {
         if (android.os.Build.VERSION.SDK_INT < 26) return null;
         try {
@@ -171,7 +171,8 @@ public class SetupActivity extends Activity {
             "Panel window: " + (panelFocusable() ? "Takes focus" : "Safe (default)"),
             "Right-stick cursor: " + (padCursor() ? "On" : "Off"),
             "Cursor: " + LauncherView.CURSORS[cursor()],
-            "Box art: " + (art != null ? "Your picture" : "Pick an image"), "Back");
+            "Box art: " + (art != null ? "Your picture" : "Pick an image"),
+            "TV output: " + (TvOutput.auto(this) ? "Auto" : "Off"), "Back");
     }
     private boolean hdOn() { return getSharedPreferences("settings", MODE_PRIVATE).getBoolean("hd_bg", true); }
     /** "3 scenes, 12.4 MB" for the installed HD pack (docs/hd-pack.md), or null without one. */
@@ -238,7 +239,7 @@ public class SetupActivity extends Activity {
         case "saves":
             switch(row) { case 0: exportAll(); break; case 1: chooseExport(); break; case 2: pickZip(); break; default: showMain(); } break;
         case "settings":
-            if(row==7) {showMain();break;}
+            if(row==8) {showMain();break;}
             if(row==6) {chooseArt();break;}
             applySetting(row);
             showSettings(); launcher.focusRow(row); bottom.refresh(); break;
@@ -271,6 +272,7 @@ public class SetupActivity extends Activity {
         // port: same persistent preference cycle as widescreen.
         if(row==5) getSharedPreferences("settings", MODE_PRIVATE).edit().putInt("cursor", Math.floorMod(cursor()+1,4)).apply();
         if(row==6) getSharedPreferences("settings", MODE_PRIVATE).edit().putBoolean("hd_bg", !hdOn()).apply();
+        if(row==7) getSharedPreferences("settings", MODE_PRIVATE).edit().putBoolean(TvOutput.KEY, !TvOutput.auto(this)).apply();
         if(row==1) bottom.resume(panelOn());
     }
 
