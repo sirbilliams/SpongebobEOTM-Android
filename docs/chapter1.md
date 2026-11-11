@@ -77,8 +77,9 @@ tokens), Grandma's after `154aca` (Larry's pies), the Barg-N-Mart after `135aba`
 * Test hooks added: `SB_TEST_PLAYTHROUGH`, `SB_TEST_SHOTDIR`, `SB_TEST_STEPFRAMES`, `SB_TEST_LOADSLOT`.
 
 ## Port notes / still not reconstructed
-* The cross-height connector walk (`checkgrid`, vt+0x17c 0x434520, vt+0x178 0x434450) and the path post-processing (0x42c450):
-  no chapter 1 step needs them (every c1 scene the route uses has one walking height).
+* The cross-height connector walk (`checkgrid`, vt+0x17c 0x434520, vt+0x178 0x434450):
+  no chapter 1 step needs it (every c1 scene the route uses has one walking height).
+  Path post-processing 0x42c450 is now ported; see [path-rounding.md](path-rounding.md).
 * A walk-in trigger can fire on the way to somewhere else when the cell route crosses its radius (the exe smooths routes,
   0x42c450); the route file walks around "Walk to Ray" (`floor 300 600`).
 * The pending interaction (game+0x228) runs when the player stops walking and turning; its consumer in the exe was not found.

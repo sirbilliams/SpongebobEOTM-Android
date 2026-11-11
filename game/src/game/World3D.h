@@ -9,6 +9,7 @@
 #include "OMedia3DGrannyModel.h"
 #include "OMediaVPElement.h"
 #include "../script/ScriptRunner.h"
+#include "WalkRoute.h"
 #include <string>
 #include <vector>
 
@@ -32,6 +33,8 @@ struct Actor3D {
     bool kicking; // lane d: 0x410 kick movement, handled by Kick.cpp
     bool walking; float tx, tz, speed;
     std::vector< std::pair<float,float> > route;
+    std::vector<sbwalk::Path> curvePaths;
+    double curveDistance;
     size_t waypoint;
     SceneObject* interaction;
     float radius;

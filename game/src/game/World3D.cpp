@@ -27,7 +27,7 @@ Actor3D::Actor3D()
       idleWanted(true), idleSuspended(false), idleHost(0), idleRunner(0), wakeIdle(false), animSnd(false), fidgetAcc(0), fidgetNext((float)(7 + rand() % 8)),   // lane f: ctor 0x42e150
       shadowModel(0), shadowElem(0)
 {
-    waypoint = 0; interaction = 0; radius = 50; control = true; useGrid = false;
+    waypoint = 0; curveDistance = 0; interaction = 0; radius = 50; control = true; useGrid = false;
     arrive = 25; pickupItem = 0; doorWalk = false; dirX = 0; dirZ = 1; attachModel = 0; attachElem = 0;
 }
 
@@ -363,10 +363,13 @@ bool World3D::cell(const sb::scene::Grid& g, int x, int z) const
         !g.cells[x][z] && !game_->state().isBlocked(scene_->sceneId(), x, z);
 }
 
+static void headingDir(int heading, float& dx, float& dz);
+
 bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, bool neighbour)
 {
     const sb::scene::Grid* g = grid(a->y);
     std::vector< std::pair<float,float> > route;
+    std::vector<sbwalk::Path> curves;
     if (g && a->useGrid && !a->climbing && (!game_->runner() || game_->runner()->terrain())) {   // 0x434650: a climbing walk skips the grid route
         if (gx < 0 || gz < 0) {
             gx = gridIndex(x, g->o000c, g->o0008, g->halfSize);
@@ -431,26 +434,64 @@ bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, b
             }
         }
         if (cost[target] == INT_MAX) { game_->log("walk %s: no route from cell %d,%d to %d,%d\n", a->name.c_str(), sx, sz, gx, gz); return false; }
+        std::vector<sbwalk::Node> nodes;
         for (int i = target; i != source; i = parent[i]) {
-            float px, pz; gridPoint(*g, i / 30 + 0.5f, i % 30 + 0.5f, px, pz);
-            route.push_back(std::make_pair(px, pz));
+            nodes.push_back(sbwalk::Node(i / 30 + 0.5, i % 30 + 0.5));
         }
-        std::reverse(route.begin(), route.end());
-        // The exe walks through cell centres after route search.
-        // TODO(0x42c450): the exe then rounds the corners of the route (segments of 0x18 bytes, turning arcs via 0x42cc50 / 0x42cd70, path
-        // reversal and a blocked-cell test via 0x42c920); that x87 code is not reconstructed, so the port walks straight cell-centre legs
+        std::reverse(nodes.begin(), nodes.end());
+        const std::vector<sbwalk::Node> centres = nodes;   // port fallback: straight cell-centre legs (pre-0x42c450 behaviour)
+        // 0x42c450: prune with fixed-radius turn/line candidates in fractional cells.
+        sbwalk::Grid mask;
+        for (int cx = 0; cx < 30; ++cx) for (int cz = 0; cz < 30; ++cz)
+            mask.blocked[cx][cz] = !cell(*g,cx,cz) || occupied[cx*30+cz];
+        float dirX, dirZ; headingDir(a->heading,dirX,dirZ);
+        sbwalk::Node anchor((a->x-g->o000c)/g->o0008+g->halfSize,
+                            (a->z-g->o0010)/g->o0008+g->halfSize, atan2((double)dirZ,(double)dirX));
+        sbwalk::round(nodes,anchor,mask);
+        for (size_t i = 0; i < nodes.size(); ++i) {
+            sbwalk::Path p;
+            if (!sbwalk::connect(anchor,nodes[i],0.1,p)) {
+                // port: if no arc fits, walk the straight legs instead of refusing the walk
+                game_->log("walk %s: no rounded path, straight legs\n", a->name.c_str());
+                curves.clear(); route.clear();
+                for (size_t j = 0; j < centres.size(); ++j) {
+                    float px, pz; gridPoint(*g, (float)centres[j].x, (float)centres[j].z, px, pz);
+                    route.push_back(std::make_pair(px, pz));
+                }
+                break;
+            }
+            anchor = nodes[i];
+            // port: store analytic pieces in world units for the existing actor clock.
+            for (int k = 0; k < 4; ++k) {
+                sbwalk::Piece& s = p.pieces[k];
+                s.cx = g->o000c+(s.cx-g->halfSize)*g->o0008;
+                s.cz = g->o0010+(s.cz-g->halfSize)*g->o0008;
+                s.x = g->o000c+(s.x-g->halfSize)*g->o0008;
+                s.z = g->o0010+(s.z-g->halfSize)*g->o0008;
+                s.length *= g->o0008;
+            }
+            p.radius *= g->o0008;
+            p.end.x = g->o000c+(p.end.x-g->halfSize)*g->o0008;
+            p.end.z = g->o0010+(p.end.z-g->halfSize)*g->o0008;
+            curves.push_back(p);
+            route.push_back(std::make_pair((float)p.end.x,(float)p.end.z));
+        }
         if (route.empty()) return false;
     } else {
         if (gx >= 0 && gz >= 0) { if (!g) return false; gridPoint(*g,(float)gx,(float)gz,x,z); }
         if ((x-a->x)*(x-a->x)+(z-a->z)*(z-a->z) < 1) return false;
         route.push_back(std::make_pair(x,z));
     }
-    a->route = route; a->waypoint = 0; a->interaction = 0;
+    a->route = route; a->curvePaths = curves; a->curveDistance = 0; a->waypoint = 0; a->interaction = 0;
     a->arrive = a->radius * 0.5f; if (a->arrive < 25) a->arrive = 25;     // 0x434650: no target (0x44dcb8 = 0.5), at least 25
     a->walking = true; a->tx = route[0].first; a->tz = route[0].second;
     a->speed = run ? kRunSpeed : kWalkSpeed;
     a->rotating = false;
     int targetHeading = headingOf(a->tx - a->x, a->tz - a->z);
+    if (!curves.empty()) {
+        sbwalk::Node p = curves[0].at(0);
+        targetHeading = headingOf((float)cos(p.heading),(float)sin(p.heading));
+    }
     int diff = ((targetHeading - a->heading + 8192) & 16383) - 8192;
     if (a->climbing) {            // 0x434650: no rotate phase, "down" / "up" at speed 1 (+1 when running), 0x3fc = the distance
         a->heading = targetHeading;
@@ -1057,7 +1098,28 @@ void World3D::update(float dtMs)
         Actor3D* a = actors_[i];
         Kick::update(*this, a, dtMs); // lane d: kick uses movement completion, not an animation timer
         bool moved = false;
-        if (a->walking && !a->rotating) {
+        if (a->walking && !a->rotating && !a->curvePaths.empty()) {
+            // 0x42dc90: advance by distance on circles/tangents. Intermediate
+            // nodes have no arrival tolerance: that would cut across the arcs.
+            a->curveDistance += a->speed*dt;
+            while (a->waypoint+1 < a->curvePaths.size() &&
+                   a->curveDistance > a->curvePaths[a->waypoint].length()) {
+                a->curveDistance -= a->curvePaths[a->waypoint++].length();
+            }
+            const sbwalk::Path& path = a->curvePaths[a->waypoint];
+            sbwalk::Node p = path.at(a->curveDistance);
+            a->x = (float)p.x; a->z = (float)p.z;
+            a->heading = headingOf((float)cos(p.heading),(float)sin(p.heading));
+            a->tx = (float)path.end.x; a->tz = (float)path.end.z;
+            if (a->waypoint+1 == a->curvePaths.size() && path.length()-a->curveDistance <= a->arrive) {
+                a->walking = false;
+                setAnim(a,"idle1",9999,1.0f,Actor3D::Idle);
+                game_->log("walk stopped %s at %g,%g heading %d: idle1\n",a->name.c_str(),a->x,a->z,a->heading);
+                finished(a);
+                finishInteraction(a);
+            }
+            moved = true;
+        } else if (a->walking && !a->rotating) {
             float dx = a->tx - a->x, dz = a->tz - a->z, d = sqrtf(dx * dx + dz * dz), step = a->speed * dt;
             float tolerance = a->arrive;                     // +0x3f0 (set by the walk, 0x434650)
             if (a->climbing && a->climbPrev > 0) {          // 0x42f1a0: y follows the horizontal progress towards the target
