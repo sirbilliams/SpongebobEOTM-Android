@@ -73,6 +73,13 @@ game side, which shows the hidden hot spots, is lane e's; until it lands the com
   Tap an open place -> `travel:<target>`; the game re-checks the same rule (`companionTravel`) and refuses (log `companion: travel ... refused`) when the map would not offer it,
   when the target is not on the map, or while a dialogue / cutscene / script runs or a scene switch waits (the map button is dead then); else `Game::switchTo(target)`, which is what clicking the
   place on the map scene does. A not-open place only shows a note ("Not open yet").
+  **Map page v2** (all fields optional; without them the page looks as before: sand chart, plain circles): top level `mapbg` (painted 640x480 map scene, drawn in the plank instead of the sand),
+  `mapme` (SpongeBob sprite; else a small drawn figure), `mapsnd` (SoundPool, played on travel), `rooms[]` (look-only inset of the current place's sub-scenes: `n`, `x`/`y` 0..100, `l` links, `here`);
+  per place `goal` (gold star), `who` (chips under the name, 3 + "+n"), `pic` (160x120 card picture), `hint` (lock text; shown on a tap of a locked place, else "Not open yet"). Files are read like the item icons
+  (absolute paths, cached, a missing one is retried after 1.5 s). Marker on the `here` place; a tap on an open place sends `travel:` at once while the marker hops along a dotted route (~0.5 s), the chart
+  washes with a bubble fade and `mapsnd` plays. Hold a place 0.4 s: preview card (pic, name, who, hint), release closes it and does not travel. Pinch zooms 1x-2.5x about the fingers, one finger pans when zoomed,
+  a double tap on the chart resets; place hit boxes follow the zoom and are cut to the chart. Gamepad (docs/controls.md): D-pad shows/moves a focus ring, A travels while it shows.
+  Render check: `tools/companion/render.sh tools/companion/samples/map-v2.json out.png page:map` (also `map:hold:<n>`, `map:zoom`, `map:focus`, `map:travel`; needs a JDK, e.g. `distrobox enter omtbuild`).
 * **Talk** (`talk[]`): every spoken dialogue line of the session (speaker + text, oldest first, 60 kept, newest at the bottom; it keeps to the bottom unless scrolled up, drag to scroll).
   `DialogueUI` has two small `// port: companion` getters (`currentKey`, `lineSerial`); `companionRecordTalk` records a line when it starts. The round button sends `voice:<serial>`:
   `companionReplayVoice` finds the line's voice in the scene's sound bank with the same seven case-combinations as `DialogueUI::startVoice` (0x412d00; the bank of the line's scene is opened

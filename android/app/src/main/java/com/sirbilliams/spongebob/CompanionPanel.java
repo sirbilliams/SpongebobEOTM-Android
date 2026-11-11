@@ -61,6 +61,30 @@ final class CompanionPanel implements DisplayManager.DisplayListener {
         mRouter = new TouchRouter(activity);
     }
 
+    private int mHatX, mHatY;
+
+    /**
+     * Gamepad keys the game Activity gets (SpongeActivity.dispatchKeyEvent): D-pad and A are the companion's map focus ring while the Map
+     * page is up (CompanionView.padKey); true = used, the game must not see it. Anything else, or any other page: false.
+     */
+    boolean routeKey(KeyEvent e) {
+        PanelPresentation p = mPresentation;
+        if (p == null || p.view == null) return false;
+        int src = e.getSource();
+        if ((src & (android.view.InputDevice.SOURCE_GAMEPAD | android.view.InputDevice.SOURCE_DPAD | android.view.InputDevice.SOURCE_JOYSTICK)) == 0) return false;   // keyboards keep their game keys
+        return p.view.padKey(e.getKeyCode(), e.getAction() == KeyEvent.ACTION_DOWN, e.getRepeatCount());
+    }
+
+    /** A hat-axis D-pad (the pad reports it as motion, not keys): seen as presses of the same four keys. The event still goes on to SDL (the game maps no D-pad). */
+    void routeHat(MotionEvent e) {
+        PanelPresentation p = mPresentation;
+        if (p == null || p.view == null || (e.getSource() & android.view.InputDevice.SOURCE_JOYSTICK) == 0 || e.getActionMasked() != MotionEvent.ACTION_MOVE) return;
+        int hx = Math.round(e.getAxisValue(MotionEvent.AXIS_HAT_X)), hy = Math.round(e.getAxisValue(MotionEvent.AXIS_HAT_Y));
+        if (hx != mHatX && hx != 0) p.view.padKey(hx < 0 ? KeyEvent.KEYCODE_DPAD_LEFT : KeyEvent.KEYCODE_DPAD_RIGHT, true, 0);
+        if (hy != mHatY && hy != 0) p.view.padKey(hy < 0 ? KeyEvent.KEYCODE_DPAD_UP : KeyEvent.KEYCODE_DPAD_DOWN, true, 0);
+        mHatX = hx; mHatY = hy;
+    }
+
     /**
      * Every touch the game Activity gets (SpongeActivity.dispatchTouchEvent): logged for the diagnosis, and a touch of the bottom
      * touchscreen that landed here is forwarded to the panel and consumed (true) instead of clicking the game.

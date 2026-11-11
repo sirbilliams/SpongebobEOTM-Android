@@ -26,6 +26,10 @@ Touch is the main control on the AYN Thor; the gamepad is a pointer. Code: `engi
   (so dragging an item from the HUD bar works). Either held keeps it down. The repo has no A/B swap; SDL's A is used as reported
   (Thor: the button labelled A). The polled state is reported through `OMediaEventManager::pad_button_down()` to `mouse_down()`.
 - Controllers are opened at the first poll and on `SDL_CONTROLLERDEVICEADDED` (hot-plug), closed on removal.
+- Companion Map page (Java, not the engine): while the Map page is showing on the bottom screen, a D-pad press (key `KEYCODE_DPAD_*`, or the hat axis) shows a focus ring on the here place;
+  further presses move it to the nearest place in that direction. A (or D-pad centre) travels to the focused place, but only while the ring shows; the ring hides after 4 s idle, on any touch,
+  or on a page change, and then A is the game's left button again. Routing: `SpongeActivity.dispatchKeyEvent` -> `CompanionPanel.routeKey` -> `CompanionView.padKey` consumes those keys before SDL sees them
+  (a keyboard, other pages and the ring hidden are never consumed); the hat axis is only observed (`dispatchGenericMotionEvent` -> `routeHat`), SDL still gets it. Not tested on the Thor yet.
 - Nothing else on the pad is mapped (B, X, Y, triggers, d-pad, L3 do nothing; movies still skip on any controller button). Esc / F10 as before. Android Back: a single short tap still leaves to the game menu (0.35 s after the release); hold it 0.6 s or tap it twice (desktop: hold F9) for the port menu, docs/port-menu.md.
 
 ## Tests (desktop only)

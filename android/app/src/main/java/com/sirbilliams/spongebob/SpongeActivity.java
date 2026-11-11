@@ -81,6 +81,19 @@ public class SpongeActivity extends SDLActivity {
         return super.dispatchTouchEvent(e);
     }
 
+    /** port: the Map page's gamepad focus (D-pad moves, A travels, only while its ring shows; docs/controls.md). Before SDL sees the key. */
+    @Override
+    public boolean dispatchKeyEvent(android.view.KeyEvent e) {
+        if (mPanel != null && mPanel.routeKey(e)) return true;
+        return super.dispatchKeyEvent(e);
+    }
+
+    @Override
+    public boolean dispatchGenericMotionEvent(MotionEvent e) {
+        if (mPanel != null) mPanel.routeHat(e);
+        return super.dispatchGenericMotionEvent(e);
+    }
+
     @Override
     protected void onDestroy() {
         if (mTv != null) mTv.destroy();
