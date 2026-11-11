@@ -79,6 +79,23 @@ public final class RenderPanel {
                 System.out.println("page " + v.getPage());
             }
         }
+        if (m.startsWith("map:")) {                    // map:hold:<n> (card of place n) | map:zoom | map:focus (D-pad ring) | map:travel (tap, then 250 ms later)
+            String[] parts = m.split(":");
+            v.setPage(CompanionView.PAGE_MAP);
+            v.drawForTest(new Canvas(Bitmap.createBitmap(1240, 1080, Bitmap.Config.ARGB_8888)));
+            if (parts[1].equals("hold")) v.previewForTest(Integer.parseInt(parts[2]));
+            else if (parts[1].equals("zoom")) v.zoomForTest(2.0f, -420, -230);
+            else if (parts[1].equals("focus")) {
+                System.out.println("A without ring consumed: " + v.padKey(96, true, 0));
+                System.out.println("dpad right consumed: " + v.padKey(22, true, 0) + " (shows ring)");
+                v.drawForTest(new Canvas(Bitmap.createBitmap(1240, 1080, Bitmap.Config.ARGB_8888)));
+                System.out.println("dpad down consumed: " + v.padKey(20, true, 0) + " (moves ring)");
+            } else if (parts[1].equals("travel")) {
+                float[] f = v.hitCenterForTest(System.getProperty("taps", "travel:c1l6s1p1"));
+                v.onTouchEvent(ev(1000, MotionEvent.ACTION_DOWN, f[0], f[1])); v.onTouchEvent(ev(1060, MotionEvent.ACTION_UP, f[0], f[1]));
+                android.os.SystemClock.testOffset = Long.parseLong(System.getProperty("dt", "250"));
+            }
+        }
         if (m.startsWith("pad")) {
             v.setMode(CompanionView.MODE_PAD);
             v.drawForTest(new Canvas(Bitmap.createBitmap(1240, 1080, Bitmap.Config.ARGB_8888)));   // lay out once: the pad's rectangle

@@ -39,3 +39,4 @@ __pycache__/
 *.gxtr
 *.gtst
 build*/
+android/app/jni/lib/

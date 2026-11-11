@@ -10,8 +10,10 @@ import android.graphics.Path;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.graphics.Typeface;
+import android.media.SoundPool;
 import android.os.SystemClock;
 import android.view.MotionEvent;
+import android.view.ScaleGestureDetector;
 import android.view.View;
 
 import org.json.JSONArray;
@@ -86,7 +88,29 @@ public class CompanionView extends View {
     private static final String[] TABS = { "POCKET", "MAP", "TALK", "GOALS" };
     private int page = PAGE_POCKET;
     private static final float TAB_Y = 184, TAB_H = 56, CONTENT_Y = 256;
-    private static final class Area { String name = "", cmd = ""; int x, y, w, h; boolean ok, visited, here; }
+    private static final String[] NO_WHO = new String[0];
+    private static final class Area { String name = "", cmd = "", pic = "", hint = ""; int x, y, w, h; boolean ok, visited, here, goal; String[] who = NO_WHO; }
+    private static final class Room { String n = ""; boolean here; int x, y; int[] l = new int[0]; }
+    private final List<Room> rooms = new ArrayList<Room>();
+    private final float[] rbx = new float[14], rby = new float[14];
+    private String mapBg = "", mapMe = "", mapSnd = "";                 // optional files of the game (map snapshot v2)
+    private static final float MAP_SC = 1.28f;                          // chart layout px per map px at zoom 1
+    private static final long PREVIEW_MS = 400, FOCUS_MS = 4000;
+    private float mapZoom = 1f, mapPanX, mapPanY;                       // pinch zoom 1..2.5 and the pan of the zoomed chart (layout px)
+    private float mOx, mOy, mMw, mMh;                                   // the chart's rectangle, set by drawMap
+    private final RectF mapRect = new RectF();
+    private int focusIdx = -1, holdArea = -1, previewIdx = -1;         // gamepad focus ring / place under a held finger / place whose card shows
+    private long focusUntil, travelAt, lastTapT;
+    private boolean padADown, pinching, panning, panCand;
+    private String travelFrom = "", travelTo = "";
+    private float panLastX, panLastY, lastTapX, lastTapY;
+    private ScaleGestureDetector scaleDet;
+    private SoundPool snd; private String sndPath = ""; private int sndId; private boolean sndReady; private long sndMiss;
+    private final Runnable previewTimer = new Runnable() {
+        @Override public void run() {
+            if (holdArea >= 0 && down != null && !panning && !pinching) { previewIdx = holdArea; tap(2); invalidate(); }
+        }
+    };
     private final List<Area> areas = new ArrayList<Area>();
     private boolean mapBusy;
     private String mapNote = ""; private long mapNoteUntil;
@@ -101,7 +125,7 @@ public class CompanionView extends View {
 
     // ---- touch ----
     private static final class Hit {
-        final RectF box = new RectF(); String cmd; String item;      // item: an inventory card (can be dragged onto another)
+        final RectF box = new RectF(); String cmd; String item; int area = -1;      // item: an inventory card (can be dragged onto another)
         Hit(float l, float t, float rr, float b, String c) { box.set(l, t, rr, b); cmd = c; }
     }
     private final List<Hit> hits = new ArrayList<Hit>();
@@ -116,6 +140,12 @@ public class CompanionView extends View {
     public CompanionView(Context c) {
         super(c);
         setContentDescription("SpongeBob companion panel");
+        scaleDet = new ScaleGestureDetector(c, new ScaleGestureDetector.SimpleOnScaleGestureListener() {
+            @Override public boolean onScale(ScaleGestureDetector d) {
+                zoomBy(d.getScaleFactor(), (d.getFocusX() - offX) / scale, (d.getFocusY() - offY) / scale);
+                return true;
+            }
+        });
     }
 
     public void setSender(Sender s) { sender = s; }
@@ -134,7 +164,7 @@ public class CompanionView extends View {
     public void setSnapshot(String json) {
         haveGame = false; dialogue = choiceMode = cutscene = false;
         items.clear(); itemNames.clear(); choices.clear(); visited.clear(); iconDir = "";
-        areas.clear(); talk.clear(); placeNames.clear(); placeCounts.clear(); mapBusy = false; goalSeen = goalTotal = goalScripts = 0;
+        areas.clear(); rooms.clear(); mapBg = mapMe = mapSnd = ""; talk.clear(); placeNames.clear(); placeCounts.clear(); mapBusy = false; goalSeen = goalTotal = goalScripts = 0;
         sceneTitle = chapterTitle = hint = caption = selected = speaker = line = "";
         if (json != null && json.length() > 2) {
             try {
@@ -176,8 +206,27 @@ public class CompanionView extends View {
             a.name = j.optString("n", ""); a.cmd = j.optString("c", "");
             a.x = j.optInt("x"); a.y = j.optInt("y"); a.w = j.optInt("w"); a.h = j.optInt("h");
             a.ok = j.optInt("ok") != 0; a.visited = j.optInt("v") != 0; a.here = j.optInt("here") != 0;
+            a.goal = j.optInt("goal") != 0; a.pic = j.optString("pic", ""); a.hint = j.optString("hint", "");
+            JSONArray wh = j.optJSONArray("who");
+            if (wh != null && wh.length() > 0) {
+                a.who = new String[Math.min(4, wh.length())];
+                for (int k = 0; k < a.who.length; k++) a.who[k] = wh.optString(k, "");
+            }
             areas.add(a);
         }
+        mapBg = o.optString("mapbg", ""); mapMe = o.optString("mapme", ""); mapSnd = o.optString("mapsnd", "");
+        JSONArray ro = o.optJSONArray("rooms");
+        if (ro != null) for (int i = 0; i < Math.min(14, ro.length()); i++) {
+            JSONObject j = ro.optJSONObject(i);
+            if (j == null) continue;
+            Room rm = new Room();
+            rm.n = j.optString("n", ""); rm.here = j.optInt("here") != 0;
+            rm.x = Math.max(0, Math.min(100, j.optInt("x", 50))); rm.y = Math.max(0, Math.min(100, j.optInt("y", 50)));
+            JSONArray ll = j.optJSONArray("l");
+            if (ll != null) { rm.l = new int[ll.length()]; for (int k = 0; k < rm.l.length; k++) rm.l[k] = ll.optInt(k, -1); }
+            rooms.add(rm);
+        }
+        prepareSound();
         mapBusy = o.optInt("mapbusy", 0) != 0;
         JSONArray t = o.optJSONArray("talk");
         if (t != null) for (int i = 0; i < t.length(); i++) {
@@ -208,7 +257,7 @@ public class CompanionView extends View {
         }
     }
 
-    public void setPage(int p) { page = Math.max(0, Math.min(3, p)); talkStick = true; invalidate(); }
+    public void setPage(int p) { page = Math.max(0, Math.min(3, p)); talkStick = true; focusUntil = 0; previewIdx = -1; invalidate(); }
     public int getPage() { return page; }
 
     /** The item's picture (a small PNG the game wrote), or null (not there yet, or not readable): then the initials badge is drawn. */
@@ -225,6 +274,23 @@ public class CompanionView extends View {
         }
         if (b == null) { picMiss.put(id, now); return null; }
         pics.put(id, b);
+        return b;
+    }
+
+    /** A PNG the game wrote somewhere by absolute path (map background, marker, place pictures): cached, a missing one is looked for again after 1.5 s. */
+    private Bitmap fileBitmap(String path) {
+        if (path == null || path.length() == 0) return null;
+        Bitmap b = pics.get(path);
+        if (b != null) return b;
+        long now = SystemClock.uptimeMillis();
+        Long last = picMiss.get(path);
+        if (last != null && now - last < 1500) return null;
+        File f = new File(path);
+        if (f.isFile()) {
+            try { b = BitmapFactory.decodeFile(f.getPath()); } catch (RuntimeException e) { b = null; }
+        }
+        if (b == null) { picMiss.put(path, now); return null; }
+        pics.put(path, b);
         return b;
     }
 
@@ -258,9 +324,24 @@ public class CompanionView extends View {
     public boolean onTouchEvent(MotionEvent e) {
         float x = (e.getX() - offX) / scale, y = (e.getY() - offY) / scale;
         long t = e.getEventTime();
+        boolean mapPage = mapTouchOn();
+        if (mapPage) {                                       // Map page: pinch zoom (two fingers cancel any tap / hold / pan)
+            int ac = e.getActionMasked();
+            if (ac == MotionEvent.ACTION_DOWN) pinching = false;
+            scaleDet.onTouchEvent(e);
+            if (e.getPointerCount() > 1 || scaleDet.isInProgress() || ac == MotionEvent.ACTION_POINTER_DOWN) {
+                if (!pinching) { pinching = true; cancelMapTouch(); }
+                return true;
+            }
+            if (pinching) { if (ac == MotionEvent.ACTION_UP || ac == MotionEvent.ACTION_CANCEL) pinching = false; return true; }
+        }
         switch (e.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                focusUntil = 0;                              // a touch hides the gamepad focus ring
                 down = hitAt(x, y);
+                panCand = mapPage && inMap(x, y); panning = false; panLastX = x; panLastY = y;
+                holdArea = -1; previewIdx = -1;
+                if (mapPage && down != null && down.area >= 0) { holdArea = down.area; removeCallbacks(previewTimer); postDelayed(previewTimer, PREVIEW_MS); }
                 dragCand = down != null && down.item != null ? down : null;
                 dragging = scrolling = false;
                 dragX = touchX0 = x; dragY = touchY0 = y; scrollLastY = y;
@@ -270,6 +351,14 @@ public class CompanionView extends View {
                 invalidate();
                 return true;
             case MotionEvent.ACTION_MOVE:
+                if (mapPage) {
+                    double moved = Math.hypot(x - touchX0, y - touchY0);
+                    if (holdArea >= 0 && previewIdx < 0 && moved > 24) { holdArea = -1; removeCallbacks(previewTimer); }
+                    if (!panning && panCand && mapZoom > 1.001f && previewIdx < 0 && moved > DRAG_SLOP) {
+                        panning = true; down = null; holdArea = -1; removeCallbacks(previewTimer);
+                    }
+                    if (panning) { mapPanX += x - panLastX; mapPanY += y - panLastY; clampPan(); panLastX = x; panLastY = y; invalidate(); return true; }
+                }
                 if (padOn) padMove(x, y, t);
                 if (dragCand != null && !dragging && Math.hypot(x - touchX0, y - touchY0) > DRAG_SLOP) { dragging = true; tap(2); }
                 if (dragging) { dragX = x; dragY = y; invalidate(); }
@@ -278,6 +367,17 @@ public class CompanionView extends View {
                 scrollLastY = y;
                 return true;
             case MotionEvent.ACTION_UP: {
+                if (mapPage) {
+                    removeCallbacks(previewTimer); holdArea = -1;
+                    if (panning) { panning = false; down = null; invalidate(); return true; }
+                    if (previewIdx >= 0) { previewIdx = -1; down = null; invalidate(); return true; }     // release closes the card, no travel
+                    if (inMap(x, y)) {                           // double tap on the chart: back to 1x
+                        if (lastTapT > 0 && t - lastTapT < 320 && Math.hypot(x - lastTapX, y - lastTapY) < 70) {
+                            lastTapT = 0;
+                            if (mapZoom != 1f) { mapZoom = 1f; mapPanX = mapPanY = 0; down = null; invalidate(); return true; }
+                        } else { lastTapT = t; lastTapX = x; lastTapY = y; }
+                    }
+                }
                 if (padOn) { padEnd(x, y, t); invalidate(); return true; }
                 if (dragging) {                                  // a card was dragged: dropped on another card = combine (the game's own code decides)
                     Hit tgt = cardAt(x, y);
@@ -297,6 +397,7 @@ public class CompanionView extends View {
                 return true;
             }
             case MotionEvent.ACTION_CANCEL:
+                cancelMapTouch(); pinching = false;
                 down = null; dragging = scrolling = scrollTouch = false; dragCand = null;
                 padRelease(true);
                 invalidate();
@@ -414,6 +515,7 @@ public class CompanionView extends View {
             invalidate();
             return;
         }
+        if (cmd.startsWith("travel:")) startTravel(cmd.substring(7));     // the marker hops along the route while the command goes out
         if (sender != null) sender.send(cmd);
     }
 
@@ -1040,41 +1142,401 @@ public class CompanionView extends View {
     }
 
     private static final int GREY = 0xFF8A9AA0;
+    private static final int[] CHIP_COLS = { 0xFFD1493B, 0xFF2E9A4E, 0xFF3A7BD5, 0xFFB86ACF, 0xFFE08A1E, 0xFF28B7B0 };
+
+    // ---- map page v2: painted chart, marker, preview, zoom, focus (docs/companion.md "Map") ----
+    private float areaX(Area a) { return mOx + mapPanX + (a.x + a.w / 2f) * MAP_SC * mapZoom; }
+    private float areaY(Area a) { return mOy + mapPanY + (a.y + a.h / 2f) * MAP_SC * mapZoom - 14; }
+    private float areaRad(Area a) { return Math.max(44, Math.min(78, Math.min(a.w, a.h) * MAP_SC * 0.30f)) * (1 + (mapZoom - 1) * 0.35f); }
+
+    private Area areaByCmd(String cmd) {
+        if (cmd == null || cmd.length() == 0) return null;
+        for (int i = 0; i < areas.size(); i++) if (areas.get(i).cmd.equals(cmd)) return areas.get(i);
+        return null;
+    }
+
+    /** What a tap (or A) on this place does: travel, or a note. */
+    private String placeCmd(Area a) {
+        if (a.ok && !mapBusy && !a.here) return "travel:" + a.cmd;
+        return "note:" + (a.here ? "You are here." : (!a.ok ? (a.hint.length() > 0 ? a.hint : "Not open yet - keep exploring.") : "Finish what you are doing first."));
+    }
+
+    private boolean mapTouchOn() { return haveGame && page == PAGE_MAP && !(dialogue && choiceMode) && mapRect.width() > 0; }
+    private boolean inMap(float x, float y) { return x >= mapRect.left && x <= mapRect.right && y >= mapRect.top && y <= mapRect.bottom; }
+
+    private void clampPan() {
+        if (mapZoom <= 1.02f) { mapZoom = 1f; mapPanX = mapPanY = 0; return; }
+        mapPanX = Math.max(mMw * (1 - mapZoom), Math.min(0, mapPanX));
+        mapPanY = Math.max(mMh * (1 - mapZoom), Math.min(0, mapPanY));
+    }
+
+    /** Pinch: zoom 1x..2.5x about the point (fx, fy) (layout px), the map point under it stays put. */
+    private void zoomBy(float f, float fx, float fy) {
+        float nz = Math.max(1f, Math.min(2.5f, mapZoom * f));
+        if (nz == mapZoom) return;
+        float s0 = MAP_SC * mapZoom, s1 = MAP_SC * nz;
+        float mx = (fx - mOx - mapPanX) / s0, my = (fy - mOy - mapPanY) / s0;
+        mapZoom = nz; mapPanX = fx - mOx - mx * s1; mapPanY = fy - mOy - my * s1;
+        clampPan();
+        invalidate();
+    }
+
+    private void cancelMapTouch() {
+        down = null; panning = false; holdArea = -1; previewIdx = -1;
+        removeCallbacks(previewTimer);
+        invalidate();
+    }
+
+    private void startTravel(String target) {
+        Area here = null;
+        for (int i = 0; i < areas.size(); i++) if (areas.get(i).here) { here = areas.get(i); break; }
+        travelFrom = here != null ? here.cmd : ""; travelTo = target; travelAt = SystemClock.uptimeMillis();
+        if (snd != null && sndReady) {
+            try { snd.play(sndId, 0.8f, 0.8f, 1, 0, 1f); } catch (RuntimeException e) { /* no sound is fine */ }
+        }
+    }
+
+    private void prepareSound() {
+        if (mapSnd.length() == 0) return;
+        long now = SystemClock.uptimeMillis();
+        if (mapSnd.equals(sndPath) && (sndId != 0 || now - sndMiss < 1500)) return;
+        sndPath = mapSnd;
+        File f = new File(mapSnd);
+        if (!f.isFile()) { sndId = 0; sndMiss = now; return; }
+        try {
+            if (snd == null) {
+                snd = new SoundPool(2, 3, 0);                      // 3 = STREAM_MUSIC
+                snd.setOnLoadCompleteListener(new SoundPool.OnLoadCompleteListener() {
+                    @Override public void onLoadComplete(SoundPool sp, int id, int status) { if (status == 0) sndReady = true; }
+                });
+            }
+            sndReady = false;
+            sndId = snd.load(f.getPath(), 1);
+        } catch (RuntimeException e) { sndId = 0; sndMiss = now; }
+    }
+
+    @Override
+    protected void onDetachedFromWindow() {
+        removeCallbacks(previewTimer);
+        if (snd != null) { try { snd.release(); } catch (RuntimeException e) { /* gone */ } snd = null; sndPath = ""; sndId = 0; sndReady = false; }
+        super.onDetachedFromWindow();
+    }
+
+    /**
+     * Gamepad keys (SpongeActivity.dispatchKeyEvent -> CompanionPanel.routeKey). Only while the Map page is shown: a D-pad key shows the
+     * focus ring (moves it when it is already showing; hides after 4 s idle or on any touch); A / D-pad centre travels to the focused place,
+     * but only while the ring shows. Returns true when the key was used (the game must not see it); everything else stays the game's.
+     */
+    public boolean padKey(int code, boolean isDown, int repeat) {
+        boolean mapOn = mapTouchOn() && !areas.isEmpty();
+        long now = SystemClock.uptimeMillis();
+        if (code >= 19 && code <= 22) {                     // DPAD_UP, DOWN, LEFT, RIGHT
+            if (!mapOn) return false;
+            if (isDown) {
+                if (focusIdx < 0 || focusIdx >= areas.size()) {
+                    focusIdx = 0;
+                    for (int i = 0; i < areas.size(); i++) if (areas.get(i).here) { focusIdx = i; break; }
+                } else if (now < focusUntil) moveFocus(code);
+                focusUntil = now + FOCUS_MS;
+                invalidate();
+            }
+            return true;
+        }
+        if (code == 96 || code == 23) {                     // BUTTON_A, DPAD_CENTER
+            if (!isDown) { if (padADown) { padADown = false; return true; } return false; }
+            if (padADown) return true;                      // auto-repeat of a press we took
+            if (!mapOn || now >= focusUntil || focusIdx < 0 || focusIdx >= areas.size()) return false;   // no ring: A keeps its game meaning
+            padADown = true;
+            focusUntil = now + FOCUS_MS;
+            tap(1);
+            fire(placeCmd(areas.get(focusIdx)));
+            return true;
+        }
+        return false;
+    }
+
+    /** The nearest place in the pressed direction (centres in map px): along-axis distance plus twice the sideways offset, within a 2:1 cone. */
+    private void moveFocus(int code) {
+        Area f = areas.get(focusIdx);
+        float fx = f.x + f.w / 2f, fy = f.y + f.h / 2f, best = 1e9f;
+        int bi = -1;
+        for (int i = 0; i < areas.size(); i++) {
+            if (i == focusIdx) continue;
+            Area a = areas.get(i);
+            float dx = a.x + a.w / 2f - fx, dy = a.y + a.h / 2f - fy, along, side;
+            if (code == 19) { along = -dy; side = Math.abs(dx); }
+            else if (code == 20) { along = dy; side = Math.abs(dx); }
+            else if (code == 21) { along = -dx; side = Math.abs(dy); }
+            else { along = dx; side = Math.abs(dy); }
+            if (along < 8 || side > along * 2f) continue;
+            float score = along + 2f * side;
+            if (score < best) { best = score; bi = i; }
+        }
+        if (bi >= 0) focusIdx = bi;
+    }
+
+    /** Test helpers (tools/companion/render.sh). */
+    public void previewForTest(int idx) { previewIdx = idx; }
+    public void zoomForTest(float z, float px, float py) { mapZoom = z; mapPanX = px; mapPanY = py; clampPan(); }
+
+    private void dots(Canvas c, float x0, float y0, float x1, float y1, int alpha, float prog) {
+        float d = (float) Math.hypot(x1 - x0, y1 - y0);
+        int n = Math.min(60, (int) (d / 24));
+        p.setStyle(Paint.Style.FILL);
+        for (int i = 1; i <= n; i++) {
+            float t = i / (float) (n + 1);
+            if (t > prog) break;
+            float x = x0 + (x1 - x0) * t, y = y0 + (y1 - y0) * t;
+            p.setColor((alpha << 24) | 0xFFFFFF); c.drawCircle(x, y, 8, p);
+            p.setColor((alpha << 24) | 0xD1493B); c.drawCircle(x, y, 5, p);
+        }
+    }
+
+    private void star(Canvas c, float x, float y, float R) {
+        path.reset();
+        for (int i = 0; i < 10; i++) {
+            double ang = -Math.PI / 2 + i * Math.PI / 5;
+            float rad = (i % 2 == 0) ? R : R * 0.45f;
+            float px = x + (float) Math.cos(ang) * rad, py = y + (float) Math.sin(ang) * rad;
+            if (i == 0) path.moveTo(px, py); else path.lineTo(px, py);
+        }
+        path.close();
+        p.setStyle(Paint.Style.FILL); p.setColor(GOLD);
+        c.drawPath(path, p);
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
+        c.drawPath(path, p);
+        p.setStyle(Paint.Style.FILL);
+    }
+
+    /** SpongeBob on the chart: the game's own sprite (mapme) if it is there, else a small drawn figure. Feet at (x, y). */
+    private void drawMe(Canvas c, float x, float y) {
+        Bitmap me = fileBitmap(mapMe);
+        p.setStyle(Paint.Style.FILL); p.setColor(0x44000000);
+        r.set(x - 26, y - 6, x + 26, y + 8);
+        c.drawOval(r, p);
+        if (me != null) {
+            float hh = 92, ww = hh * me.getWidth() / Math.max(1, me.getHeight());
+            r.set(x - ww / 2, y - hh, x + ww / 2, y);
+            c.drawBitmap(me, null, r, picPaint);
+            return;
+        }
+        r.set(x - 24, y - 70, x + 24, y - 18);                 // body
+        p.setColor(0xFFF2D43A); c.drawRoundRect(r, 8, 8, p);
+        r.set(x - 24, y - 24, x + 24, y - 6);                  // trousers
+        p.setColor(0xFF8A5A2B); c.drawRoundRect(r, 6, 6, p);
+        p.setColor(0xFFFFFFFF);
+        c.drawCircle(x - 10, y - 50, 9, p); c.drawCircle(x + 10, y - 50, 9, p);
+        p.setColor(0xFF2D6FB5);
+        c.drawCircle(x - 9, y - 49, 4, p); c.drawCircle(x + 11, y - 49, 4, p);
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
+        r.set(x - 24, y - 70, x + 24, y - 18);
+        c.drawRoundRect(r, 8, 8, p);
+        r.set(x - 10, y - 42, x + 10, y - 28);
+        c.drawArc(r, 20, 140, false, p);
+        p.setStyle(Paint.Style.FILL);
+    }
+
+    private void drawChips(Canvas c, Area a, float cx, float y, float minX, float maxX) {
+        int n = Math.min(3, a.who.length), extra = a.who.length - n;
+        p.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)); p.setTextSize(17);
+        float total = 0;
+        for (int i = 0; i < n; i++) total += 24 + p.measureText(a.who[i]) + 12;
+        if (extra > 0) total += 40;
+        boolean full = total <= 252;
+        if (!full) total = n * 34 + (extra > 0 ? 40 : 0);
+        float x = Math.max(minX, Math.min(maxX - total, cx - total / 2));
+        for (int i = 0; i < n; i++) {
+            String nm = a.who[i];
+            p.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)); p.setTextSize(17);
+            float wi = full ? 24 + p.measureText(nm) + 8 : 30;
+            r.set(x, y, x + wi, y + 26);
+            p.setStyle(Paint.Style.FILL); p.setColor(0xEEFFF4D2);
+            c.drawRoundRect(r, 13, 13, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(2); p.setColor(WOOD_EDGE);
+            c.drawRoundRect(r, 13, 13, p);
+            p.setStyle(Paint.Style.FILL); p.setColor(CHIP_COLS[(nm.hashCode() & 0x7fffffff) % CHIP_COLS.length]);
+            c.drawCircle(x + 13, y + 13, 10, p);
+            text(c, nm.length() > 0 ? nm.substring(0, 1).toUpperCase() : "?", x + 13, y + 19, 15, 0xFFFFFFFF, true, Paint.Align.CENTER);
+            if (full) text(c, nm, x + 26, y + 20, 17, INK, true, Paint.Align.LEFT);
+            x += wi + (full ? 4 : 4);
+        }
+        if (extra > 0) {
+            r.set(x, y, x + 36, y + 26);
+            p.setStyle(Paint.Style.FILL); p.setColor(0xEEFFF4D2);
+            c.drawRoundRect(r, 13, 13, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(2); p.setColor(WOOD_EDGE);
+            c.drawRoundRect(r, 13, 13, p);
+            text(c, "+" + extra, x + 18, y + 20, 17, INK, true, Paint.Align.CENTER);
+        }
+        p.setStyle(Paint.Style.FILL);
+    }
+
+    /** Look-only inset: the rooms of the current place (boxes, link lines, the current room lit). */
+    private void drawRooms(Canvas c, float x, float y, float w, float h, String where) {
+        r.set(x, y, x + w, y + h);
+        p.setStyle(Paint.Style.FILL); p.setColor(0x55000000);
+        c.drawRoundRect(r, 16, 16, p);
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
+        c.drawRoundRect(r, 16, 16, p);
+        text(c, where.length() > 0 ? "INSIDE: " + where : "ROOMS", x + 12, y + 24, 18, GOLD, true, Paint.Align.LEFT);
+        int n = rooms.size();
+        float ix = x + 10, iy = y + 34, aw = w - 20, ah = h - 44, bw = 80, bh = 26;
+        boolean grid = false;
+        for (int i = 0; i < n; i++) {                       // the sent layout, spread over the inset; any two boxes touching = fall back to a grid
+            Room a = rooms.get(i);
+            rbx[i] = ix + a.x / 100f * (aw - bw); rby[i] = iy + a.y / 100f * (ah - bh);
+            for (int k = 0; k < i; k++) if (Math.abs(rbx[i] - rbx[k]) < bw + 4 && Math.abs(rby[i] - rby[k]) < bh + 4) grid = true;
+        }
+        if (grid && n > 0) {
+            int cols = n <= 4 ? 2 : 3, rows = (n + cols - 1) / cols;
+            bw = (aw - 8 * (cols - 1)) / cols; bh = Math.min(28, (ah - 6 * (rows - 1)) / rows);
+            for (int i = 0; i < n; i++) { rbx[i] = ix + (i % cols) * (bw + 8); rby[i] = iy + (i / cols) * (bh + 6); }
+        }
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(ROPE);
+        for (int i = 0; i < n; i++) {
+            Room a = rooms.get(i);
+            for (int k = 0; k < a.l.length; k++) {
+                int j = a.l[k];
+                if (j <= i || j >= n) continue;              // each link once; bad indexes ignored
+                c.drawLine(rbx[i] + bw / 2, rby[i] + bh / 2, rbx[j] + bw / 2, rby[j] + bh / 2, p);
+            }
+        }
+        for (int i = 0; i < n; i++) {
+            Room a = rooms.get(i);
+            float bx = rbx[i], by = rby[i];
+            r.set(bx, by, bx + bw, by + bh);
+            p.setStyle(Paint.Style.FILL); p.setColor(a.here ? GOLD : PAPER);
+            c.drawRoundRect(r, 8, 8, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(a.here ? 4 : 2); p.setColor(a.here ? RED : WOOD_EDGE);
+            c.drawRoundRect(r, 8, 8, p);
+            String s = a.n;
+            float fs = Math.min(15, bh * 0.58f);
+            p.setTypeface(Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD));
+            p.setTextSize(fs);
+            while (fs > 10 && p.measureText(s) > bw - 8) { fs -= 1; p.setTextSize(fs); }          // shrink first
+            if (p.measureText(s) > bw - 8) {                                                      // cut with an ellipsis only as the last resort
+                while (s.length() > 1 && p.measureText(s + "\u2026") > bw - 8) s = s.substring(0, s.length() - 1);
+                s = s + "\u2026";
+            }
+            text(c, s, bx + bw / 2, by + bh / 2 + fs * 0.35f, fs, INK, true, Paint.Align.CENTER);
+        }
+        p.setStyle(Paint.Style.FILL);
+    }
+
+    /** Long-press card: the place's picture, name, who is there, the lock hint. */
+    private void drawPreview(Canvas c, Area a, float ox, float oy, float mw, float mh) {
+        r.set(ox, oy, ox + mw, oy + mh);
+        p.setStyle(Paint.Style.FILL); p.setColor(0x66000000);
+        c.drawRoundRect(r, 26, 26, p);
+        float cw = 300, pad = 18, cy0 = areaY(a);
+        String nm = a.name.length() > 0 ? a.name : "Not open yet";
+        List<String> nl = wrap(nm, 28, cw - 2 * pad, 2, true);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < a.who.length; i++) { if (i > 0) sb.append(", "); sb.append(a.who[i]); }
+        List<String> wl = a.who.length > 0 ? wrap("With: " + sb, 22, cw - 2 * pad, 2, false) : null;
+        List<String> hl = a.hint.length() > 0 ? wrap(a.hint, 22, cw - 2 * pad, 3, true) : (!a.ok ? wrap("Not open yet", 22, cw - 2 * pad, 1, true) : null);
+        float ch = pad + 198 + 12 + nl.size() * 32 + (wl != null ? wl.size() * 28 + 4 : 0) + (hl != null ? hl.size() * 28 + 6 : 0) + pad;
+        float cx0 = Math.max(ox + 10, Math.min(ox + mw - cw - 10, areaX(a) - cw / 2));
+        float cy1 = cy0 > oy + mh / 2 ? oy + 14 : oy + mh - ch - 14;
+        r.set(cx0 + 4, cy1 + 8, cx0 + cw + 4, cy1 + ch + 8);
+        p.setColor(0x55000000); c.drawRoundRect(r, 22, 22, p);
+        r.set(cx0, cy1, cx0 + cw, cy1 + ch);
+        p.setColor(PAPER); c.drawRoundRect(r, 22, 22, p);
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(5); p.setColor(WOOD_EDGE);
+        c.drawRoundRect(r, 22, 22, p);
+        float px0 = cx0 + pad, py0 = cy1 + pad;
+        r.set(px0, py0, px0 + cw - 2 * pad, py0 + 198);
+        Bitmap pic = fileBitmap(a.pic);
+        if (pic != null) {
+            c.save(); c.clipRect(r);
+            c.drawBitmap(pic, null, r, picPaint);
+            c.restore();
+        } else {
+            p.setStyle(Paint.Style.FILL); p.setColor(a.ok ? SAND_DK : GREY);
+            c.drawRoundRect(r, 12, 12, p);
+            text(c, a.ok ? "..." : "?", px0 + (cw - 2 * pad) / 2, py0 + 118, 72, 0xFFFFFFFF, true, Paint.Align.CENTER);
+        }
+        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
+        c.drawRect(px0, py0, px0 + cw - 2 * pad, py0 + 198, p);
+        float ty = py0 + 198 + 40;
+        for (String s : nl) { text(c, s, cx0 + cw / 2, ty, 28, INK, true, Paint.Align.CENTER); ty += 32; }
+        ty -= 4;
+        if (wl != null) { for (String s : wl) { text(c, s, cx0 + pad, ty, 22, INK, false, Paint.Align.LEFT); ty += 28; } ty += 4; }
+        if (hl != null) { for (String s : hl) { text(c, s, cx0 + pad, ty, 22, RED, true, Paint.Align.LEFT); ty += 28; } }
+        p.setStyle(Paint.Style.FILL);
+    }
 
     private void drawMap(Canvas c, float top) {
         float l = 40, rr = 1200, b = 944;
         plank(c, l, top, rr, b, false);
-        float sc = 1.28f, mw = 640 * sc, mh = 480 * sc;
+        float mw = 640 * MAP_SC, mh = 480 * MAP_SC;
         float ox = l + 26, oy = top + (b - top - mh) / 2;
-        // the chart: sand paper with waves, the map scene's own layout (640x480)
+        mOx = ox; mOy = oy; mMw = mw; mMh = mh;
+        mapRect.set(ox, oy, ox + mw, oy + mh);
+        clampPan();
+        float z = mapZoom;
+        long now = SystemClock.uptimeMillis();
+        // the chart: the painted map scene if the game gave it (mapbg), else sand paper with waves; both in the scene's own 640x480 layout
         r.set(ox, oy, ox + mw, oy + mh);
-        p.setStyle(Paint.Style.FILL); p.setColor(0xFFF2E3B0);
-        c.drawRoundRect(r, 26, 26, p);
+        Bitmap bg = fileBitmap(mapBg);
         c.save();
-        c.clipRect(r);
-        p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(0x2236A6C4);
-        for (float wy = oy + 30; wy < oy + mh; wy += 46) {
-            path.reset(); path.moveTo(ox, wy);
-            for (float wx = ox; wx < ox + mw; wx += 40) path.lineTo(wx + 20, wy + ((int) ((wx - ox) / 40) % 2 == 0 ? -8 : 8));
-            c.drawPath(path, p);
+        path.reset(); path.addRoundRect(r, 26, 26, Path.Direction.CW);
+        c.clipPath(path);
+        if (bg != null) {
+            r.set(ox + mapPanX, oy + mapPanY, ox + mapPanX + mw * z, oy + mapPanY + mh * z);
+            c.drawBitmap(bg, null, r, picPaint);
+        } else {
+            p.setStyle(Paint.Style.FILL); p.setColor(0xFFF2E3B0);
+            c.drawRect(ox, oy, ox + mw, oy + mh, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(0x2236A6C4);
+            for (float wy = oy + 30; wy < oy + mh; wy += 46) {
+                path.reset(); path.moveTo(ox, wy);
+                for (float wx = ox; wx < ox + mw; wx += 40) path.lineTo(wx + 20, wy + ((int) ((wx - ox) / 40) % 2 == 0 ? -8 : 8));
+                c.drawPath(path, p);
+            }
         }
         c.restore();
+        r.set(ox, oy, ox + mw, oy + mh);
         p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(5); p.setColor(PAPER_EDGE);
         c.drawRoundRect(r, 26, 26, p);
         p.setStyle(Paint.Style.FILL);
-        long now = SystemClock.uptimeMillis();
         if (areas.isEmpty()) text(c, "No chart for this place", ox + mw / 2, oy + mh / 2, 34, INK, true, Paint.Align.CENTER);
         int open = 0, seenN = 0;
-        for (Area a : areas) {
-            float cx = ox + (a.x + a.w / 2f) * sc, cy = oy + (a.y + a.h / 2f) * sc - 14;
-            float rad = Math.max(44, Math.min(78, Math.min(a.w, a.h) * sc * 0.30f));
+        Area here = null;
+        boolean anyGoal = false;
+        for (int i = 0; i < areas.size(); i++) { Area a = areas.get(i); if (a.here && here == null) here = a; if (a.goal) anyGoal = true; }
+        Area tFrom = null, tTo = null;
+        boolean trav = travelAt > 0 && now - travelAt < 2500;
+        if (trav) {
+            tTo = areaByCmd(travelTo); tFrom = areaByCmd(travelFrom);
+            if (tTo == null || (here != null && here.cmd.equals(travelTo) && now - travelAt >= 500)) { trav = false; travelAt = 0; }
+        }
+        boolean ring = now < focusUntil && focusIdx >= 0 && focusIdx < areas.size();
+        c.save();
+        if (z > 1.001f) { r.set(ox, oy, ox + mw, oy + mh); c.clipRect(r); }
+        // dotted routes: the trip being taken, and (with the focus ring) the way from here to the focused place
+        if (trav && tFrom != null && tTo != null && now - travelAt < 1700) {
+            float k = Math.min(1f, (now - travelAt) / 500f);
+            dots(c, areaX(tFrom), areaY(tFrom), areaX(tTo), areaY(tTo), now - travelAt < 1200 ? 0xF0 : 0x80, k);
+        } else if (ring && here != null && areas.get(focusIdx) != here) {
+            dots(c, areaX(here), areaY(here), areaX(areas.get(focusIdx)), areaY(areas.get(focusIdx)), 0x99, 1f);
+        }
+        for (int i = 0; i < areas.size(); i++) {
+            Area a = areas.get(i);
+            float cx = areaX(a), cy = areaY(a);
+            float rad = areaRad(a);
             boolean go = a.ok && !mapBusy && !a.here;
             if (a.ok) open++;
             if (a.visited) seenN++;
             int fill = a.here ? RED : (!a.ok ? GREY : (a.visited ? TEAL : GOLD));
-            String cmd = go ? "travel:" + a.cmd
-                    : "note:" + (a.here ? "You are here." : (!a.ok ? "Not open yet - keep exploring." : "Finish what you are doing first."));
-            Hit h = new Hit(cx - rad - 12, cy - rad - 12, cx + rad + 12, cy + rad + 74, cmd);
+            String cmd = placeCmd(a);
+            Hit h = new Hit(cx - rad - 12, cy - rad - 12, cx + rad + 12, cy + rad + 74 + (a.who.length > 0 ? 32 : 0), cmd);
+            h.area = i;
+            if (z > 1.001f) {                           // keep a zoomed-in hit box inside the chart, so a tap outside it never counts
+                h.box.left = Math.max(h.box.left, ox); h.box.top = Math.max(h.box.top, oy);
+                h.box.right = Math.min(h.box.right, ox + mw); h.box.bottom = Math.min(h.box.bottom, oy + mh);
+            }
+            if (z > 1.001f && (cx + rad + 12 < ox || cx - rad - 12 > ox + mw || cy + rad + 74 < oy || cy - rad - 12 > oy + mh)) continue;   // off the zoomed view
             hits.add(h);
             boolean pr = pressed(h);
             p.setStyle(Paint.Style.FILL); p.setColor(0x55000000);
@@ -1089,16 +1551,31 @@ public class CompanionView extends View {
                 p.setStrokeWidth(5); p.setColor(0xCCFFFFFF);
                 c.drawCircle(cx, cy, rad + 8 + (float) Math.sin(now / 300.0) * 3, p);
             }
+            if (ring && i == focusIdx) {                // the gamepad's focus ring
+                p.setStrokeWidth(8); p.setColor(0xFF3F2814);
+                c.drawCircle(cx, cy, rad + 20, p);
+                p.setStrokeWidth(5); p.setColor(GOLD);
+                c.drawCircle(cx, cy, rad + 20, p);
+            }
             p.setStyle(Paint.Style.FILL);
             String glyph = a.here ? "HERE" : (!a.ok ? "?" : (a.visited ? "GO" : "NEW"));
             text(c, glyph, cx, cy + (glyph.length() == 1 ? 18 : 10), glyph.length() == 1 ? 52 : 30, 0xFFFFFFFF, true, Paint.Align.CENTER);
+            if (a.goal) star(c, cx + rad * 0.92f, cy - rad * 0.62f, 22);
+            if (ring && i == focusIdx && go) {          // "A" badge: this is what A does now
+                p.setStyle(Paint.Style.FILL); p.setColor(KELP);
+                c.drawCircle(cx - rad * 0.72f, cy - rad * 0.72f, 19, p);
+                p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(3); p.setColor(WOOD_EDGE);
+                c.drawCircle(cx - rad * 0.72f, cy - rad * 0.72f, 19, p);
+                text(c, "A", cx - rad * 0.72f, cy - rad * 0.72f + 9, 26, 0xFFFFFFFF, true, Paint.Align.CENTER);
+            }
+            p.setStyle(Paint.Style.FILL);
             String label = a.name.length() > 0 ? a.name : "Not open yet";
             List<String> nm = wrap(label, 24, 230, 2, true);
             float pw = 0;
             for (String s : nm) pw = Math.max(pw, p.measureText(s));
             pw = Math.min(250, pw + 28);
             float ph = nm.size() * 28 + 14, py = cy + rad + 10;
-            float lx = Math.max(ox + 8, Math.min(ox + mw - pw - 8, cx - pw / 2));
+            float lx = z > 1.001f ? cx - pw / 2 : Math.max(ox + 8, Math.min(ox + mw - pw - 8, cx - pw / 2));
             r.set(lx, py, lx + pw, py + ph);
             p.setStyle(Paint.Style.FILL); p.setColor(a.ok || a.visited ? PAPER : 0xCCE0E0E0);
             c.drawRoundRect(r, 16, 16, p);
@@ -1106,7 +1583,42 @@ public class CompanionView extends View {
             c.drawRoundRect(r, 16, 16, p);
             float ny = py + 28;
             for (String s : nm) { text(c, s, lx + pw / 2, ny, 24, a.ok || a.visited ? INK : 0xFF6A767A, true, Paint.Align.CENTER); ny += 28; }
+            if (a.who.length > 0) drawChips(c, a, cx, py + ph + 5, z > 1.001f ? -1e6f : ox + 6, z > 1.001f ? 1e6f : ox + mw - 6);
         }
+        // SpongeBob: on the place he is at; on a trip he hops along the route in ~0.5 s
+        if (here != null || (trav && tTo != null)) {
+            float mx, my;
+            Area from = tFrom != null ? tFrom : here;
+            if (trav && tTo != null && from != null && now - travelAt < 500) {
+                float t = (now - travelAt) / 500f;
+                t = t * t * (3 - 2 * t);
+                mx = areaX(from) + (areaX(tTo) - areaX(from)) * t;
+                my = areaY(from) - areaRad(from) * 0.55f + (areaY(tTo) - areaRad(tTo) * 0.55f - (areaY(from) - areaRad(from) * 0.55f)) * t
+                        - (float) Math.sin(Math.PI * t) * 34;
+            } else {
+                Area at = trav && tTo != null ? tTo : here;
+                mx = areaX(at); my = areaY(at) - areaRad(at) * 0.55f + (float) Math.sin(now / 260.0) * 3;
+            }
+            drawMe(c, mx, my);
+        }
+        // travel feel: a wash of the sea and bubbles rising from the target for a moment
+        if (trav && tTo != null && now - travelAt < 900) {
+            float t = (now - travelAt) / 900f;
+            int al = (int) (110 * Math.sin(Math.PI * t));
+            r.set(ox, oy, ox + mw, oy + mh);
+            p.setStyle(Paint.Style.FILL); p.setColor((al << 24) | 0xBFEAF2);
+            c.drawRoundRect(r, 26, 26, p);
+            p.setStyle(Paint.Style.STROKE); p.setStrokeWidth(4);
+            float tx = areaX(tTo), ty = areaY(tTo);
+            for (int k = 0; k < 8; k++) {
+                float u = t * 1.2f - k * 0.08f;
+                if (u <= 0 || u >= 1) continue;
+                p.setColor(((int) (200 * (1 - u)) << 24) | 0xFFFFFF);
+                c.drawCircle(tx + (float) Math.sin(k * 2.3 + u * 5) * (30 + k * 6), ty + 20 - u * 190, 7 + k * 2.2f, p);
+            }
+            p.setStyle(Paint.Style.FILL);
+        }
+        c.restore();
         // the side column: legend and the note
         float cx0 = ox + mw + 26, y = top + 56;
         text(c, "CHART", cx0, y, 30, GOLD, true, Paint.Align.LEFT);
@@ -1121,15 +1633,22 @@ public class CompanionView extends View {
             c.drawCircle(cx0 + 16, y - 9, 15, p);
             text(c, names[i], cx0 + 44, y, 24, 0xFFFFFFFF, false, Paint.Align.LEFT);
         }
+        if (anyGoal) {
+            y += 42;
+            star(c, cx0 + 16, y - 9, 16);
+            text(c, "Goal here", cx0 + 44, y, 24, 0xFFFFFFFF, false, Paint.Align.LEFT);
+        }
         y += 56;
         text(c, seenN + " of " + areas.size() + " places seen", cx0, y, 22, 0xFFF3E3C0, false, Paint.Align.LEFT);
         y += 40;
-        List<String> how = wrap("Tap a place that is open to go there, as with the map button in the game.", 22, 1176 - cx0, 5, false);
+        boolean inset = !rooms.isEmpty();
+        List<String> how = wrap(inset ? "Tap a place to go. Hold one to peek. Pinch to zoom." : "Tap a place that is open to go there, as with the map button in the game. Hold one to peek, pinch to zoom.",
+                22, 1176 - cx0, inset ? 3 : 5, false);
         for (String s : how) { text(c, s, cx0, y, 22, 0xFFF3E3C0, false, Paint.Align.LEFT); y += 28; }
         String msg = mapBusy ? "Finish what you are doing first." : (now < mapNoteUntil ? mapNote : "");
         if (msg.length() > 0) {
             y += 14;
-            List<String> ml = wrap(msg, 24, 1176 - cx0 - 28, 3, true);
+            List<String> ml = wrap(msg, 24, 1176 - cx0 - 28, inset ? 2 : 3, true);
             float mh2 = ml.size() * 30 + 22;
             r.set(cx0, y, 1180, y + mh2);
             p.setStyle(Paint.Style.FILL); p.setColor(PAPER);
@@ -1139,6 +1658,8 @@ public class CompanionView extends View {
             float ty = y + 32;
             for (String s : ml) { text(c, s, cx0 + 14, ty, 24, INK, true, Paint.Align.LEFT); ty += 30; }
         }
+        if (inset) drawRooms(c, cx0, b - 16 - 140, 1180 - cx0, 140, here != null ? here.name : "");
+        if (previewIdx >= 0 && previewIdx < areas.size()) drawPreview(c, areas.get(previewIdx), ox, oy, mw, mh);
         p.setStyle(Paint.Style.FILL);
     }
 

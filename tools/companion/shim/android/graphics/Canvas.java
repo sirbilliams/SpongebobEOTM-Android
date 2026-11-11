@@ -26,6 +26,7 @@ public class Canvas {
     public void rotate(float d, float x, float y) { g.rotate(Math.toRadians(d), x, y); }
     public boolean clipRect(RectF r) { g.clip(new Rectangle2D.Float(r.left, r.top, r.width(), r.height())); return true; }
     public boolean clipRect(float l, float t, float r, float b) { return clipRect(new RectF(l,t,r,b)); }
+    public boolean clipPath(Path path) { g.clip(path.p); return true; }
     private void use(Paint p) {
         g.setPaint(p.shader != null ? p.shader.awt : new java.awt.Color(p.color, true));
         g.setStroke(new BasicStroke(p.strokeWidth, p.cap == Paint.Cap.ROUND ? BasicStroke.CAP_ROUND : BasicStroke.CAP_BUTT, BasicStroke.JOIN_ROUND));
