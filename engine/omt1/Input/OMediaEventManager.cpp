@@ -160,7 +160,7 @@ static bool r3_down = false;			// the pointer's left button held by the pad (R3 
 static bool held_r3 = false, held_a = false;
 static bool pad_pos_valid = false;
 static float pad_x = 0, pad_y = 0, rest_x = 0, rest_y = 0;
-static int warped_wx = -1000, warped_wy = -1000;
+static int warped_wx = -1000, warped_wy = -1000, seen_wx = -1000, seen_wy = -1000;
 static bool finger_down = false;
 static SDL_FingerID finger_id = 0;
 
@@ -408,7 +408,12 @@ static bool pad_sync_pos(void)
 	if (!game_window()) return false;
 	int mx, my;
 	SDL_GetMouseState(&mx, &my);
-	if (!pad_pos_valid || abs(mx - warped_wx) > 2 || abs(my - warped_wy) > 2)
+	// port: SDL_WarpMouseInWindow reaches SDL_GetMouseState asynchronously (X11 round trip), so right after a warp the
+	// state can still be the pre-warp position. That is not a mouse move: only resync when the pointer differs from the
+	// warp AND from the last position seen here (a real mouse / finger move changes it).
+	bool stale = pad_pos_valid && mx == seen_wx && my == seen_wy;
+	seen_wx = mx; seen_wy = my;
+	if (!pad_pos_valid || (!stale && (abs(mx - warped_wx) > 2 || abs(my - warped_wy) > 2)))
 	{
 		int lx = mx, ly = my;
 		omgl_window_to_logical(lx, ly);
