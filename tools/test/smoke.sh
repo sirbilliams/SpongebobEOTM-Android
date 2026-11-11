@@ -65,7 +65,9 @@ for b in "$OUT"/scenetest/*.bmp; do [ -e "$b" ] && convert "$b" "${b%.bmp}.png" 
 
 # ---- the real game
 export LD_LIBRARY_PATH="$FFLIB${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-t=$(cd "$RUNTIME" && SB_TEST_SAVEFMT=1 OMT_DATA="$RUNTIME" DISPLAY=$DISP SDL_AUDIODRIVER=dummy timeout 60 "$BUILD/spongebob" 2>&1); rc=$?
+# Save-format self-test needs no assets; isolate its writes from the installed game.
+mkdir -p "$OUT/savefmt"
+t=$(cd "$OUT/savefmt" && SB_TEST_SAVEFMT=1 OMT_DATA="$OUT/savefmt" DISPLAY=$DISP SDL_AUDIODRIVER=dummy timeout 60 "$BUILD/spongebob" 2>&1); rc=$?
 echo "$t" > "$OUT/savefmt.log"
 if [ $rc = 0 ] && echo "$t" | grep -q 'selftest: round trip OK'; then result savefmt 0 "round trip OK"; else result savefmt 1 "rc=$rc"; fi
 
@@ -93,6 +95,11 @@ SH="SB_TEST_NEWGAME=1"
 game logos-menu    1050 'sb2\.omt menu dialog|main menu: clean exit' SB_SKIP_MOVIES=0
 game newgame-c1l0s1 400 'scene c1l0s1 entered' $SH
 game scene-c2l2s7   300 'sharedBank c2\.omt opened' $SH SB_TEST_SCENE=c2l2s7
+# Drive the real switchTo -> pendingId_ -> DoSwitch path in one process.
+game chapter-banks  500 'scene c1l2s6 entered|scene c2l2s7 entered|sharedBank c1\.omt opened|sharedBank c2\.omt opened' $SH SB_TEST_SCENE=c1l2s6 SB_TEST_SCRIPT=150:c2l2s7
+if awk '/sharedBank c1\.omt opened/ { c1=1; next } /sharedBank c2\.omt opened/ { if (c1) ordered=1 } END { exit !ordered }' "$OUT/chapter-banks.log"; then
+  result bank-order 0 "c1 -> c2 in one run"
+else result bank-order 1 "c2 bank did not open after c1"; fi
 game scene-c1l2s6   300 'scene c1l2s6 entered' $SH SB_TEST_SCENE=c1l2s6
 game click-dialogue 800 'test: scene c1l5s4 ready|event .AAA. \(Larry The Lobster\)|dialogue AAA|line AAA |line AAB ' $SH SB_TEST_READY_FRAMES=1 SB_TEST_SCENE=c1l5s4 SB_TEST_GAME_CLICKS=150:30:30,330:160:32,520:427:267
 game hud-item       800 "HUD: ict2 used on 'Larry The Lobster': accepted|dialogue BAA" $SH SB_TEST_READY_FRAMES=1 SB_TEST_SCENE=c1l5s4 \

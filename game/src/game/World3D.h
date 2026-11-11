@@ -83,6 +83,7 @@ public:
     bool playAnim(SceneObject* o, const char* name, bool wait, double speed);   // vt+0xb8
     void loopAnim(SceneObject* o, const char* name);                            // vt+0xb4 (name, FLT_MAX)
     void oneShotAnim(SceneObject* o, const char* name);                         // vt+0xb4 (name, 0, 1.0)
+    bool overlayAnim(Actor3D* a, const char* name, const char* base);             // vt+0xc0, 0x404d50
     void talk(SceneObject* o, bool on);                                         // vt+0xc0("talk")
     void talkAll(bool on);
     void setTexture(SceneObject* o, const char* name); // lane c: vt+0xf0
@@ -135,7 +136,7 @@ private:
     const sb::scene::Grid* grid(float y) const;
     bool cell(const sb::scene::Grid& g, int x, int z) const;
     bool gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, bool neighbour = false);
-    void setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m);
+    void setAnim(Actor3D* a, const char* name, int loops, float speed, Actor3D::Mode m, bool sound = true);
     void place(Actor3D* a);
     void updateIdle(Actor3D* a, float dtMs);                                    // lane f: the idle part of 0x42f1a0
     void resumeIdle(Actor3D* a);                                                // 0x4350d0
