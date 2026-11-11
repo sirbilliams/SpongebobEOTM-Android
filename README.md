@@ -49,7 +49,7 @@ Captured from the current build at 1920x1080 (gameplay and launcher) and 1240x10
 - Background music, as the original plays it (a song per area, carried across scenes, the jukebox).
 - A living underwater launcher: Play with a Continue preview, Saves (export / import a .zip with a preview),
   your own box art, and on the Thor's bottom screen a Harbour office with the last save and settings dials.
-- Bottom-screen tabs: Pocket (inventory, drag to combine), Map (travel where the game allows), Talk (the
+- Bottom-screen tabs: Pocket (inventory, drag to combine), Map (the game's painted chapter map: SpongeBob marks where you are, goal stars, who is where, hold a place to preview it, pinch to zoom, D-pad + A to travel where the game allows), Talk (the
   dialogue so far, replay a line's voice), Goals (chapter progress and what to do next), and REVEAL.
 - Hotspot reveal (hold L1 or tap REVEAL) shows everything you can click in the scene.
 - A port menu (hold Back): bottom screen, cursor theme, widescreen, right-stick cursor, diagnostics overlay.
