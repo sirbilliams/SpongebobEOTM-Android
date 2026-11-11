@@ -1,4 +1,5 @@
 #include "Scene.h"
+#include "Depth.h"
 #include "OMediaGLBackend.h"   // port: HD pack
 #include "MiniGame.h" // chapter 2: maze TRIG picking pass (0x43a310)
 #include <stdlib.h>
@@ -260,8 +261,10 @@ void GameScene::place(SceneObject* o)
 {
     if (!o->elem) return;
     float z;
-    if (o->kind == SceneObject::Anim2D) z = o->postRender ? 10000.0f : -o->pz;      // 0x4096b0
-    else z = o->postRender ? 10000.0f : o->pz;                                        // 0x402400 (flag +0x23a = 0)
+    // 0x401330 (2DOB), 0x4017f0 (ANIM) and 0x4096b0 all place at z = -pz (10000 with Post Render).  The 3D layer (VPElement, 0x4033f0)
+    // sits at z 0, so an object authored with pz <= 0 is in front of the characters (the 163cutout counter, the register).
+    // (port: 0x402400 / 0x402350 take pz as is, but that is another class: its fields are at +0x264, not the scene record's +0x194)
+    z = objectDepth(o->postRender, o->pz);
     o->elem->place(o->px + shakeX_, o->py + shakeY_, z);   // shake offset: 0x43d130 / 0x43b08b
 }
 

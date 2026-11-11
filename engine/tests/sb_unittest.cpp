@@ -16,6 +16,7 @@ using namespace sbscript;
 
 static int g_fail = 0, g_run = 0;
 #include "../../game/src/game/BankPolicy.h"
+#include "../../game/src/game/Depth.h"
 #define CHECK(c) do { ++g_run; if (!(c)) { ++g_fail; printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); } } while (0)
 
 static bool near(double a, double b) { return std::fabs(a-b) < 1e-8; }
@@ -161,6 +162,13 @@ int main()
         std::sort(seen.begin(), seen.end());
         CHECK(std::unique(seen.begin(), seen.end()) == seen.end());      // eight different spellings
     }
+    // layering of 2D objects and 3D characters (c1l6s3: the register / counter cutouts cover the clerk, SpongeBob stands before the pz 0 one)
+    CHECK(sbgame::objectCoversActor(false, -440.0f, -431.522f));    // 163cutout2 over dude1
+    CHECK(!sbgame::objectCoversActor(false, -440.0f, -713.205f));   // ... but not over dude3, nearer than it
+    CHECK(!sbgame::objectCoversActor(false, 0.0f, -639.627f));      // 163cutout1 (pz 0) behind SpongeBob
+    CHECK(sbgame::objectCoversActor(false, -1500.0f, -639.0f));     // a far cutout covers everyone
+    CHECK(!sbgame::objectCoversActor(false, 500.0f, -100.0f));      // a hole (positive pz) lies behind the characters
+    CHECK(sbgame::objectCoversActor(true, 0.0f, -5000.0f));         // Post Render: always on top
 
     printf("sb_unittest: %d checks, %d failed\n", g_run, g_fail);
     return g_fail ? 1 : 0;
