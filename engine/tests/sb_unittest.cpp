@@ -10,6 +10,7 @@
 using namespace sbscript;
 
 static int g_fail = 0, g_run = 0;
+#include "../../game/src/game/BankPolicy.h"
 #define CHECK(c) do { ++g_run; if (!(c)) { ++g_fail; printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); } } while (0)
 
 int main()
@@ -51,6 +52,11 @@ int main()
     CHECK(run.lineCount() == 3);
     CHECK(run.line(0).cmd == "control" && run.line(2).a1 == "off");
     CHECK(run.name() == "synthetic");
+
+    // chapter sound banks: reload on a chapter change (previous vs new), or when none is open
+    CHECK(sharedBankNeedsReload(1, 2, true));
+    CHECK(!sharedBankNeedsReload(2, 2, true));
+    CHECK(sharedBankNeedsReload(2, 2, false));
 
     printf("sb_unittest: %d checks, %d failed\n", g_run, g_fail);
     return g_fail ? 1 : 0;
