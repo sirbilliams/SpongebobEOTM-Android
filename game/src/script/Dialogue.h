@@ -45,6 +45,10 @@ public:
     static std::string soundBankName(unsigned sceneId);   // "sounds/c%dl%ds%d.omt" (the Wave bank with the voices)
     // "%d%d%d%c%c%c": chapter, level, scene, then the three key letters upper-cased, e.g. "122AAH".
     static std::string voiceName(unsigned sceneId, const std::string& key);
+    // 0x412d00: the Wave names tried in the scene bank for a line's key, in the exe's order (attempt 0..7): the
+    // three key letters lower / upper cased in all eight combinations: lll, UUU, UlU, UUl, lUU, lUl, Ull, llU.
+    enum { kVoiceTries = 8 };
+    static std::string voiceCandidate(unsigned sceneId, const std::string& key, int attempt);
 
     // 0x4122f0.  `fs` supplies the file; progress may be 0.  Returns false if the file is missing
     // (the exe then calls its virtual +0x10) or cannot be decoded.

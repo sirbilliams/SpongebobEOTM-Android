@@ -183,16 +183,10 @@ bool DialogueUI::startVoice(const std::string& key)
     stopVoice();
     OMediaDataBase* bank = game_->sceneSoundDb();
     if (!bank) return false;
-    unsigned id = sceneId_;
-    char ch[4] = { key[0], key.size() > 1 ? key[1] : ' ', key.size() > 2 ? key[2] : ' ', 0 };
-    // 0x412d00 tries the three key letters in seven upper / lower case combinations (not all upper case)
-    static const int combos[7][3] = { {0,0,0},{1,0,1},{1,1,0},{0,1,1},{0,1,0},{1,0,0},{0,0,1} };
-    for (int c = 0; c < 7; ++c) {
-        char n[16];
-        sprintf(n, "%d%d%d%c%c%c", (int)(id & 0xf), (int)((id >> 8) & 0xf), (int)((id >> 16) & 0xf),
-                combos[c][0] ? toupper((unsigned char)ch[0]) : tolower((unsigned char)ch[0]),
-                combos[c][1] ? toupper((unsigned char)ch[1]) : tolower((unsigned char)ch[1]),
-                combos[c][2] ? toupper((unsigned char)ch[2]) : tolower((unsigned char)ch[2]));
+    // 0x412d00 tries the three key letters in eight upper / lower case combinations, all lower case first, all upper second
+    for (int c = 0; c < sbscript::DialogueTable::kVoiceTries; ++c) {
+        std::string nm = sbscript::DialogueTable::voiceCandidate(sceneId_, key, c);
+        const char* n = nm.c_str();
         if (!bank->object_exists(OMediaSound::db_type, std::string(n))) continue;      // the bank's vt+0x18
         OMediaSound* s = (OMediaSound*)bank->get_object(OMediaSound::db_type, std::string(n));
         if (s) { voice_ = s; game_->state().markVoiceHeard(sceneId_, key);   // port: voice gallery

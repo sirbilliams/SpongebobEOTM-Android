@@ -7,6 +7,8 @@
 #include <string>
 #include <vector>
 #include <cmath>
+#include <algorithm>
+#include "../../game/src/script/Dialogue.h"
 #include <cstddef>
 #include "../../game/src/game/WalkRoute.h"
 
@@ -144,6 +146,21 @@ int main()
     CHECK(sharedBankNeedsReload(1, 2, true));
     CHECK(!sharedBankNeedsReload(2, 2, true));
     CHECK(sharedBankNeedsReload(2, 2, false));
+
+    // dialogue voice lookup (0x412d00): eight spellings of the key, all lower case first, all upper case second
+    // (SpongeBob's lines of the jewelry shop, c1l6s3, are stored as "163AAA")
+    {
+        unsigned id = sbscript::sceneIdPack(1, 6, 3);
+        CHECK(sbscript::DialogueTable::voiceCandidate(id, "aaa", 0) == "163aaa");
+        CHECK(sbscript::DialogueTable::voiceCandidate(id, "aaa", 1) == "163AAA");
+        CHECK(sbscript::DialogueTable::voiceCandidate(id, "BaC", 2) == "163BaC");
+        CHECK(sbscript::DialogueTable::voiceCandidate(id, "bac", 7) == "163baC");
+        CHECK(sbscript::DialogueTable::voiceCandidate(id, "bac", 8).empty());
+        std::vector<std::string> seen;
+        for (int c = 0; c < sbscript::DialogueTable::kVoiceTries; ++c) seen.push_back(sbscript::DialogueTable::voiceCandidate(id, "abc", c));
+        std::sort(seen.begin(), seen.end());
+        CHECK(std::unique(seen.begin(), seen.end()) == seen.end());      // eight different spellings
+    }
 
     printf("sb_unittest: %d checks, %d failed\n", g_run, g_fail);
     return g_fail ? 1 : 0;

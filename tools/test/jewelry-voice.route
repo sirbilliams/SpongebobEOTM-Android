@@ -1,0 +1,7 @@
+# c1l6s3 (jewelry shop counter): SpongeBob's lines have all-upper Wave names (163AAA ...); the voice must play (smoke step jewelry-voice)
+scene c1l6s3
+idle
+talk dude1 AAA AAA AAA AAA AAA AAA
+idle
+idle
+end
