@@ -16,6 +16,8 @@ build*/
 out/
 
 # never commit game data
+.game/
+.decomp/
 *.omt
 *.grn
 *.gam
