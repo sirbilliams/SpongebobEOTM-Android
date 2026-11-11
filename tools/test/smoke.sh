@@ -56,6 +56,10 @@ if echo "$t" | grep -q '^TOTAL 123/123 passed, 0 failed'; then result scntest 0 
 if [ $rc = 0 ] && grep -q '^RESULT: OK' "$OUT/scripttest.log" && grep -q 'parse errors 0' "$OUT/scripttest.log"; then result scripttest 0 "0 errors"
 else result scripttest 1 "rc=$rc $(grep -E 'RESULT|parse errors' "$OUT/scripttest.log" | tr '\n' ' ')"; fi
 
+"$BUILD/sb_voicetest" "$GAME" > "$OUT/voicetest.log" 2>&1; rc=$?
+if [ $rc = 0 ] && grep -q '^RESULT: OK' "$OUT/voicetest.log"; then result voicetest 0 "$(grep -o 'voiced (0x412d00[^,]*, 8 spellings) [0-9]*' "$OUT/voicetest.log")"
+else result voicetest 1 "rc=$rc $(grep -E 'RESULT|no voice' "$OUT/voicetest.log" | tr '\n' ' ')"; fi
+
 mkdir -p "$OUT/scenetest"
 DISPLAY=$DISP SDL_AUDIODRIVER=dummy OMT_WINDOW_SIZE=640x480 timeout "$TMO" "$BUILD/sb_scenetest" "$GAME" 450 "$OUT/scenetest" > "$OUT/scenetest.log" 2>&1; rc=$?
 shots=$(ls "$OUT/scenetest" | wc -l)
@@ -100,6 +104,11 @@ game chapter-banks  500 'scene c1l2s6 entered|scene c2l2s7 entered|sharedBank c1
 if awk '/sharedBank c1\.omt opened/ { c1=1; next } /sharedBank c2\.omt opened/ { if (c1) ordered=1 } END { exit !ordered }' "$OUT/chapter-banks.log"; then
   result bank-order 0 "c1 -> c2 in one run"
 else result bank-order 1 "c2 bank did not open after c1"; fi
+# a scripted playthrough (no screenshot): SpongeBob's counter lines have all-upper Wave names (c1l6s3: 163AAA, 163AAC ...)
+( cd "$RUNTIME" && env DISPLAY=$DISP SDL_AUDIODRIVER=dummy OMT_DATA="$RUNTIME" OMT_WINDOW_SIZE=1920x1080 OMT_FRAMES=3000000 SB_SKIP_MOVIES=1 SB_GAME_LOG=1 \
+    $SH SB_TEST_SCENE=c1l6s3 SB_TEST_PLAYTHROUGH="$REPO/tools/test/jewelry-voice.route" SB_TEST_STEPFRAMES=2000 timeout "$TMO" "$BUILD/spongebob" ) > "$OUT/jewelry-voice.log" 2>&1; rc=$?
+if [ $rc = 0 ] && grep -aq 'voice 163AAA (' "$OUT/jewelry-voice.log" && grep -aq 'voice 163AAC (' "$OUT/jewelry-voice.log" && grep -aq 'PLAYTHROUGH DONE' "$OUT/jewelry-voice.log"; then result jewelry-voice 0 "SpongeBob's counter lines are voiced"
+else result jewelry-voice 1 "rc=$rc missing 'voice 163AAA/163AAC' or PLAYTHROUGH DONE"; fi
 game scene-c1l2s6   300 'scene c1l2s6 entered' $SH SB_TEST_SCENE=c1l2s6
 game click-dialogue 800 'test: scene c1l5s4 ready|event .AAA. \(Larry The Lobster\)|dialogue AAA|line AAA |line AAB ' $SH SB_TEST_READY_FRAMES=1 SB_TEST_SCENE=c1l5s4 SB_TEST_GAME_CLICKS=150:30:30,330:160:32,520:427:267
 game hud-item       800 "HUD: ict2 used on 'Larry The Lobster': accepted|dialogue BAA" $SH SB_TEST_READY_FRAMES=1 SB_TEST_SCENE=c1l5s4 \

@@ -48,18 +48,13 @@ std::string displayName(const std::string& id)
     return r;
 }
 
-// Same seven case combinations DialogueUI::startVoice tries (0x412d00).
+// The same eight case combinations DialogueUI::startVoice tries (0x412d00).
 OMediaSound* findVoice(OMediaDataBase* db, unsigned id, const std::string& key)
 {
     if (!db || key.size() < 3) return 0;
-    static const int combos[7][3] = { {0,0,0},{1,0,1},{1,1,0},{0,1,1},{0,1,0},{1,0,0},{0,0,1} };
-    for (int c = 0; c < 7; ++c) {
-        char n[16];
-        sprintf(n, "%d%d%d%c%c%c", (int)(id & 0xf), (int)((id >> 8) & 0xf), (int)((id >> 16) & 0xf),
-                combos[c][0] ? toupper((unsigned char)key[0]) : tolower((unsigned char)key[0]),
-                combos[c][1] ? toupper((unsigned char)key[1]) : tolower((unsigned char)key[1]),
-                combos[c][2] ? toupper((unsigned char)key[2]) : tolower((unsigned char)key[2]));
-        if (db->object_exists(OMediaSound::db_type, std::string(n))) return (OMediaSound*)db->get_object(OMediaSound::db_type, std::string(n));
+    for (int c = 0; c < sbscript::DialogueTable::kVoiceTries; ++c) {
+        std::string n = sbscript::DialogueTable::voiceCandidate(id, key, c);
+        if (db->object_exists(OMediaSound::db_type, n)) return (OMediaSound*)db->get_object(OMediaSound::db_type, n);
     }
     return 0;
 }

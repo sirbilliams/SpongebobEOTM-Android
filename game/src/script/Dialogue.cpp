@@ -52,6 +52,21 @@ std::string DialogueTable::voiceName(unsigned id, const std::string& key)
     return b;
 }
 
+std::string DialogueTable::voiceCandidate(unsigned id, const std::string& key, int attempt)
+{
+    // upper-case flag per key letter (k0,k1,k2), the order of the eight blocks of 0x412d00 (tolower 0x44385c / toupper 0x44349c)
+    static const int combos[kVoiceTries][3] = { {0,0,0},{1,1,1},{1,0,1},{1,1,0},{0,1,1},{0,1,0},{1,0,0},{0,0,1} };
+    if (attempt < 0 || attempt >= kVoiceTries) return std::string();
+    char b[64];
+    int k[3];
+    for (int i = 0; i < 3; ++i) {
+        int ch = i < (int)key.size() ? (unsigned char)key[i] : ' ';   // the exe pads a short key with blanks
+        k[i] = combos[attempt][i] ? toupper(ch) : tolower(ch);
+    }
+    snprintf(b, sizeof b, "%d%d%d%c%c%c", (int)(id & 0xf), (int)((id >> 8) & 0xf), (int)((id >> 16) & 0xf), k[0], k[1], k[2]);
+    return b;
+}
+
 bool DialogueTable::load(FileSource& fs, unsigned sceneId, DialogueProgress* progress, std::string* err)
 {
     groups_.clear();

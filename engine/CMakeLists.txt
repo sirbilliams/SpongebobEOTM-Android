@@ -225,6 +225,10 @@ else()
     ../game/src/scene/SceneData.cpp ../game/src/scene/SceneReader.cpp ${OMT_MAIN})
   target_include_directories(sb_scenetest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/game)
   target_link_libraries(sb_scenetest omt1_sound omt1)
+  # Resolves every dialogue line's voice Wave in its scene bank (sb_voicetest <game dir>)
+  add_executable(sb_voicetest tests/sb_voicetest.cpp ../game/src/script/Dialogue.cpp ../game/src/script/Sb2File.cpp ${OMT_MAIN})
+  target_link_libraries(sb_voicetest omt1_sound omt1)
+  target_compile_options(sb_voicetest PRIVATE -Wall -Wno-multichar -Wno-write-strings -fsigned-char -fno-strict-aliasing)
   target_compile_options(sb_scenetest PRIVATE -Wall -Wno-multichar -Wno-write-strings -fsigned-char -fno-strict-aliasing)
 
   # The reconstructed game, desktop build
