@@ -994,6 +994,22 @@ void World3D::refreshVisibility()
     }
 }
 
+// 0x42a310 (called at the end of the scene load, 0x437210): walks the scene's object list once and links each object's element to the
+// 2D world: the 2DOB / ANIM element, or a CHAR / ITEM's VPElement, so they are in the world's list in object (file) order.  The world
+// sorts that list by ftol(z) with MSVC 6's std::sort (0x10002950, OMediaMSVCSort.h): equal keys keep the list order (stable up to 16
+// elements, a quicksort partition above), so this order decides which of two objects at the same depth is drawn on top.
+// port: GameScene::buildObjects links the 2D ones and the layers are made afterwards, so the layers would all come last.
+void World3D::linkInObjectOrder()
+{
+    OMedia2DWorld* w = scene_->world();
+    for (size_t i = 0; i < scene_->objects().size(); ++i) {
+        SceneObject* o = scene_->objects()[i];
+        if (o->elem) { o->elem->link(w); continue; }
+        for (size_t k = 0; k < actors_.size(); ++k)
+            if (actors_[k]->obj == o) { if (actors_[k]->layer && actors_[k]->layer->vpe) actors_[k]->layer->vpe->link(w); break; }
+    }
+}
+
 void World3D::enter(int startPoint)
 {
     if (startPoint < 0 || startPoint > 9) startPoint = 0;

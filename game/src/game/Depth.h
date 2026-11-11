@@ -5,7 +5,9 @@
 namespace sbgame {
 inline float objectDepth(bool postRender, float pz) { return postRender ? 10000.0f : -pz; }
 inline float actorLayerDepth(float worldZ) { return -worldZ; }
-// true when the 2D object is drawn over the character (a tie goes to the later linked element, the object).
+// true when the 2D object is drawn over the character.  A tie is decided by the world's list order (0x10002950 sorts with MSVC 6 std::sort;
+// stable up to 16 elements): the later linked element is drawn on top, and the scene links its elements in object-list order (0x42a310).
+// This helper assumes the object is linked after the character, as in the tests.
 inline bool objectCoversActor(bool postRender, float pz, float actorWorldZ)
 {
     return (long)objectDepth(postRender, pz) > (long)actorLayerDepth(actorWorldZ);

@@ -20,6 +20,8 @@
 
 using namespace sbscript;
 
+struct Bank { std::string name; OMediaDataBase* db; };
+
 class DiskFiles : public FileSource {
 public:
     explicit DiskFiles(const std::string& r) : root_(r) {}
@@ -62,6 +64,25 @@ void omt_main(void)
         closedir(d);
     }
     DiskFiles fs(root);
+    std::vector<Bank> banks;                                // every .omt under sounds/ and cd/sounds/
+    const char* dirs[] = { "sounds", "cd/sounds" };
+    for (int di = 0; di < 2; ++di)
+        if (DIR* d = opendir((root + "/" + dirs[di]).c_str())) {
+            while (struct dirent* e = readdir(d)) {
+                size_t n = strlen(e->d_name);
+                if (n < 5 || strcasecmp(e->d_name + n - 4, ".omt") != 0) continue;
+                try {
+                    OMediaFilePath* path = new OMediaFilePath(root + "/" + dirs[di] + "/" + e->d_name);
+                    OMediaFileStream* st = new OMediaFileStream;
+                    st->setpath(path);
+                    st->open(omcfp_Read);
+                    Bank b; b.name = std::string(dirs[di]) + "/" + e->d_name; b.db = new OMediaDataBase(st);
+                    banks.push_back(b);
+                } catch (OMediaError&) {}
+            }
+            closedir(d);
+        }
+    unsigned missing = 0, noBank = 0;
     unsigned lines = 0, voiced = 0, oldVoiced = 0;
     std::set<std::string> silentScenes;
     for (std::set<unsigned>::iterator it = scenes.begin(); it != scenes.end(); ++it) {
@@ -83,12 +104,26 @@ void omt_main(void)
                 const DialogueLine& ln = t.groups()[g].lines[l];
                 if (ln.key.size() < 3) continue;
                 ++lines;
-                if (!db) continue;
                 bool found = false, old = false;
+                if (!db) { printf("NOVOICE c%dl%ds%d %s: no scene bank\n", (int)(id & 0xf), (int)((id >> 8) & 0xf), (int)((id >> 16) & 0xf), ln.key.c_str());
+                    ++missing; ++noBank;
+                    for (size_t b = 0; b < banks.size(); ++b)    // is the recording in some other bank?
+                        for (int c = 0; c < DialogueTable::kVoiceTries; ++c)
+                            if (banks[b].db->object_exists(OMediaSound::db_type, DialogueTable::voiceCandidate(id, ln.key, c))) { printf("  FOUND in %s\n", banks[b].name.c_str()); break; }
+                    continue; }
                 for (int c = 0; c < DialogueTable::kVoiceTries && !found; ++c)
                     found = db->object_exists(OMediaSound::db_type, DialogueTable::voiceCandidate(id, ln.key, c));
                 for (int c = 0; c < 7 && !old; ++c)
                     old = db->object_exists(OMediaSound::db_type, oldSpelling(id, ln.key, c));
+                if (!found) {                                 // list it, and look for the recording in every other bank of the install
+                    ++missing;
+                    std::string where;
+                    for (size_t b = 0; b < banks.size(); ++b)
+                        for (int c = 0; c < DialogueTable::kVoiceTries; ++c)
+                            if (banks[b].db->object_exists(OMediaSound::db_type, DialogueTable::voiceCandidate(id, ln.key, c))) { where += " " + banks[b].name; break; }
+                    printf("NOVOICE c%dl%ds%d %s bank=%s elsewhere=[%s] \"%s\"\n", (int)(id & 0xf), (int)((id >> 8) & 0xf), (int)((id >> 16) & 0xf),
+                           ln.key.c_str(), db ? "yes" : "MISSING", where.c_str(), ln.text.substr(0, 40).c_str());
+                }
                 if (found) ++voiced;
                 if (old) ++oldVoiced;
                 if (found && !old) { char b[32]; sprintf(b, "c%dl%ds%d", (int)(id & 0xf), (int)((id >> 8) & 0xf), (int)((id >> 16) & 0xf)); silentScenes.insert(b); }
@@ -114,6 +149,13 @@ void omt_main(void)
                 found = db->object_exists(OMediaSound::db_type, DialogueTable::voiceCandidate(id, keys[k], c));
             if (!found) { printf("c1l6s3 %s: no voice\n", keys[k]); ++bad; }
         }
+    }
+    printf("lines without a voice: %u (original silent: the scene's sounds bank is not in the install)\n", missing);
+    // Audit result: the 34 lines are the whole of c4l2s3 (19) and c2l2s4 (15); sounds/c4l2s3.omt and sounds/c2l2s4.omt do not exist
+    // and no other bank holds those Waves, and 0x412d00 only searches the scene bank (game+0x5c, 0x4122be / 0x412898), so the original is silent too.
+    if (lines != 1149 || voiced != 1115 || missing != 34 || noBank != 34) {
+        printf("expected 1149 lines, 1115 voiced, 34 silent (all in scenes without a bank); got %u, %u, %u (%u without bank)\n", lines, voiced, missing, noBank);
+        ++bad;
     }
     printf("%s\n", bad ? "RESULT: FAIL" : "RESULT: OK");
     if (bad) exit(1);
