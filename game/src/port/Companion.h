@@ -17,6 +17,10 @@
             "ok":1 (the in-game map would let you go there now),"v":1 (visited),"here":1}], "mapbusy":1 (a dialogue / cutscene is on: the map button is dead)
       talk [{"i":serial,"s":speaker,"t":text,"v":1 (a voice exists)}], oldest first       combine {"n":serial,"ok":0/1,"t":text}  the last drag-combine / its refusal comment
       goals {"sv":scenes visited,"st":scenes of the chapter,"sc":scripts seen,"places":[{"n","v","t"}]}  (the hint is the 'what next')
+      map v2 (all optional): top level "mapbg" (PNG of the chapter map scene, 640x480), "mapme" (PNG, SpongeBob from the game's model),
+            "mapsnd" (WAV, not written: the game has no travel sound), "rooms" [{"n","s":"c1l2s6","here":1,"x","y","l":[linked room indexes]}] of the current place;
+            per area "goal":1 (a help line of that place applies now), "who":[names], "pic":"<icons>/place_<target>.png" (160x120), "hint":"..." (that place's help line, game text).
+            docs/companion.md "Map data v2".
     Commands (CompanionPop): "item:<id>", "noitem", "choice:<n>", "advance", "menu", "skip", "hint", "reveal" (lane e),
       "travel:<map target>" (the map; refused unless the in-game map would allow it), "voice:<serial>" (replay a talk line's voice),
       "combine:<item>:<item>" (an item card dragged onto another).  */
@@ -33,10 +37,14 @@ struct CompanionState {
     std::vector<std::string> items, itemNames, choices, visited;   // itemNames: the display name of each item (parallel to items)
     std::string iconDir;           // folder with <item id>.png pictures (small, rendered at run time from the player's game files)
     // map page (CompanionFeed.h, from the chapter's map scene c<N>l1s1)
-    struct MapArea { MapArea() : x(0), y(0), w(0), h(0), ok(false), visited(false), here(false) {}
-                     std::string name, target; int x, y, w, h; bool ok, visited, here; };
+    struct MapArea { MapArea() : x(0), y(0), w(0), h(0), ok(false), visited(false), here(false), goal(false) {}
+                     std::string name, target; int x, y, w, h; bool ok, visited, here, goal;
+                     std::vector<std::string> who; std::string pic, hint; };      // v2 (CompanionMap.h): who stands there, thumbnail, the game's hint line
     std::vector<MapArea> map;
     bool mapBusy;
+    std::string mapBg, mapMe, mapSnd;      // v2: absolute PNG / WAV files ("" = none); next to the item icons, written once and reused
+    struct Room { Room() : x(0), y(0), here(false) {} std::string name, scene; int x, y; bool here; std::vector<int> links; };
+    std::vector<Room> rooms;               // v2: the rooms of the CURRENT place (look-only layout, x y 0..100)
     // talk page: the spoken lines of this session
     struct TalkLine { TalkLine() : id(0), voice(false) {} unsigned id; std::string speaker, text; bool voice; };
     std::vector<TalkLine> talk;

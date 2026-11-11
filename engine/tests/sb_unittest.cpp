@@ -10,6 +10,8 @@
 #include <algorithm>
 #include "../../game/src/script/Dialogue.h"
 #include <cstddef>
+#include "../../game/src/port/CompanionMap.h"
+#include <sys/stat.h>
 #include "../../game/src/game/WalkRoute.h"
 
 using namespace sbscript;
@@ -102,6 +104,132 @@ static void walkChecks()
     CHECK(!turnToPoint(start,end,0,turn));
 }
 
+
+// companion map page v2 (CompanionMap.h): the JSON of the new fields on a hand-made state, then (when an install is found: $SB_GAME, ./.game,
+// ../.game) the scene-derived parts against real scenes: doors of the Krusty Krab, who stands in Downtown, the game's help lines.
+static bool readGameScene(const std::string& root, const char* name, sb::scene::Scene* sc)
+{
+    std::string err;
+    return sb::scene::load(root + "/scenes/" + name + ".scn", *sc, err);
+}
+
+static void mapChecks()
+{
+    using namespace sbport;
+    {   // JSON of the v2 fields (the pieces CompanionJsonOf appends; Companion.cpp needs SDL, so it is not linked here); a state without them writes none
+        CompanionState s;
+        CompanionState::MapArea a; a.name = "Downtown"; a.target = "c1l6s1p1"; a.ok = true;
+        s.map.push_back(a);
+        std::string j0, a0;
+        companionMapExtraJson(s, j0); companionAreaExtraJson(s.map[0], a0);
+        CHECK(j0.empty() && a0.empty());
+        s.map[0].goal = true; s.map[0].who.push_back("Patrick"); s.map[0].who.push_back("Marty the \"Bus\" Driver");
+        s.map[0].pic = "/x/place_c1l6s1p1.png"; s.map[0].hint = "Talk to him.";
+        s.mapBg = "/x/map_c1.png"; s.mapMe = "/x/map_me.png";
+        CompanionState::Room r; r.name = "Kitchen"; r.scene = "c1l2s5"; r.x = 10; r.y = 50; r.here = true; r.links.push_back(1);
+        CompanionState::Room r2; r2.name = "Dish Pit"; r2.scene = "c1l2s6"; r2.x = 90; r2.y = 50; r2.links.push_back(0);
+        s.rooms.push_back(r); s.rooms.push_back(r2);
+        std::string j, aj;
+        companionMapExtraJson(s, j); companionAreaExtraJson(s.map[0], aj);
+        CHECK(aj == ",\"goal\":1,\"who\":[\"Patrick\",\"Marty the \\\"Bus\\\" Driver\"],\"pic\":\"/x/place_c1l6s1p1.png\",\"hint\":\"Talk to him.\"");
+        CHECK(j == ",\"mapbg\":\"/x/map_c1.png\",\"mapme\":\"/x/map_me.png\",\"rooms\":[{\"n\":\"Kitchen\",\"s\":\"c1l2s5\",\"here\":1,\"x\":10,\"y\":50,\"l\":[1]},{\"n\":\"Dish Pit\",\"s\":\"c1l2s6\",\"here\":0,\"x\":90,\"y\":50,\"l\":[0]}]");
+    }
+    {   // refs and layout without any file
+        int c, l, sn;
+        CHECK(companionRefParts("c1l6s1p1", &c, &l, &sn) && c == 1 && l == 6 && sn == 1);
+        CHECK(companionRefParts("C3L6S0P1", &c, &l, &sn) && c == 3 && l == 6 && sn == 0);
+        CHECK(!companionRefParts("h126d", &c, &l, &sn) && !companionRefParts("swindow", &c, &l, &sn) && !companionRefParts("", &c, &l, &sn));
+        std::vector<CompanionState::Room> rs(4);        // a chain 0-1-2 and a fork 1-3
+        int lk[4][2] = { {1,-1}, {0,2}, {1,-1}, {1,-1} };
+        for (int i = 0; i < 4; ++i) for (int k = 0; k < 2; ++k) if (lk[i][k] >= 0) rs[i].links.push_back(lk[i][k]);
+        rs[1].links.push_back(3);
+        companionLayoutRooms(&rs);
+        CHECK(rs[0].x == 10 && rs[1].x == 50 && rs[2].x == 90 && rs[3].x == 90 && rs[0].y == 50 && rs[2].y == 12 && rs[3].y == 88);
+    }
+    std::string root;
+    const char* e = getenv("SB_GAME");
+    const char* cand[3] = { e ? e : "", ".game", "../.game" };
+    for (int i = 0; i < 3 && root.empty(); ++i) {
+        struct stat st;
+        if (cand[i][0] && stat((std::string(cand[i]) + "/scenes/c1l2s6.scn").c_str(), &st) == 0) root = cand[i];
+    }
+    if (root.empty()) { printf("sb_unittest: map checks on real scenes skipped (no game install found; set SB_GAME)\n"); return; }
+    {   // the Krusty Krab (c1l2): scene 6 (the outside) has a door to scene 1; every link stays inside the place; the layout is inside 0..100
+        std::vector<int> nos; std::vector<sb::scene::Scene> scs; std::vector<std::string> names;
+        for (int n = 1; n <= 7; ++n) { sb::scene::Scene sc; if (readGameScene(root, ("c1l2s" + std::string(1, (char)('0' + n))).c_str(), &sc)) { nos.push_back(n); scs.push_back(sc); names.push_back("R"); } }
+        CHECK(nos.size() >= 6);
+        std::vector<std::string> refs;
+        companionSceneRefs(scs[nos.size() > 5 ? 5 : 0], &refs);       // c1l2s6
+        CHECK(std::find(refs.begin(), refs.end(), "c1l2s1p1") != refs.end() && std::find(refs.begin(), refs.end(), "c1l1s1p1") != refs.end());
+        std::vector<CompanionState::Room> rooms;
+        companionBuildRooms(1, 2, nos, scs, names, &rooms);
+        CHECK(rooms.size() == nos.size() && rooms[0].scene == "c1l2s1");
+        bool sym = true, inside = true, linked = false;
+        for (size_t i = 0; i < rooms.size(); ++i) {
+            if (rooms[i].x < 0 || rooms[i].x > 100 || rooms[i].y < 0 || rooms[i].y > 100) inside = false;
+            for (size_t k = 0; k < rooms[i].links.size(); ++k) {
+                size_t t = (size_t)rooms[i].links[k];
+                if (t >= rooms.size() || t == i || std::find(rooms[t].links.begin(), rooms[t].links.end(), (int)i) == rooms[t].links.end()) sym = false;
+                else linked = true;
+            }
+        }
+        CHECK(sym && inside && linked);
+        size_t s6 = 0; for (size_t i = 0; i < rooms.size(); ++i) if (rooms[i].scene == "c1l2s6") s6 = i;
+        CHECK(std::find(rooms[s6].links.begin(), rooms[s6].links.end(), 0) != rooms[s6].links.end());      // outside <-> dining room
+    }
+    {   // who stands in Downtown (c1l6): SpongeBob and props are left out, names are not repeated
+        std::vector<std::string> who;
+        const char* sceneNames[3] = { "c1l6s1", "c1l6s3", "c1l6s4" };
+        for (int i = 0; i < 3; ++i) { sb::scene::Scene sc; CHECK(readGameScene(root, sceneNames[i], &sc)); companionWho(sc, &who); }
+        CHECK(who.size() == 4 && who[0] == "Patrick" && who[1] == "Marty the Bus Driver" && who[2] == "Shop Owner" && who[3] == "Customer");
+        std::vector<std::string> none;
+        sb::scene::Scene k; CHECK(readGameScene(root, "c1l2s6", &k)); companionWho(k, &none);
+        CHECK(none.empty());                                                  // only SpongeBob in the Krusty Krab outside
+        sb::scene::Scene car; CHECK(readGameScene(root, "c1l3s6", &car)); companionWho(car, &none);
+        CHECK(none.empty());                                                  // a car modelled as a character is not a person
+    }
+    {   // the game's help lines: level from the id, aliases resolved, chapter-0 lines are "generic"
+        struct Disk : sbscript::FileSource {
+            std::string root;
+            bool readFile(const char* p, std::vector<unsigned char>& out) {
+                FILE* f = fopen((root + "/" + p).c_str(), "rb");
+                if (!f) return false;
+                unsigned char b[4096]; size_t n;
+                while ((n = fread(b, 1, sizeof b, f)) > 0) out.insert(out.end(), b, b + n);
+                fclose(f); return true;
+            }
+        } disk;
+        disk.root = root;
+        sbscript::HelpTable h; std::string err;
+        CHECK(h.load(disk, 1, &err));
+        const sbscript::HelpEntry* a = h.find("F126A");       // "This is where SpongeBob's quest begins!"  (cond !c1l2s1)
+        const sbscript::HelpEntry* b = h.find("F121A");       // an alias of the shared F000D
+        const sbscript::HelpEntry* c = h.find("F122A");       // an alias of F123A (the salad bar)
+        CHECK(a && b && c);
+        if (a && b && c) {
+            bool gen = true;
+            CHECK(companionHelpLevel(*a) == 2 && companionHelpLevel(*b) == 2);
+            CHECK(companionHelpText(h, *a, &gen).compare(0, 28, "This is where SpongeBob's qu") == 0 && !gen);
+            std::string t = companionHelpText(h, *b, &gen);
+            CHECK(gen && t.compare(0, 8, "Remember") == 0);
+            t = companionHelpText(h, *c, &gen);
+            CHECK(!gen && t.compare(0, 15, "The Salad Bar! ") == 0);
+        }
+        // coverage at the map's places (static: any non-shared line of the place's level): Krusty Krab, Grandma's, Barg-N-Mart, Goo Lagoon, Downtown
+        int covered = 0;
+        const int lv[5] = { 2, 3, 4, 5, 6 };
+        for (int i = 0; i < 5; ++i) {
+            bool any = false;
+            for (size_t k = 0; k < h.entries().size(); ++k) {
+                bool gen2 = false;
+                if (companionHelpLevel(h.entries()[k]) == lv[i]) { companionHelpText(h, h.entries()[k], &gen2); if (!gen2) any = true; }
+            }
+            covered += any;
+        }
+        CHECK(covered == 5);
+    }
+}
+
 int main()
 {
     walkChecks();
@@ -170,6 +298,7 @@ int main()
     CHECK(!sbgame::objectCoversActor(false, 500.0f, -100.0f));      // a hole (positive pz) lies behind the characters
     CHECK(sbgame::objectCoversActor(true, 0.0f, -5000.0f));         // Post Render: always on top
 
+    mapChecks();
     printf("sb_unittest: %d checks, %d failed\n", g_run, g_fail);
     return g_fail ? 1 : 0;
 }

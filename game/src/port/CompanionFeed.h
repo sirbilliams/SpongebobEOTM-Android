@@ -4,6 +4,7 @@
     choices (DialogueUI::pickChoice), skip (the 'skip' event), advance (DialogueUI::onKey), item (see below).  */
 #pragma once
 #include "Companion.h"
+#include "CompanionMap.h"
 #include "../game/Game.h"
 #include "../game/Hud.h"
 #include "../game/Reveal.h"
@@ -12,6 +13,7 @@
 #include <strings.h>
 #include <ctype.h>
 #include <algorithm>
+#include <map>
 #include <set>
 #include <stdio.h>
 #include <stdlib.h>
@@ -23,13 +25,24 @@
 namespace sbport {
 
 struct CompanionFeedState {
-    CompanionFeedState() : lastScene(0), mapChapter(0), scnChapter(0), lastDlg(0), lastLineSerial(0), talkId(0), replayScene(0), combineSerial(0), combineOk(false) {}
+    CompanionFeedState() : lastScene(0), mapChapter(0), extraChapter(0), mapBgTried(false), mapMeTried(false), helpChapter(0), helpTick(0), scnChapter(0), lastDlg(0), lastLineSerial(0), talkId(0), replayScene(0), combineSerial(0), combineOk(false) {}
     unsigned lastScene;
     std::vector<std::string> visited;
     // map page: the objects of the chapter's map scene c<N>l1s1 (loaded once per chapter)
     struct MapObj { std::string ev, cond, alt, vis, desc; int x1, y1, x2, y2; };
     int mapChapter;
     std::vector<MapObj> mapObjs;
+    // map page v2 (CompanionMap.h): the static parts are computed once per chapter / place, the pictures are written once
+    int extraChapter;
+    std::map<int, std::vector<std::string> > whoByLevel;          // level -> the people standing in its scenes
+    std::map<int, std::vector<CompanionState::Room> > roomsByLevel;
+    std::set<std::string> picTried;                               // file names already written (or failed): no second try
+    std::map<std::string, std::string> picPath;                   // place target -> thumbnail file
+    std::string mapBg, mapMe;
+    bool mapBgTried, mapMeTried;
+    int helpChapter; unsigned helpTick;
+    struct HelpLv { HelpLv() : goal(false) {} bool goal; std::string hint; };
+    std::map<int, HelpLv> helpLv;                                  // level -> a help line of it applies now / the game's text of the first one
     // goals page: scenes of the chapter on disk (ids as in GameState::sceneId)
     int scnChapter;
     std::vector<unsigned> scnIds;
@@ -205,6 +218,143 @@ inline void companionTravel(sbgame::Game* g, const std::string& target)
         return;
     }
     g->log("companion: travel %s refused (not on the map)\n", target.c_str());
+}
+
+// ---------------------------------------------------------------------------------------------------- map page v2 (docs/companion.md "Map data v2")
+// Everything is the game's own data: the scene files (who stands where, which doors a place has), sceneart/*.omt (the backgrounds), models/people (SpongeBob),
+// dialogue/help.sb2 (the hint lines).  Static parts are computed once per chapter / place; the HINT / goal flags are re-read every 10th snapshot.
+inline std::vector<int> companionLevelScenes(sbgame::Game* g, int ch, int lv)        // scene numbers of c<ch>l<lv>s*.scn on disk, ascending
+{
+    std::vector<int> v;
+    DIR* dir = opendir((g->root() + "/scenes").c_str());
+    while (dir) {
+        struct dirent* e = readdir(dir);
+        if (!e) break;
+        unsigned c, l, sn;
+        char tail[8];
+        if (sscanf(e->d_name, "c%ul%us%u.%3s", &c, &l, &sn, tail) == 4 && (int)c == ch && (int)l == lv) v.push_back((int)sn);
+    }
+    if (dir) closedir(dir);
+    std::sort(v.begin(), v.end());
+    return v;
+}
+
+inline void companionLoadExtras(sbgame::Game* g, int ch)           // who per level for the whole chapter (one pass over its scene files)
+{
+    CompanionFeedState& f = companionFeed();
+    if (f.extraChapter == ch) return;
+    f.extraChapter = ch;
+    f.whoByLevel.clear(); f.roomsByLevel.clear(); f.picPath.clear(); f.mapBg.clear(); f.mapBgTried = false; f.helpLv.clear(); f.helpChapter = 0;
+    for (int lv = 2; lv <= 7; ++lv) {
+        std::vector<int> nos = companionLevelScenes(g, ch, lv);
+        std::vector<std::string>& who = f.whoByLevel[lv];
+        for (size_t i = 0; i < nos.size(); ++i) {
+            char b[40];
+            snprintf(b, sizeof b, "/scenes/c%dl%ds%d.scn", ch, lv, nos[i]);
+            sb::scene::Scene sc;
+            std::string err;
+            if (sb::scene::load(g->root() + b, sc, err)) companionWho(sc, &who);
+        }
+    }
+}
+
+inline const std::vector<CompanionState::Room>& companionRoomsOf(sbgame::Game* g, int ch, int lv)    // the rooms of one place (cached)
+{
+    CompanionFeedState& f = companionFeed();
+    std::map<int, std::vector<CompanionState::Room> >::iterator it = f.roomsByLevel.find(lv);
+    if (it != f.roomsByLevel.end()) return it->second;
+    std::vector<CompanionState::Room>& rooms = f.roomsByLevel[lv];
+    std::vector<int> nos = companionLevelScenes(g, ch, lv);
+    std::vector<sb::scene::Scene> scenes;
+    std::vector<std::string> names;
+    std::vector<int> kept;
+    for (size_t i = 0; i < nos.size(); ++i) {
+        char b[40];
+        snprintf(b, sizeof b, "/scenes/c%dl%ds%d.scn", ch, lv, nos[i]);
+        sb::scene::Scene sc;
+        std::string err;
+        if (!sb::scene::load(g->root() + b, sc, err)) continue;
+        scenes.push_back(sc);
+        kept.push_back(nos[i]);
+        const CompanionPlace* p = companionPlace((unsigned)ch, (unsigned)lv);
+        const char* room = p && nos[i] < 10 ? p->rooms[nos[i]] : 0;
+        if (room && *room) names.push_back(room);
+        else { snprintf(b, sizeof b, "Area %d", nos[i]); names.push_back(b); }
+    }
+    companionBuildRooms(ch, lv, kept, scenes, names, &rooms);
+    return rooms;
+}
+
+// The help lines (F<ch><level>..) whose condition holds now (what the HINT button walks), per place level.  goal = one applies; hint = the first
+// whose text is the game's own and not one of the shared chapter-0 lines.  Lines with no condition are not offered by the button either.
+inline void companionRefreshHelp(sbgame::Game* g, int ch)
+{
+    CompanionFeedState& f = companionFeed();
+    if (f.helpChapter == ch && (f.helpTick++ % 10) != 0) return;
+    f.helpChapter = ch;
+    f.helpLv.clear();
+    const std::vector<sbscript::HelpEntry>& h = g->help().entries();
+    for (size_t i = 0; i < h.size(); ++i) {
+        if (h[i].condition.empty() || !g->cond(h[i].condition.c_str())) continue;
+        int lv = companionHelpLevel(h[i]);
+        if (lv < 0) continue;
+        CompanionFeedState::HelpLv& e = f.helpLv[lv];
+        e.goal = true;
+        bool generic = false;
+        std::string t = companionHelpText(g->help(), h[i], &generic);
+        if (e.hint.empty() && !generic && !t.empty()) e.hint = t;
+    }
+}
+
+inline void companionMapDecorate(sbgame::Game* g, CompanionState* s)
+{
+    CompanionFeedState& f = companionFeed();
+    sbgame::Hud* hud = g->hud();
+    int ch = g->state().chapter;
+    if (ch < 1) ch = (int)(g->state().sceneId & 0xf);
+    if (ch < 1) return;
+    companionLoadExtras(g, ch);
+    companionRefreshHelp(g, ch);
+    int writes = 0;                                                // at most one picture is rendered per snapshot: no hitch on the game thread
+    if (hud && !f.mapMeTried && writes == 0) {                     // SpongeBob from the game's own model (models/people/SB_Model)
+        f.mapMeTried = true; ++writes;
+        if (hud->ensureFigure("../people/sb", 96, "map_me.png")) f.mapMe = hud->iconDir() + "/map_me.png";
+    }
+    if (hud && !f.mapBgTried && writes == 0) {
+        f.mapBgTried = true; ++writes;
+        char n[32], fn[32];
+        snprintf(n, sizeof n, "c%dl1s1", ch); snprintf(fn, sizeof fn, "map_c%d.png", ch);
+        if (hud->ensureScenePicture(n, 640, 480, fn)) f.mapBg = hud->iconDir() + "/" + fn;
+    }
+    s->mapBg = f.mapBg; s->mapMe = f.mapMe;
+    for (size_t i = 0; i < s->map.size(); ++i) {
+        CompanionState::MapArea& a = s->map[i];
+        int c, lv, sn;
+        if (!companionRefParts(a.target, &c, &lv, &sn) || !(a.ok || a.visited)) continue;     // a place not opened yet shows nothing of itself
+        std::map<int, std::vector<std::string> >::const_iterator w = f.whoByLevel.find(lv);
+        if (w != f.whoByLevel.end()) { a.who = w->second; if (a.who.size() > 4) a.who.resize(4); }
+        std::map<int, CompanionFeedState::HelpLv>::const_iterator hl = f.helpLv.find(lv);
+        if (hl != f.helpLv.end()) { a.goal = hl->second.goal; a.hint = hl->second.hint; }
+        std::map<std::string, std::string>::const_iterator pp = f.picPath.find(a.target);
+        if (pp != f.picPath.end()) a.pic = pp->second;
+        else if (hud && writes == 0 && !f.picTried.count(a.target)) {
+            f.picTried.insert(a.target); ++writes;
+            char n[32], fn[48];
+            snprintf(n, sizeof n, "c%dl%ds%d", c, lv, sn);
+            snprintf(fn, sizeof fn, "place_%s.png", a.target.c_str());
+            if (hud->ensureScenePicture(n, 160, 120, fn)) { f.picPath[a.target] = hud->iconDir() + "/" + fn; a.pic = f.picPath[a.target]; }
+        }
+    }
+    unsigned cur = g->state().sceneId;                             // the rooms of the place the player is in (not the map hub / intro)
+    int curLv = (int)((cur >> 8) & 0xf), curSc = (int)((cur >> 16) & 0xf);
+    if (curLv >= 2 && (int)(cur & 0xf) == ch) {
+        s->rooms = companionRoomsOf(g, ch, curLv);
+        if (s->rooms.size() < 2) s->rooms.clear();                 // a single room has nothing to lay out
+        for (size_t i = 0; i < s->rooms.size(); ++i) {
+            int c, l, sn;
+            s->rooms[i].here = companionRefParts(s->rooms[i].scene, &c, &l, &sn) && sn == curSc;
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------------------------------- talk page
@@ -430,6 +580,7 @@ inline void companionTick(sbgame::Game* g, float /*dtMs*/)
         sbgame::DialogueUI* d = sc->dialogue();
         companionRecordTalk(g, d);
         companionMapAreas(g, &s.map);
+        companionMapDecorate(g, &s);
         s.mapBusy = companionBusy(g);
         companionGoals(g, &s);
         s.combineSerial = f.combineSerial; s.combineOk = f.combineOk; s.combineText = f.combineText;

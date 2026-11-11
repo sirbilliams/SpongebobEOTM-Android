@@ -1,6 +1,7 @@
 /*  port: the dual-screen companion snapshot and command queue.  See Companion.h and docs/companion.md.
     SB_COMPANION_DUMP=<file> (desktop): enables it and writes every snapshot to that file.  */
 #include "Companion.h"
+#include "CompanionMap.h"
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,29 +28,8 @@ double nowSec()
     return ts.tv_sec + ts.tv_nsec * 1e-9;
 }
 
-void esc(std::string& out, const std::string& s)
-{
-    out += '"';
-    for (size_t i = 0; i < s.size(); ++i) {
-        unsigned char ch = (unsigned char)s[i];
-        if (ch == '"' || ch == '\\') { out += '\\'; out += (char)ch; }
-        else if (ch == '\n') out += "\\n";
-        else if (ch == '\t') out += ' ';
-        else if (ch < 0x20) out += ' ';
-        else if (ch == 0x91 || ch == 0x92) out += '\'';        // Windows-1252 curly quotes
-        else if (ch == 0x93 || ch == 0x94) out += "\\\"";
-        else if (ch >= 0x80) out += '?';       // the game's text is Latin-1 (not valid UTF-8): keep the JSON clean
-        else out += (char)ch;
-    }
-    out += '"';
-}
-
-void arr(std::string& out, const std::vector<std::string>& v)
-{
-    out += '[';
-    for (size_t i = 0; i < v.size(); ++i) { if (i) out += ','; esc(out, v[i]); }
-    out += ']';
-}
+using cj::esc;
+using cj::arr;
 
 void checkEnv()
 {
@@ -82,11 +62,14 @@ std::string CompanionJsonOf(const CompanionState& s)
             if (i) o += ',';
             o += "{\"n\":"; esc(o, m.name);
             o += ",\"c\":"; esc(o, m.target);
-            snprintf(b, sizeof b, ",\"x\":%d,\"y\":%d,\"w\":%d,\"h\":%d,\"ok\":%d,\"v\":%d,\"here\":%d}", m.x, m.y, m.w, m.h, m.ok ? 1 : 0, m.visited ? 1 : 0, m.here ? 1 : 0);
+            snprintf(b, sizeof b, ",\"x\":%d,\"y\":%d,\"w\":%d,\"h\":%d,\"ok\":%d,\"v\":%d,\"here\":%d", m.x, m.y, m.w, m.h, m.ok ? 1 : 0, m.visited ? 1 : 0, m.here ? 1 : 0);
             o += b;
+            companionAreaExtraJson(m, o);
+            o += '}';
         }
         o += s.mapBusy ? "],\"mapbusy\":1" : "],\"mapbusy\":0";
     }
+    companionMapExtraJson(s, o);
     if (!s.talk.empty()) {
         o += ",\"talk\":[";
         for (size_t i = 0; i < s.talk.size(); ++i) {
