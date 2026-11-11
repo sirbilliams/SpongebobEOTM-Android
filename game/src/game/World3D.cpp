@@ -437,6 +437,8 @@ bool World3D::gridWalk(Actor3D* a, float x, float z, int gx, int gz, bool run, b
         }
         std::reverse(route.begin(), route.end());
         // The exe walks through cell centres after route search.
+        // TODO(0x42c450): the exe then rounds the corners of the route (segments of 0x18 bytes, turning arcs via 0x42cc50 / 0x42cd70, path
+        // reversal and a blocked-cell test via 0x42c920); that x87 code is not reconstructed, so the port walks straight cell-centre legs
         if (route.empty()) return false;
     } else {
         if (gx >= 0 && gz >= 0) { if (!g) return false; gridPoint(*g,(float)gx,(float)gz,x,z); }
@@ -1005,18 +1007,36 @@ void World3D::updateIdle(Actor3D* a, float dtMs)
         }
         return;
     }
-    // no idle script (0x42f255): the random fidget
+    // no idle script (0x42f1a0, the 0x42f255 / 0x42f282 block): the random fidget.  The timer runs while the current animation is
+    // idle1 (two or more idleN exist) or idlet1 (two or more idletN exist); 0x431af0 counts the consecutive idleN / idletN (N = 1..5).
     static const char* const names[5] = { "idle1", "idle2", "idle3", "idle4", "idle5" };
-    int n = 0;
+    static const char* const tnames[5] = { "idlet1", "idlet2", "idlet3", "idlet4", "idlet5" };
+    int n = 0, nt = 0;
     while (n < 5 && exists(a, names[n])) ++n;
-    if (n >= 2 && !a->walking && !a->rotating && strcasecmp(a->anim.c_str(), "idle1") == 0) {
+    while (nt < 5 && exists(a, tnames[nt])) ++nt;
+    bool onIdle = n >= 2 && strcasecmp(a->anim.c_str(), "idle1") == 0;
+    bool onIdlet = nt >= 2 && strcasecmp(a->anim.c_str(), "idlet1") == 0;
+    if ((onIdle || onIdlet) && !a->walking && !a->rotating) {
         a->fidgetAcc += dtMs * 0.001f;
         if (a->fidgetAcc > a->fidgetNext) {
             a->fidgetAcc = 0;
             a->fidgetNext = (float)(7 + rand() % 8);
-            const char* pick = (n < 3 || rand() % 3 != 1) ? "idle2" : "idle3";
-            setAnim(a, pick, 1, 1.0f, Actor3D::OneShot);
-            game_->log("fidget %s: %s\n", a->name.c_str(), pick);
+            if (onIdle) {
+                const char* pick = (n < 3 || rand() % 3 != 1) ? "idle2" : "idle3";
+                setAnim(a, pick, 1, 1.0f, Actor3D::OneShot);
+                game_->log("fidget %s: %s\n", a->name.c_str(), pick);
+            } else {
+                // 0x42f1a0, the idlet branch: idlet2, or idlet3 one time in five when three exist
+                const char* pick = (rand() % 5 != 1 || nt < 3) ? "idlet2" : "idlet3";
+                DialogueUI* d = scene_->dialogue();
+                if (d && d->busy()) {
+                    // TODO(0x42f1a0): with a dialogue running the exe calls char vt+0xc0("talk", "idlet3") instead of the plain
+                    // animation; that slot is not reconstructed, so the fidget waits until the dialogue ends
+                    return;
+                }
+                setAnim(a, pick, 1, 1.0f, Actor3D::OneShot);
+                game_->log("fidget %s: %s\n", a->name.c_str(), pick);
+            }
         }
     }
 }
