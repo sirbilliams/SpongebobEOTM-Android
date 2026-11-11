@@ -90,7 +90,12 @@ void OMedia3DGLRasterizer::rasterize(OMedia3DTranslatedPolygon *p)
 	if (p->alpha < 0.999f)
 	{
 		glEnable(GL_BLEND);
-		glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		// OMT.dll OMediaDXRasterizer device setup (0x1005cfa4): SRCBLEND = D3DBLEND_DESTCOLOR (9), DESTBLEND = D3DBLEND_ZERO (1),
+		// and rasterize (0x10059a40) turns ALPHABLENDENABLE (27) on for a material whose alpha is not 1: a blended polygon is
+		// MULTIPLIED into the picture (texture * vertex colour * what is behind), the alpha value itself is not a factor.  The
+		// characters' shadow (a white-edged black disc, alpha 0.47) therefore darkens the floor and leaves its white rim invisible;
+		// straight alpha blending painted the rim as a pale blob (worst over Ray's blue towel in c1l5s7).
+		glBlendFunc(GL_DST_COLOR, GL_ZERO);
 		glDepthMask(GL_FALSE);
 	}
 	else
