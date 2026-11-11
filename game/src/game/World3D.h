@@ -89,6 +89,7 @@ public:
     OMediaViewPort* vpOf(Actor3D* a) { return a && a->layer ? a->layer->vp : vp_; }
 
     void update(float dtMs);                     // Granny clock, walks / rotations, poses, the 3D world render
+    void linkInObjectOrder();                    // 0x42a310: one pass over the scene's object list links every element (2D and 3D layers) in list order
     void enter(int startPoint);                  // 0x437cf0: the player goes to the scene's start point
 
     Actor3D* actorFor(SceneObject* o);

@@ -383,6 +383,7 @@ void Game::doSwitch()       // DoSwitch 0x40b720 (the part that matters without 
     scene_ = s;
     w3_ = new World3D(this, s);                 // 0x4033f0: the scene's 3D world and characters
     if (!w3_->ok() || getenv("SB_NO3D")) { delete w3_; w3_ = 0; }
+    else w3_->linkInObjectOrder();               // 0x42a310
     int prevChapter = state_.chapter;           // the chapter test compares with the chapter we come from
     state_.chapter = chapter;
     loadSceneBanks(id, prevChapter);
