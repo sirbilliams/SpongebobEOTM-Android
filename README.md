@@ -11,8 +11,8 @@ Not affiliated with or endorsed by THQ, AWE Games, Nickelodeon or the rights hol
 
 ## Status
 
-**Status: about 88%.**
-- Chapters 1-4 play through on desktop.
+**Status: v1.0, the first official release.** Tested on the AYN Thor (dual screen, ~60 fps).
+- Chapters 1-4 play through on desktop and on the Thor.
 - Music rebuilt from source.
 - New launcher with save export/import functionality.
 - Bottom-screen companion handles Map, Talk, and Goals.
@@ -59,9 +59,9 @@ Captured from the current build at 1920x1080 (gameplay and launcher) and 1240x10
 
 ## Installing
 
-1. Download `SpongeBob-EOTM.apk` from the **latest** pre-release on the
-   [Releases page](https://github.com/sirbilliams/SpongebobEOTM-Android/releases/tag/latest). It is rebuilt
-   on every push to `main`.
+1. Download `SpongeBob-EOTM.apk` from the newest version release (currently
+   [v1.0](https://github.com/sirbilliams/SpongebobEOTM-Android/releases/tag/v1.0)). The **latest**
+   pre-release is a development build, rebuilt on every push to `main`.
 2. Install it on your Android device.
 3. Start the app and import your own disc image (`.iso`) of the game when it asks. The app does not
    download or include the game.
