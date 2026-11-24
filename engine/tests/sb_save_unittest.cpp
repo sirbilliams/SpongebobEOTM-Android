@@ -5,6 +5,10 @@
 #include <cstdlib>
 #include <unistd.h>
 
+// The linked graphics library expects this app callback; these tests never render.
+struct SDL_Window;
+void omf_SDLFrameHook(SDL_Window*) {}
+
 struct VisibilityCondition {
     sbgame::GameState& progress;
     explicit VisibilityCondition(sbgame::GameState& p) : progress(p) {}
