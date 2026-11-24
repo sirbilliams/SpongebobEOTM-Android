@@ -215,7 +215,7 @@ else()
   add_executable(sb_scripttest tests/sb_scripttest.cpp ../game/src/script/Sb2File.cpp ../game/src/script/ScriptRunner.cpp ../game/src/script/ScriptCondition.cpp ../game/src/script/ScriptHostLog.cpp ../game/src/script/Dialogue.cpp)
   target_compile_options(sb_scripttest PRIVATE -Wall -fsigned-char)
   # Pure-logic unit tests, no game files needed (tools/test/smoke.sh and CI run it)
-  add_executable(sb_unittest tests/sb_unittest.cpp ../game/src/game/WalkRoute.cpp ../game/src/scene/SceneData.cpp ../game/src/scene/SceneReader.cpp ../game/src/script/Sb2File.cpp ../game/src/script/ScriptRunner.cpp ../game/src/script/ScriptCondition.cpp ../game/src/script/ScriptHostLog.cpp ../game/src/script/Dialogue.cpp)
+  add_executable(sb_unittest tests/sb_unittest.cpp ../game/src/game/GameState.cpp ../game/src/game/WalkRoute.cpp ../game/src/scene/SceneData.cpp ../game/src/scene/SceneReader.cpp ../game/src/script/Sb2File.cpp ../game/src/script/ScriptRunner.cpp ../game/src/script/ScriptCondition.cpp ../game/src/script/ScriptHostLog.cpp ../game/src/script/Dialogue.cpp)
   target_compile_options(sb_unittest PRIVATE -Wall -fsigned-char)
 
   # The 2D scene runtime (game/src/game: scene, dialogue UI, ScriptHost) on the OMT 1.x layer, headless

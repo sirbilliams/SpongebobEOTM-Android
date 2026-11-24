@@ -19,6 +19,8 @@ using namespace sbscript;
 static int g_fail = 0, g_run = 0;
 #include "../../game/src/game/BankPolicy.h"
 #include "../../game/src/game/Depth.h"
+#include "../../game/src/game/GameState.h"
+#include "../../game/src/game/ItemVisibility.h"
 #define CHECK(c) do { ++g_run; if (!(c)) { ++g_fail; printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); } } while (0)
 
 static bool near(double a, double b) { return std::fabs(a-b) < 1e-8; }
@@ -298,6 +300,26 @@ int main()
     CHECK(!sbgame::objectCoversActor(false, 500.0f, -100.0f));      // a hole (positive pz) lies behind the characters
     CHECK(sbgame::objectCoversActor(true, 0.0f, -5000.0f));         // Post Render: always on top
 
+    // Scene entry and script visibility refresh must respect saved collection
+    // history, even after the item has left the HUD inventory.
+    {
+        sbgame::GameState progress;
+        CHECK(!sbgame::actorHidden(true, "ikp4", "", false, progress));
+        CHECK(!sbgame::actorHidden(true, "ikp4", "0", false, progress));
+        CHECK(sbgame::actorHidden(true, "ikp4", "zero", false, progress));
+        progress.giveItem("IKP4");
+        CHECK(sbgame::actorHidden(true, "ikp4", "", false, progress)); // re-enter
+        CHECK(sbgame::actorHidden(true, "ikp4", "0", false, progress)); // true condition
+        CHECK(sbgame::actorHidden(true, "ikp4", "zero", false, progress));
+        progress.bar().clear(); // consumed/combined items remain in collection history
+        CHECK(sbgame::actorHidden(true, "ikp4", "", false, progress));
+        CHECK(!sbgame::actorHidden(true, "ikp1", "", false, progress));
+        CHECK(!sbgame::actorHidden(false, "ikp4", "0", true, progress)); // scenery/character/script pickup
+        CHECK(sbgame::actorHidden(false, "ikp4", "", true, progress)); // explicit hide
+        CHECK(!sbgame::actorHidden(false, "ikp4", "", false, progress));
+        progress.clearProgress(); // new game / loading a different save
+        CHECK(!sbgame::actorHidden(true, "ikp4", "", false, progress));
+    }
     mapChecks();
     printf("sb_unittest: %d checks, %d failed\n", g_run, g_fail);
     return g_fail ? 1 : 0;

@@ -1,5 +1,6 @@
 #include "World3D.h"
 #include "Depth.h"
+#include "ItemVisibility.h"
 #include "Kick.h" // lane d
 #include "Game.h"
 #include "SceneScriptHost.h"
@@ -989,8 +990,9 @@ void World3D::refreshVisibility()
     }
     for (size_t i = 0; i < actors_.size(); i++) {
         SceneObject* o = actors_[i]->obj;
-        if (o->visibleCond.empty()) continue;
-        setHidden(o, !game_->cond(o->visibleCond.c_str()));
+        bool inventoryPickup = o->kind == SceneObject::Item && o->pickup && o->addInv;
+        setHidden(o, actorHidden(inventoryPickup, o->art.c_str(), o->visibleCond.c_str(),
+                                 actors_[i]->elem->get_hide_count() != 0, game_->state()));
     }
 }
 

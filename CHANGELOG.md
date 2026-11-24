@@ -1,3 +1,7 @@
+## v1.0.1
+
+- Keep collected inventory pickups hidden when revisiting a scene, including after using or combining them. Existing save progress is reused.
+
 # Changelog
 
 ## v1.0
