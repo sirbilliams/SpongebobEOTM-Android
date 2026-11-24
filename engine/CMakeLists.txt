@@ -217,6 +217,9 @@ else()
   # Pure-logic unit tests, no game files needed (tools/test/smoke.sh and CI run it)
   add_executable(sb_unittest tests/sb_unittest.cpp ../game/src/game/GameState.cpp ../game/src/game/WalkRoute.cpp ../game/src/scene/SceneData.cpp ../game/src/scene/SceneReader.cpp ../game/src/script/Sb2File.cpp ../game/src/script/ScriptRunner.cpp ../game/src/script/ScriptCondition.cpp ../game/src/script/ScriptHostLog.cpp ../game/src/script/Dialogue.cpp)
   target_compile_options(sb_unittest PRIVATE -Wall -fsigned-char)
+  add_executable(sb_save_unittest tests/sb_save_unittest.cpp ../game/src/game/SaveGame.cpp
+    ../game/src/game/GameState.cpp ../game/src/script/ScriptCondition.cpp ../game/src/script/Sb2File.cpp)
+  target_link_libraries(sb_save_unittest omt1)
 
   # The 2D scene runtime (game/src/game: scene, dialogue UI, ScriptHost) on the OMT 1.x layer, headless
   file(GLOB SB_GAME_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../game/src/game/*.cpp)

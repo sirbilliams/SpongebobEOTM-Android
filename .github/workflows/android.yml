@@ -120,4 +120,6 @@ jobs:
       # Game-file-free checks only (the game's files are never in the repo): pure-logic unit tests.
       # The full smoke test (tools/test/smoke.sh, docs/testing.md) needs the installed game and runs locally.
       - name: Unit tests (no game files)
-        run: build/sb_unittest
+        run: |
+          build/sb_unittest
+          build/sb_save_unittest

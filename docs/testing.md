@@ -50,3 +50,27 @@ schedule start after a scene has entered, its transition bars are open, and its 
 drawn. Startup/loading buffer flips cannot exhaust the screenshot budget before the clicks run.
 The dialogue step also requires the `test: scene c1l5s4 ready` marker, in addition to the original
 Larry event, dialogue AAA and line AZA assertions. The external per-run timeout still bounds startup.
+
+## Collected-item regression (issue #2)
+
+`sb_unittest` covers scene visibility with collected/uncollected inventory pickups,
+empty/true/false authored conditions, case-insensitive progress names, an empty
+inventory bar after consumption, new-game reset, and unchanged non-pickup behavior.
+`sb_save_unittest` needs no game assets: it verifies the existing save format round
+trip and a collected item restored from disk with an empty inventory bar.
+
+Before releasing, use the Android launcher and a legally installed game:
+
+1. Export existing saves in the launcher, then install the candidate APK over v1.0
+   without uninstalling. Confirm the launcher still finds the game and saves.
+2. Play / Resume. Collect the Dirty Plate (`ikp4`) in the Krusty Krab dining room
+   (`c1l2s1`). Walk to Other Side and back to Hungry Customer. Check the plate is
+   absent both visually and from REVEAL/click targets, and exists only once in Pocket.
+3. Save and reload, then quit/relaunch and Resume: the plate stays absent.
+4. Use it on the Sink; revisit the dining room. It must remain absent after use.
+   Repeat with Plain Patty and Fixin's after combining them.
+5. Load a pre-pickup save or start a new game: uncollected items must be available.
+   Check a script-controlled item and the playerless oxygen-tank scene (`c3l6s3`).
+
+The issue report names no item, scene, or save. Unit/save tests establish the code
+path, but do not replace this gameplay check or prove every item is affected.
