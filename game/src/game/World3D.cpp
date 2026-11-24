@@ -992,7 +992,8 @@ void World3D::refreshVisibility()
         SceneObject* o = actors_[i]->obj;
         bool inventoryPickup = o->kind == SceneObject::Item && o->pickup && o->addInv;
         setHidden(o, actorHidden(inventoryPickup, o->art.c_str(), o->visibleCond.c_str(),
-                                 actors_[i]->elem->get_hide_count() != 0, game_->state()));
+                                 actors_[i]->elem->get_hide_count() != 0, game_->state(),
+                                 [this](const char* c) { return game_->cond(c); }));
     }
 }
 

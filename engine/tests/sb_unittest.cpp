@@ -304,21 +304,22 @@ int main()
     // history, even after the item has left the HUD inventory.
     {
         sbgame::GameState progress;
-        CHECK(!sbgame::actorHidden(true, "ikp4", "", false, progress));
-        CHECK(!sbgame::actorHidden(true, "ikp4", "0", false, progress));
-        CHECK(sbgame::actorHidden(true, "ikp4", "zero", false, progress));
+        auto evaluate = [&progress](const char* c) { return sbscript::evalCondition(c, false, progress); };
+        CHECK(!sbgame::actorHidden(true, "ikp4", "", false, progress, evaluate));
+        CHECK(!sbgame::actorHidden(true, "ikp4", "0", false, progress, evaluate));
+        CHECK(sbgame::actorHidden(true, "ikp4", "zero", false, progress, evaluate));
         progress.giveItem("IKP4");
-        CHECK(sbgame::actorHidden(true, "ikp4", "", false, progress)); // re-enter
-        CHECK(sbgame::actorHidden(true, "ikp4", "0", false, progress)); // true condition
-        CHECK(sbgame::actorHidden(true, "ikp4", "zero", false, progress));
+        CHECK(sbgame::actorHidden(true, "ikp4", "", false, progress, evaluate)); // re-enter
+        CHECK(sbgame::actorHidden(true, "ikp4", "0", false, progress, evaluate)); // true condition
+        CHECK(sbgame::actorHidden(true, "ikp4", "zero", false, progress, evaluate));
         progress.bar().clear(); // consumed/combined items remain in collection history
-        CHECK(sbgame::actorHidden(true, "ikp4", "", false, progress));
-        CHECK(!sbgame::actorHidden(true, "ikp1", "", false, progress));
-        CHECK(!sbgame::actorHidden(false, "ikp4", "0", true, progress)); // scenery/character/script pickup
-        CHECK(sbgame::actorHidden(false, "ikp4", "", true, progress)); // explicit hide
-        CHECK(!sbgame::actorHidden(false, "ikp4", "", false, progress));
+        CHECK(sbgame::actorHidden(true, "ikp4", "", false, progress, evaluate));
+        CHECK(!sbgame::actorHidden(true, "ikp1", "", false, progress, evaluate));
+        CHECK(!sbgame::actorHidden(false, "ikp4", "0", true, progress, evaluate)); // scenery/character/script pickup
+        CHECK(sbgame::actorHidden(false, "ikp4", "", true, progress, evaluate)); // explicit hide
+        CHECK(!sbgame::actorHidden(false, "ikp4", "", false, progress, evaluate));
         progress.clearProgress(); // new game / loading a different save
-        CHECK(!sbgame::actorHidden(true, "ikp4", "", false, progress));
+        CHECK(!sbgame::actorHidden(true, "ikp4", "", false, progress, evaluate));
     }
     mapChecks();
     printf("sb_unittest: %d checks, %d failed\n", g_run, g_fail);
