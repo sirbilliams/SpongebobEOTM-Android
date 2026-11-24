@@ -5,6 +5,12 @@
 #include <cstdlib>
 #include <unistd.h>
 
+struct VisibilityCondition {
+    sbgame::GameState& progress;
+    explicit VisibilityCondition(sbgame::GameState& p) : progress(p) {}
+    bool operator()(const char* c) const { return sbscript::evalCondition(c, false, progress); }
+};
+
 int main()
 {
     using namespace sbgame;
@@ -23,7 +29,7 @@ int main()
         GameState restored;
         SaveGame::apply(loaded, restored);
         ok = restored.bar().empty() && actorHidden(true, "IKP4", "", false, restored,
-             [&restored](const char* c) { return sbscript::evalCondition(c, false, restored); });
+             VisibilityCondition(restored));
     }
     if (!ok) ++failures;
     std::remove(path.c_str());

@@ -23,6 +23,12 @@ static int g_fail = 0, g_run = 0;
 #include "../../game/src/game/ItemVisibility.h"
 #define CHECK(c) do { ++g_run; if (!(c)) { ++g_fail; printf("FAIL %s:%d: %s\n", __FILE__, __LINE__, #c); } } while (0)
 
+struct VisibilityCondition {
+    sbgame::GameState& progress;
+    explicit VisibilityCondition(sbgame::GameState& p) : progress(p) {}
+    bool operator()(const char* c) const { return sbscript::evalCondition(c, false, progress); }
+};
+
 static bool near(double a, double b) { return std::fabs(a-b) < 1e-8; }
 static void walkChecks()
 {
@@ -304,7 +310,7 @@ int main()
     // history, even after the item has left the HUD inventory.
     {
         sbgame::GameState progress;
-        auto evaluate = [&progress](const char* c) { return sbscript::evalCondition(c, false, progress); };
+        VisibilityCondition evaluate(progress);
         CHECK(!sbgame::actorHidden(true, "ikp4", "", false, progress, evaluate));
         CHECK(!sbgame::actorHidden(true, "ikp4", "0", false, progress, evaluate));
         CHECK(sbgame::actorHidden(true, "ikp4", "zero", false, progress, evaluate));
